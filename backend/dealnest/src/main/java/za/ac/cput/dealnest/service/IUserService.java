@@ -1,0 +1,13 @@
+package za.ac.cput.dealnest.service;
+
+import za.ac.cput.dealnest.domain.Store;
+import za.ac.cput.dealnest.domain.User;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface IUserService {
+    Optional<User> findByEmail(String email);
+    boolean existsByEmail(String email);
+    boolean delete(String id);
+}
