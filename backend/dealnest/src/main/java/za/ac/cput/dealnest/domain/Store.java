@@ -5,13 +5,12 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Objects;
-import java.util.UUID;
 
 @Entity
 public class Store {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID storeId;
+    private String storeId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "categoryId", nullable = false)
@@ -58,7 +57,7 @@ public class Store {
     protected Store() {
     }
 
-    public UUID getStoreId() {
+    public String getStoreId() {
         return storeId;
     }
 
@@ -167,7 +166,7 @@ public class Store {
     }
 
     public static class Builder{
-        private UUID storeId;
+        private String storeId;
         private StoreCategory category;
         private String storeName;
         private String description;
@@ -186,7 +185,7 @@ public class Store {
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
 
-        public Builder setStoreId(UUID storeId) {
+        public Builder setStoreId(String storeId) {
             this.storeId = storeId;
             return this;
         }
