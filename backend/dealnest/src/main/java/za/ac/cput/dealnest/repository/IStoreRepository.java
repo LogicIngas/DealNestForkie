@@ -2,6 +2,7 @@ package za.ac.cput.dealnest.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import za.ac.cput.dealnest.domain.Store;
+import za.ac.cput.dealnest.domain.StoreCategory;
 
 import java.util.List;
 import java.util.Optional;

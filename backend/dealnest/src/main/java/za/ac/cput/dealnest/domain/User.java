@@ -3,6 +3,8 @@ package za.ac.cput.dealnest.domain;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 @Entity
@@ -25,6 +27,24 @@ public class User {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Store> stores = new ArrayList<>();
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Location location;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SavedPromotion> savedPromotions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FavoriteStore> favoriteStores = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<SearchHistory> searchHistories = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Notification> notifications = new ArrayList<>();
+
     protected User() {
     }
 
@@ -40,6 +60,12 @@ public class User {
         this.isActive = builder.isActive;
         this.createdAt = builder.createdAt;
         this.updatedAt = builder.updatedAt;
+        this.stores = builder.stores;
+        this.location = builder.location;
+        this.savedPromotions = builder.savedPromotions;
+        this.favoriteStores = builder.favoriteStores;
+        this.searchHistories = builder.searchHistories;
+        this.notifications = builder.notifications;
     }
 
     public String getUserID() {
@@ -86,6 +112,30 @@ public class User {
         return updatedAt;
     }
 
+    public List<Store> getStores() {
+        return stores;
+    }
+
+    public Location getLocation() {
+        return location;
+    }
+
+    public List<SavedPromotion> getSavedPromotions() {
+        return savedPromotions;
+    }
+
+    public List<FavoriteStore> getFavoriteStores() {
+        return favoriteStores;
+    }
+
+    public List<SearchHistory> getSearchHistories() {
+        return searchHistories;
+    }
+
+    public List<Notification> getNotifications() {
+        return notifications;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
@@ -127,6 +177,12 @@ public class User {
         private boolean isActive;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
+        private List<Store> stores = new ArrayList<>();
+        private Location location;
+        private List<SavedPromotion> savedPromotions = new ArrayList<>();
+        private List<FavoriteStore> favoriteStores = new ArrayList<>();
+        private List<SearchHistory> searchHistories = new ArrayList<>();
+        private List<Notification> notifications = new ArrayList<>();
 
         public Builder setUserID(String userID) {
             this.userID = userID;
@@ -183,6 +239,36 @@ public class User {
             return this;
         }
 
+        public Builder setStores(List<Store> stores) {
+            this.stores = stores;
+            return this;
+        }
+
+        public Builder setLocation(Location location) {
+            this.location = location;
+            return this;
+        }
+
+        public Builder setSavedPromotions(List<SavedPromotion> savedPromotions) {
+            this.savedPromotions = savedPromotions;
+            return this;
+        }
+
+        public Builder setFavoriteStores(List<FavoriteStore> favoriteStores) {
+            this.favoriteStores = favoriteStores;
+            return this;
+        }
+
+        public Builder setSearchHistories(List<SearchHistory> searchHistories) {
+            this.searchHistories = searchHistories;
+            return this;
+        }
+
+        public Builder setNotifications(List<Notification> notifications) {
+            this.notifications = notifications;
+            return this;
+        }
+
         public Builder copy(User user) {
             this.userID = user.userID;
             this.email = user.email;
@@ -195,6 +281,12 @@ public class User {
             this.isActive = user.isActive;
             this.createdAt = user.createdAt;
             this.updatedAt = user.updatedAt;
+            this.stores = user.stores;
+            this.location = user.location;
+            this.savedPromotions = user.savedPromotions;
+            this.favoriteStores = user.favoriteStores;
+            this.searchHistories = user.searchHistories;
+            this.notifications = user.notifications;
             return this;
         }
 

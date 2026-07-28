@@ -4,16 +4,19 @@ import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 @Entity
+@Table(name = "stores")
 public class Store {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String storeId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "categoryId", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", nullable = false)
     private StoreCategory category;
 
     private String storeName;
@@ -32,6 +35,19 @@ public class Store {
     private int totalReviews;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @OneToMany(mappedBy = "store", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Promotion> promotions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "store", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Review> reviews = new ArrayList<>();
+
+    @OneToMany(mappedBy = "store", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FavoriteStore> favoriteStores = new ArrayList<>();
 
     public Store(Builder builder) {
         this.storeId = builder.storeId;
@@ -52,9 +68,34 @@ public class Store {
         this.totalReviews = builder.totalReviews;
         this.createdAt = builder.createdAt;
         this.updatedAt = builder.updatedAt;
+        this.user = builder.user;
+        this.promotions = builder.promotions;
+        this.reviews = builder.reviews;
+        this.favoriteStores = builder.favoriteStores;
     }
 
     protected Store() {
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (updatedAt == null) {
+            updatedAt = createdAt;
+        }
+        if (isVerified == null) {
+            isVerified = false;
+        }
+        if (isActive == null) {
+            isActive = true;
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 
     public String getStoreId() {
@@ -129,6 +170,22 @@ public class Store {
         return updatedAt;
     }
 
+    public User getUser() {
+        return user;
+    }
+
+    public List<Promotion> getPromotions() {
+        return promotions;
+    }
+
+    public List<Review> getReviews() {
+        return reviews;
+    }
+
+    public List<FavoriteStore> getFavoriteStores() {
+        return favoriteStores;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
@@ -184,6 +241,10 @@ public class Store {
         private int totalReviews;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
+        private User user;
+        private List<Promotion> promotions = new ArrayList<>();
+        private List<Review> reviews = new ArrayList<>();
+        private List<FavoriteStore> favoriteStores = new ArrayList<>();
 
         public Builder setStoreId(String storeId) {
             this.storeId = storeId;
@@ -275,6 +336,26 @@ public class Store {
             return this;
         }
 
+        public Builder setUser(User user) {
+            this.user = user;
+            return this;
+        }
+
+        public Builder setPromotions(List<Promotion> promotions) {
+            this.promotions = promotions;
+            return this;
+        }
+
+        public Builder setReviews(List<Review> reviews) {
+            this.reviews = reviews;
+            return this;
+        }
+
+        public Builder setFavoriteStores(List<FavoriteStore> favoriteStores) {
+            this.favoriteStores = favoriteStores;
+            return this;
+        }
+
         public Builder copy(Store store) {
             this.storeId = store.storeId;
             this.category = store.category;
@@ -294,6 +375,10 @@ public class Store {
             this.totalReviews = store.totalReviews;
             this.createdAt = store.createdAt;
             this.updatedAt = store.updatedAt;
+            this.user = store.user;
+            this.promotions = store.promotions;
+            this.reviews = store.reviews;
+            this.favoriteStores = store.favoriteStores;
             return this;
         }
 

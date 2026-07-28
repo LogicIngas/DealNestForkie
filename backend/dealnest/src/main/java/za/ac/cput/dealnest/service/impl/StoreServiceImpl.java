@@ -2,6 +2,7 @@ package za.ac.cput.dealnest.service.impl;
 
 import org.springframework.stereotype.Service;
 import za.ac.cput.dealnest.domain.Store;
+import za.ac.cput.dealnest.domain.StoreCategory;
 import za.ac.cput.dealnest.repository.IStoreRepository;
 import za.ac.cput.dealnest.service.IStoreService;
 
@@ -54,8 +55,7 @@ public class StoreServiceImpl implements IStoreService {
         List<Store> result = new ArrayList<>();
 
         for (Store store : repository.findAll()){
-            if (store.getCategory() != null &&
-                    store.getCategory().equalsIgnoreCase(store)){
+            if (store.getCategory() != null && store.getCategory().equals(category)){
                 result.add(store);
             }
         }
@@ -86,7 +86,7 @@ public class StoreServiceImpl implements IStoreService {
 
         for (Store store : repository.findAll()){
             if (store.getStoreName() != null &&
-                    store.getStoreName().equalsIgnoreCase(storeName)){
+                    store.getStoreName().toLowerCase().contains(storeName.toLowerCase())){
                 result.add(store);
             }
         }
