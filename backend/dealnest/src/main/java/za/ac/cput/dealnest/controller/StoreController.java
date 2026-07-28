@@ -1,6 +1,7 @@
 package za.ac.cput.dealnest.controller;
 
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.service.IStoreService;
@@ -9,22 +10,14 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/stores")
+@CrossOrigin(origins = "http://localhost:3000") // Enable React frontend access and communication
 public class StoreController {
+    
     private final IStoreService storeService;
 
+    @Autowired
     public StoreController(IStoreService storeService) {
         this.storeService = storeService;
-    }
-
-    @GetMapping
-    public List<Store> getAllStores() {
-        return storeService.getAll();
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<Store> getStoreById(@PathVariable String id) {
-        Store store = storeService.read(id);
-        return store != null ? ResponseEntity.ok(store) : ResponseEntity.notFound().build();
     }
 
     @PostMapping
@@ -32,17 +25,24 @@ public class StoreController {
         return storeService.create(store);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Store> updateStore(@PathVariable String id, @RequestBody Store store) {
-        if (!id.equals(store.getStoreId())) {
-            return ResponseEntity.badRequest().build();
-        }
-        return ResponseEntity.ok(storeService.update(store));
+    @GetMapping("/{id}")
+    public Store getStoreById(@PathVariable String id) {
+        return storeService.read(id);
     }
 
+    @PutMapping("/{id}")
+    public Store updateStore(@PathVariable String id, @RequestBody Store store) {
+        return storeService.update(store);
+    }
+
+    
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteStore(@PathVariable String id) {
+    public void deleteStore(@PathVariable String id) {
         storeService.delete(id);
-        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping
+    public List<Store> getAllStores() {
+        return storeService.getAll();
     }
 }
