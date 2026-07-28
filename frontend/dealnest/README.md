@@ -1,4 +1,14 @@
-# Getting Started with Create React App
+# DealNest - Local Store Discovery Platform
+
+DealNest is a modern web application that helps users discover local stores, view promotions, and manage their favorite businesses in their area.
+
+## System Architecture
+
+### UML Diagram
+
+![DealNest UML Diagram](../../docs/screenshots/DealNestUML.JPEG)
+
+## Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
@@ -68,3 +78,5 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+

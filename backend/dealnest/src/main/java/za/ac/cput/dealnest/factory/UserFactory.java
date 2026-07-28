@@ -11,7 +11,8 @@ public class UserFactory {
                                   boolean isActive,LocalDateTime createdAt,LocalDateTime updatedAt){
 
         if(Helper.isNullOrEmpty(email) || Helper.isNullOrEmpty(password) ||
-           Helper.isNullOrEmpty(firstName) || Helper.isNullOrEmpty(lastName) || Helper.isNullOrEmpty(phoneNumber) || Helper.isValidEmail(email) || Helper.isValidName(firstName) ||
+           Helper.isNullOrEmpty(firstName) || Helper.isNullOrEmpty(lastName) || Helper.isNullOrEmpty(phoneNumber) ||
+           !Helper.isValidEmail(email) || !Helper.isValidName(firstName) ||
            !Helper.isValidName(lastName) || !Helper.isValidPhoneNumber(phoneNumber) || !Helper.isValidLatitude(latitude) ||
            !Helper.isValidLongitude(longitude)
         ){

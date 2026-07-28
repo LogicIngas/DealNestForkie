@@ -1,6 +1,7 @@
 package za.ac.cput.dealnest.service;
 
 import za.ac.cput.dealnest.domain.Store;
+import za.ac.cput.dealnest.domain.StoreCategory;
 
 import java.util.List;
 import java.util.Optional;
