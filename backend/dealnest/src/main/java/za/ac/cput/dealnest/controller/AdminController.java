@@ -4,14 +4,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import za.ac.cput.dealnest.domain.Admin;
 import za.ac.cput.dealnest.service.IAdminService;
-import za.ac.cput.dealnest.service.IUserService;
 
 import java.util.List;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/admin")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*")
 public class AdminController {
 
     private final IAdminService adminService;

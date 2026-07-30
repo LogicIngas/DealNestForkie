@@ -1,7 +1,6 @@
 package za.ac.cput.dealnest.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.service.IStoreService;
@@ -10,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/stores")
-@CrossOrigin(origins = "http://localhost:3000") // Enable React frontend access and communication
+@CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*")
 public class StoreController {
     
     private final IStoreService storeService;

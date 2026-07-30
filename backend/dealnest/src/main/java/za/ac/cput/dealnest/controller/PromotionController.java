@@ -4,14 +4,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import za.ac.cput.dealnest.domain.Promotion;
 import za.ac.cput.dealnest.service.IPromotionService;
-import za.ac.cput.dealnest.service.IReviewService;
 
 import java.util.List;
 
 
 @RestController
 @RequestMapping("/api/promotion")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*")
 public class PromotionController {
 
     private final IPromotionService promotionService;
