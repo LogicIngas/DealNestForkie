@@ -1,5 +1,7 @@
 package za.ac.cput.dealnest.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -28,6 +30,7 @@ public class Promotion {
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "promotion", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SavedPromotion> savedPromotions = new ArrayList<>();
 
@@ -100,6 +103,7 @@ public class Promotion {
         return endDate;
     }
 
+    @JsonProperty("isActive")
     public Boolean getActive() {
         return isActive;
     }
@@ -120,6 +124,55 @@ public class Promotion {
         return savedPromotions;
     }
 
+    public void setPromotionID(String promotionID) {
+        this.promotionID = promotionID;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setOriginalPrice(Double originalPrice) {
+        this.originalPrice = originalPrice;
+    }
+
+    public void setDiscountPrice(Double discountPrice) {
+        this.discountPrice = discountPrice;
+    }
+
+    public void setDiscountPercentage(Double discountPercentage) {
+        this.discountPercentage = discountPercentage;
+    }
+
+    public void setStartDate(LocalDateTime startDate) {
+        this.startDate = startDate;
+    }
+
+    public void setEndDate(LocalDateTime endDate) {
+        this.endDate = endDate;
+    }
+
+    @JsonProperty("isActive")
+    public void setActive(Boolean active) {
+        isActive = active;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public void setStore(Store store) {
+        this.store = store;
+    }
+
     public Double calculateDiscount() {
         if (originalPrice == null || discountPrice == null) {
             return 0.0;
@@ -128,7 +181,7 @@ public class Promotion {
     }
 
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(endDate);
+        return endDate != null && LocalDateTime.now().isAfter(endDate);
     }
 
     public void activate() {

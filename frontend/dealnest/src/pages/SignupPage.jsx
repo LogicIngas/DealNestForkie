@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, Phone, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Phone, User, ShoppingBag } from 'lucide-react';
 import { userService } from '../services/api';
 
 export default function SignupPage() {
@@ -33,7 +33,7 @@ export default function SignupPage() {
       alert('Account created successfully! Please log in.');
       navigate('/login');
     } catch (err) {
-      setError('Error creating account. Email may already be in use.');
+      setError(err.message || 'Error creating account. Email may already be in use.');
     } finally {
       setIsLoading(false);
     }
@@ -44,7 +44,7 @@ export default function SignupPage() {
       <div className="w-full max-w-md">
         <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden">
           <div className="bg-white px-8 pt-8 pb-4 text-center border-b border-gray-100">
-            <div className="text-5xl mb-2">🛍️</div>
+            <ShoppingBag className="mx-auto mb-2 text-teal-600" size={40} />
             <h1 className="text-3xl font-bold text-gray-800">DealNest</h1>
             <p className="text-gray-500 text-sm mt-1">Join the community of smart shoppers</p>
           </div>

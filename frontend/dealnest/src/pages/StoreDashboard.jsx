@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRightOnRectangleIcon, PlusCircleIcon, DocumentTextIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowRightOnRectangleIcon, PlusCircleIcon, DocumentTextIcon, XMarkIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 import { promotionService, storeService } from '../services/api';
 
 export default function StoreDashboard({ user, onLogout }) {
@@ -47,7 +47,7 @@ export default function StoreDashboard({ user, onLogout }) {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <span className="text-3xl">🏪</span>
+          <BuildingStorefrontIcon className="w-7 h-7 text-teal-600" />
           <h1 className="text-xl font-extrabold text-gray-800">DealNest Store</h1>
         </div>
         <button onClick={onLogout} className="p-2 text-gray-500 hover:text-red-500 transition">

@@ -54,6 +54,22 @@ public class SavedPromotion {
         return promotion;
     }
 
+    public void setSavedPromotionID(String savedPromotionID) {
+        this.savedPromotionID = savedPromotionID;
+    }
+
+    public void setSavedDate(LocalDateTime savedDate) {
+        this.savedDate = savedDate;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public void setPromotion(Promotion promotion) {
+        this.promotion = promotion;
+    }
+
     public void save() {
         this.savedDate = LocalDateTime.now();
     }

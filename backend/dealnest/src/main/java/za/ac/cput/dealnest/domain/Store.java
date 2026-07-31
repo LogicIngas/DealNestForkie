@@ -1,5 +1,6 @@
 package za.ac.cput.dealnest.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -40,12 +41,15 @@ public class Store {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Promotion> promotions = new ArrayList<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Review> reviews = new ArrayList<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FavoriteStore> favoriteStores = new ArrayList<>();
 
@@ -184,6 +188,82 @@ public class Store {
 
     public List<FavoriteStore> getFavoriteStores() {
         return favoriteStores;
+    }
+
+    public void setStoreId(String storeId) {
+        this.storeId = storeId;
+    }
+
+    public void setCategory(StoreCategory category) {
+        this.category = category;
+    }
+
+    public void setStoreName(String storeName) {
+        this.storeName = storeName;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
+    public void setOpeningTime(LocalTime openingTime) {
+        this.openingTime = openingTime;
+    }
+
+    public void setClosingTime(LocalTime closingTime) {
+        this.closingTime = closingTime;
+    }
+
+    public void setVerified(Boolean verified) {
+        isVerified = verified;
+    }
+
+    public void setActive(Boolean active) {
+        isActive = active;
+    }
+
+    public void setAverageRating(Double averageRating) {
+        this.averageRating = averageRating;
+    }
+
+    public void setTotalReviews(int totalReviews) {
+        this.totalReviews = totalReviews;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 
     @Override

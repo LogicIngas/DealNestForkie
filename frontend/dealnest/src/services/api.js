@@ -3,8 +3,16 @@ const API_BASE_URL = 'http://localhost:8080/api';
 // Helper to handle responses
 const handleResponse = async (response) => {
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(error || 'Something went wrong');
+    const text = await response.text();
+    try {
+      const parsed = JSON.parse(text);
+      throw new Error(parsed.message || parsed.error || text);
+    } catch (parseErr) {
+      if (parseErr instanceof SyntaxError) {
+        throw new Error(text || 'Something went wrong');
+      }
+      throw parseErr;
+    }
   }
   const contentType = response.headers.get("content-type");
   if (contentType && contentType.indexOf("application/json") !== -1) {
@@ -29,6 +37,14 @@ export const userService = {
   },
   getUserById: async (userId) => {
     const response = await fetch(`${API_BASE_URL}/user/read/${userId}`);
+    return handleResponse(response);
+  },
+  update: async (userId, userData) => {
+    const response = await fetch(`${API_BASE_URL}/user/update/${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData),
+    });
     return handleResponse(response);
   }
 };
@@ -74,6 +90,33 @@ export const favoriteService = {
   },
   remove: async (favoriteStoreId) => {
     const response = await fetch(`${API_BASE_URL}/favoriteStore/delete/${favoriteStoreId}`, {
+      method: 'DELETE',
+    });
+    return response.ok;
+  }
+};
+
+// 3b. SAVED PROMOTION CONTROLLER
+export const savedPromotionService = {
+  getByUser: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/savedPromotion/findByUserId/${userId}`);
+    if (!response.ok) return [];
+    return handleResponse(response);
+  },
+  add: async (userId, promotionId) => {
+    const payload = {
+        user: { userID: userId },
+        promotion: { promotionID: promotionId }
+    };
+    const response = await fetch(`${API_BASE_URL}/savedPromotion/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+  remove: async (savedPromotionId) => {
+    const response = await fetch(`${API_BASE_URL}/savedPromotion/delete/${savedPromotionId}`, {
       method: 'DELETE',
     });
     return response.ok;

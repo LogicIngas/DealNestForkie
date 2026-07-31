@@ -27,7 +27,7 @@ public class SavedPromotionController {
         return savedPromotionService.read(savedPromotionId);
     }
 
-    @PutMapping("/update/savedPromotionId")
+    @PutMapping("/update/{savedPromotionId}")
     public SavedPromotion update(@PathVariable String savedPromotionId,@RequestBody SavedPromotion savedPromotion) {
         return savedPromotionService.update(savedPromotion);
     }
@@ -47,7 +47,7 @@ public class SavedPromotionController {
         return savedPromotionService.findByPromotionId(promotionId);
     }
 
-    @DeleteMapping("/getall")
+    @GetMapping("/getall")
     public List<SavedPromotion> getAll() {
         return savedPromotionService.getAll();
     }
