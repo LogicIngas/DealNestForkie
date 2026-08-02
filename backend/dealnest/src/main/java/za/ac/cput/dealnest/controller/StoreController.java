@@ -1,6 +1,7 @@
 package za.ac.cput.dealnest.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.service.IStoreService;
@@ -27,6 +28,13 @@ public class StoreController {
     @GetMapping("/{id}")
     public Store getStoreById(@PathVariable String id) {
         return storeService.read(id);
+    }
+
+    @GetMapping("/findByUserId/{userId}")
+    public ResponseEntity<Store> findByUserId(@PathVariable String userId) {
+        return storeService.findByUserId(userId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}")

@@ -1,5 +1,6 @@
 package za.ac.cput.dealnest.domain;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -57,6 +58,7 @@ public class Admin {
         return email;
     }
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     public String getPasswordHash() {
         return passwordHash;
     }
@@ -71,6 +73,30 @@ public class Admin {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public void setAdminID(String adminID) {
+        this.adminID = adminID;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public void setActive(Boolean active) {
+        isActive = active;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     public void approveStore(String storeId) {

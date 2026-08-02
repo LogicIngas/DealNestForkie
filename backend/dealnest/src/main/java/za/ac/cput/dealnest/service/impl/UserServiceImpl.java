@@ -49,6 +49,11 @@ public class UserServiceImpl implements IUserService {
     }
 
     @Override
+    public Optional<User> login(String email, String password) {
+        return repository.findByEmailAndPassword(email, password);
+    }
+
+    @Override
     public List<User> getAll() {
         return repository.findAll();
     }

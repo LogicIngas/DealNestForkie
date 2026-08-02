@@ -31,8 +31,12 @@ export const userService = {
     });
     return handleResponse(response);
   },
-  login: async (email) => {
-    const response = await fetch(`${API_BASE_URL}/user/findByEmail/${email}`);
+  login: async (email, password) => {
+    const response = await fetch(`${API_BASE_URL}/user/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
     return handleResponse(response);
   },
   getUserById: async (userId) => {
@@ -45,6 +49,10 @@ export const userService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
     });
+    return handleResponse(response);
+  },
+  getAll: async () => {
+    const response = await fetch(`${API_BASE_URL}/user/getAll`);
     return handleResponse(response);
   }
 };
@@ -59,9 +67,22 @@ export const storeService = {
     const response = await fetch(`${API_BASE_URL}/stores/${id}`);
     return handleResponse(response);
   },
+  findByUserId: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/stores/findByUserId/${userId}`);
+    if (!response.ok) return null;
+    return handleResponse(response);
+  },
   create: async (storeData) => {
     const response = await fetch(`${API_BASE_URL}/stores`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(storeData),
+    });
+    return handleResponse(response);
+  },
+  update: async (storeId, storeData) => {
+    const response = await fetch(`${API_BASE_URL}/stores/${storeId}`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(storeData),
     });
@@ -73,6 +94,11 @@ export const storeService = {
 export const favoriteService = {
   getByUser: async (userId) => {
     const response = await fetch(`${API_BASE_URL}/favoriteStore/findByUserId/${userId}`);
+    if (!response.ok) return [];
+    return handleResponse(response);
+  },
+  getByStore: async (storeId) => {
+    const response = await fetch(`${API_BASE_URL}/favoriteStore/findByStoreId/${storeId}`);
     if (!response.ok) return [];
     return handleResponse(response);
   },
@@ -133,6 +159,11 @@ export const promotionService = {
     const response = await fetch(`${API_BASE_URL}/promotion/findByIsActiveTrue`);
     return handleResponse(response);
   },
+  getByStore: async (storeId) => {
+    const response = await fetch(`${API_BASE_URL}/promotion/findByStoreId/${storeId}`);
+    if (!response.ok) return [];
+    return handleResponse(response);
+  },
   create: async (promotionData) => {
     const response = await fetch(`${API_BASE_URL}/promotion/create`, {
       method: 'POST',
@@ -140,6 +171,20 @@ export const promotionService = {
       body: JSON.stringify(promotionData),
     });
     return handleResponse(response);
+  },
+  update: async (promotionId, promotionData) => {
+    const response = await fetch(`${API_BASE_URL}/promotion/update/${promotionId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(promotionData),
+    });
+    return handleResponse(response);
+  },
+  remove: async (promotionId) => {
+    const response = await fetch(`${API_BASE_URL}/promotion/delete/${promotionId}`, {
+      method: 'DELETE',
+    });
+    return response.ok;
   }
 };
 
@@ -147,6 +192,20 @@ export const promotionService = {
 export const notificationService = {
   getByUser: async (userId) => {
     const response = await fetch(`${API_BASE_URL}/notification/findByUserId/${userId}`);
+    return handleResponse(response);
+  }
+};
+
+// 6. ADMIN CONTROLLER
+export const adminService = {
+  login: async (email, password) => {
+    const response = await fetch(`${API_BASE_URL}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // The backend's Admin entity names its password field "passwordHash"; it hashes
+      // this raw value server-side before comparing/storing it.
+      body: JSON.stringify({ email, passwordHash: password }),
+    });
     return handleResponse(response);
   }
 };

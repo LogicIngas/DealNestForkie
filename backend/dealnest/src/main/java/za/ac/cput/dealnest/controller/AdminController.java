@@ -1,11 +1,14 @@
 package za.ac.cput.dealnest.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.ac.cput.dealnest.domain.Admin;
 import za.ac.cput.dealnest.service.IAdminService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -31,8 +34,16 @@ public class AdminController {
     }
 
     @PutMapping("/update/{adminId}")
-    public Admin update(@PathVariable String userId, @RequestBody Admin admin) {
+    public Admin update(@PathVariable String adminId, @RequestBody Admin admin) {
         return adminService.update(admin);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody Admin credentials) {
+        return adminService.login(credentials.getEmail(), credentials.getPasswordHash())
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Incorrect email or password.")));
     }
 
     @DeleteMapping("/delete/{adminId}")

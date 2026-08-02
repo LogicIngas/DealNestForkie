@@ -20,4 +20,6 @@ public interface IStoreRepository extends JpaRepository<Store,String> {
 
     List<Store> findByStoreNameContainingIgnoreCase(String storeName);
 
+    Optional<Store> findByUser_UserID(String userID);
+
 }

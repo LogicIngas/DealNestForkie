@@ -10,5 +10,7 @@ public interface IUserService extends IService<User, String> {
 
     boolean existsByEmail(String email);
 
+    Optional<User> login(String email, String password);
+
     List<User> getAll();
 }

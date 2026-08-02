@@ -1,11 +1,14 @@
 package za.ac.cput.dealnest.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.ac.cput.dealnest.domain.User;
 import za.ac.cput.dealnest.service.IUserService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -24,6 +27,14 @@ public class UserController {
     @PostMapping("/create")
     public User create(@RequestBody User user) {
             return userService.create(user);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody User credentials) {
+        return userService.login(credentials.getEmail(), credentials.getPassword())
+                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Incorrect email or password.")));
     }
 
     @GetMapping("/read/{userId}")

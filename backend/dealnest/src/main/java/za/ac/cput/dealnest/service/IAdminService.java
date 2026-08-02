@@ -7,5 +7,6 @@ import java.util.Optional;
 public interface IAdminService extends IService<Admin, String> {
     Optional<Admin> findByEmail(String email);
     boolean existsByEmail(String email);
+    Optional<Admin> login(String email, String password);
     List<Admin> getAll();
 }

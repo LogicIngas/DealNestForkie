@@ -1,5 +1,6 @@
 package za.ac.cput.dealnest.service.impl;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import za.ac.cput.dealnest.domain.Admin;
 import za.ac.cput.dealnest.repository.IAdminRepository;
@@ -12,13 +13,17 @@ import java.util.Optional;
 public class AdminServiceImpl implements IAdminService {
 
     private final IAdminRepository repository;
+    private final PasswordEncoder passwordEncoder;
 
-    public AdminServiceImpl(IAdminRepository repository) {
+    public AdminServiceImpl(IAdminRepository repository, PasswordEncoder passwordEncoder) {
         this.repository = repository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public Admin create(Admin admin) {
+        // Client submits the raw password in the passwordHash field; hash it before persisting.
+        admin.setPasswordHash(passwordEncoder.encode(admin.getPasswordHash()));
         return repository.save(admin);
     }
 
@@ -46,6 +51,12 @@ public class AdminServiceImpl implements IAdminService {
     @Override
     public boolean existsByEmail(String email) {
         return repository.existsByEmail(email);
+    }
+
+    @Override
+    public Optional<Admin> login(String email, String password) {
+        return repository.findByEmail(email)
+                .filter(admin -> passwordEncoder.matches(password, admin.getPasswordHash()));
     }
 
     @Override

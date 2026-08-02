@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import { userService } from '../services/api';
+import { userService, storeService } from '../services/api';
 
 export default function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -16,13 +16,13 @@ export default function LoginPage({ onLogin }) {
     setError('');
     setIsLoading(true);
     try {
-      const userData = await userService.login(email);
-      // If email contains 'store', assume it's a store owner (logic can be improved)
-      const userRole = email.toLowerCase().includes('store') ? 'store' : 'customer';
+      const userData = await userService.login(email, password);
+      const linkedStore = await storeService.findByUserId(userData.userID);
+      const userRole = linkedStore ? 'store' : 'customer';
       onLogin(userData, userRole);
       navigate('/');
     } catch (err) {
-      setError('User not found. Please check your email or sign up.');
+      setError(err.message || 'Incorrect email or password.');
     } finally {
       setIsLoading(false);
     }

@@ -5,10 +5,13 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
 import ExplorePage from './pages/ExplorePage';
+import StorePage from './pages/StorePage';
 import FavoritesPage from './pages/FavoritesPage';
 import ProfilePage from './pages/ProfilePage';
 import StoreDashboard from './pages/StoreDashboard';
 import StoreSignupPage from './pages/StoreSignupPage'; // New file we will create next
+import AdminLoginPage from './pages/AdminLoginPage';
+import AdminDashboard from './pages/AdminDashboard';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -17,6 +20,12 @@ function App() {
   });
   const [role, setRole] = useState(() => localStorage.getItem('dealnest_role') || 'customer');
   const isAuthenticated = user !== null;
+
+  const [admin, setAdmin] = useState(() => {
+    const savedAdmin = localStorage.getItem('dealnest_admin');
+    return savedAdmin ? JSON.parse(savedAdmin) : null;
+  });
+  const isAdminAuthenticated = admin !== null;
 
   const login = (userData, userRole) => {
     setUser(userData);
@@ -36,12 +45,25 @@ function App() {
     localStorage.setItem('dealnest_user', JSON.stringify(userData));
   };
 
+  const adminLogin = (adminData) => {
+    setAdmin(adminData);
+    localStorage.setItem('dealnest_admin', JSON.stringify(adminData));
+  };
+
+  const adminLogout = () => {
+    setAdmin(null);
+    localStorage.removeItem('dealnest_admin');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 font-['Inter']">
       <Routes>
         <Route path="/login" element={!isAuthenticated ? <LoginPage onLogin={login} /> : <Navigate to="/" replace />} />
         <Route path="/signup" element={!isAuthenticated ? <SignupPage /> : <Navigate to="/" replace />} />
         <Route path="/store-signup" element={!isAuthenticated ? <StoreSignupPage /> : <Navigate to="/" replace />} />
+
+        <Route path="/admin/login" element={!isAdminAuthenticated ? <AdminLoginPage onLogin={adminLogin} /> : <Navigate to="/admin" replace />} />
+        <Route path="/admin" element={isAdminAuthenticated ? <AdminDashboard admin={admin} onLogout={adminLogout} /> : <Navigate to="/admin/login" replace />} />
 
         <Route path="/*" element={
           isAuthenticated ?
@@ -86,6 +108,7 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
         <Routes>
           <Route path="/" element={<HomePage user={user} />} />
           <Route path="/explore" element={<ExplorePage user={user} />} />
+          <Route path="/store/:storeId" element={<StorePage user={user} />} />
           <Route path="/favorites" element={<FavoritesPage user={user} />} />
           <Route path="/profile" element={<ProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />} />
         </Routes>

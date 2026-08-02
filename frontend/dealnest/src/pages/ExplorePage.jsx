@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { storeService, favoriteService, promotionService } from '../services/api';
 import { Search, Heart, MapPin, List, Map as MapIcon, Store as StoreIcon } from 'lucide-react';
 import { CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
@@ -43,7 +43,9 @@ export default function ExplorePage({ user }) {
     setFilteredStores(filterStores(stores, term));
   };
 
-  const handleFavorite = async (storeId) => {
+  const handleFavorite = async (storeId, e) => {
+    e.preventDefault();
+    e.stopPropagation();
     try {
       await favoriteService.add(user.userID, storeId);
       alert('Store added to favorites!');
@@ -100,7 +102,7 @@ export default function ExplorePage({ user }) {
           {filteredStores.map(store => {
             const CatIcon = CATEGORY_ICON[store.category] || StoreIcon;
             return (
-            <div key={store.storeId} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-start gap-4 hover:shadow-md transition">
+            <Link key={store.storeId} to={`/store/${store.storeId}`} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-start gap-4 hover:shadow-md hover:-translate-y-0.5 transition">
               <div className={`w-16 h-16 ${CATEGORY_BG[store.category] || 'bg-gray-100'} rounded-xl flex items-center justify-center`}>
                 <CatIcon size={26} className={CATEGORY_COLOR[store.category] || 'text-gray-600'} />
               </div>
@@ -116,14 +118,14 @@ export default function ExplorePage({ user }) {
                     </span>
                   </div>
                   <button
-                    onClick={() => handleFavorite(store.storeId)}
+                    onClick={(e) => handleFavorite(store.storeId, e)}
                     className="p-2 hover:bg-red-50 rounded-full transition text-gray-500 hover:text-red-500"
                   >
                     <Heart size={20} />
                   </button>
                 </div>
               </div>
-            </div>
+            </Link>
             );
           })}
         </div>

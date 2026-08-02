@@ -94,6 +94,11 @@ public class StoreServiceImpl implements IStoreService {
     }
 
     @Override
+    public Optional<Store> findByUserId(String userId) {
+        return repository.findByUser_UserID(userId);
+    }
+
+    @Override
     public List<Store> getAll() {
         return repository.findAll();
     }

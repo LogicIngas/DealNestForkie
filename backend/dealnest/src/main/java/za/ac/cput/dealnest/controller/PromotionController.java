@@ -25,22 +25,22 @@ public class PromotionController {
         return promotionService.create(promotion);
     }
 
-    @GetMapping("/read{promotionId}")
+    @GetMapping("/read/{promotionId}")
     public Promotion read(@PathVariable String promotionId) {
         return promotionService.read(promotionId);
     }
 
-    @PutMapping("/update{promotionId}")
+    @PutMapping("/update/{promotionId}")
     public Promotion update(@PathVariable String promotionId,@RequestBody Promotion promotion) {
         return promotionService.update(promotion);
     }
 
-    @DeleteMapping("/delete{promotionId}")
+    @DeleteMapping("/delete/{promotionId}")
     public boolean delete(@PathVariable String promotionId) {
         return promotionService.delete(promotionId);
     }
 
-    @GetMapping("/findByStoreId{promotionId}")
+    @GetMapping("/findByStoreId/{storeId}")
     public List<Promotion> findByStoreId(@PathVariable String storeId) {
         return promotionService.findByStoreId(storeId);
     }

@@ -19,6 +19,8 @@ public interface IStoreService extends IService<Store, String>{
 
     List<Store> findByStoreNameContainingIgnoreCase(String storeName);
 
+    Optional<Store> findByUserId(String userId);
+
     List<Store> getAll();
 
     boolean delete(String id);
