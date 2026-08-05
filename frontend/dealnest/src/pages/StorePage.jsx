@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { storeService, promotionService, favoriteService, savedPromotionService, reviewService } from '../services/api';
 import { ArrowLeft, MapPin, Star, Tag, Clock, Phone, Mail, Heart, Bookmark, Store as StoreIcon, BadgeCheck, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
+import ConfirmModal from '../components/ConfirmModal';
 
 function daysLeft(endDate) {
   if (!endDate) return null;
@@ -36,6 +37,7 @@ export default function StorePage({ user }) {
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
   const [deletingReviewId, setDeletingReviewId] = useState(null);
+  const [reviewToDelete, setReviewToDelete] = useState(null);
 
   const loadReviews = () => {
     setLoadingReviews(true);
@@ -134,8 +136,10 @@ export default function StorePage({ user }) {
     }
   };
 
-  const handleDeleteReview = async (review) => {
-    if (!window.confirm("Delete your review? This can't be undone.")) return;
+  const handleDeleteReview = async () => {
+    const review = reviewToDelete;
+    if (!review) return;
+    setReviewToDelete(null);
     setDeletingReviewId(review.reviewID);
     try {
       await reviewService.remove(review.reviewID);
@@ -160,7 +164,7 @@ export default function StorePage({ user }) {
 
   if (loading) {
     return (
-      <div className="p-6 pb-24">
+      <div className="p-6 pb-24 max-w-2xl mx-auto">
         <div className="h-40 bg-white rounded-3xl border border-gray-100 animate-pulse mb-6" />
         <div className="h-24 bg-white rounded-3xl border border-gray-100 animate-pulse" />
       </div>
@@ -169,8 +173,8 @@ export default function StorePage({ user }) {
 
   if (notFound || !store) {
     return (
-      <div className="p-6 pb-24">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-teal-600 mb-6">
+      <div className="p-6 pb-24 max-w-2xl mx-auto">
+        <button type="button" onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-teal-600 mb-6">
           <ArrowLeft size={16} /> Back
         </button>
         <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
@@ -187,8 +191,8 @@ export default function StorePage({ user }) {
   const closeTime = formatTime(store.closingTime);
 
   return (
-    <div className="p-6 pb-24">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-teal-600 mb-6">
+    <div className="p-6 pb-24 max-w-2xl mx-auto">
+      <button type="button" onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-teal-600 mb-6">
         <ArrowLeft size={16} /> Back
       </button>
 
@@ -213,7 +217,7 @@ export default function StorePage({ user }) {
                 type="button"
                 onClick={handleFavorite}
                 aria-label="Save store"
-                className="p-2 rounded-full hover:bg-red-50 transition text-gray-500 hover:text-red-500 flex-shrink-0"
+                className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-red-50 transition text-gray-500 hover:text-red-500 flex-shrink-0"
               >
                 <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} className={isFavorite ? 'text-red-500' : ''} />
               </button>
@@ -223,7 +227,7 @@ export default function StorePage({ user }) {
               <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-xs font-bold">
                 <Star size={12} fill="currentColor" /> {store.averageRating?.toFixed(1) || 'New'} {store.totalReviews > 0 && `(${store.totalReviews})`}
               </div>
-              <span className="bg-gray-100 text-gray-600 text-[10px] px-2 py-1 rounded uppercase font-bold tracking-wider">
+              <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded uppercase font-bold tracking-wider">
                 {store.category}
               </span>
               {openTime && closeTime && (
@@ -280,7 +284,7 @@ export default function StorePage({ user }) {
                     type="button"
                     onClick={() => handleSavePromotion(promo.promotionID)}
                     aria-label="Save deal"
-                    className="p-1.5 rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600 flex-shrink-0"
+                    className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600 flex-shrink-0"
                   >
                     <Bookmark size={18} fill={savedPromotionIds.has(promo.promotionID) ? 'currentColor' : 'none'} className={savedPromotionIds.has(promo.promotionID) ? 'text-teal-600' : ''} />
                   </button>
@@ -316,7 +320,7 @@ export default function StorePage({ user }) {
             <MessageSquare size={18} className="text-gray-400" /> Reviews
           </h3>
           {user?.userID && !showReviewForm && !reviews.some(r => r.user?.userID === user.userID) && (
-            <button onClick={openCreateReview} className="text-xs font-semibold text-teal-600 hover:underline">
+            <button type="button" onClick={openCreateReview} className="text-xs font-semibold text-teal-600 hover:underline">
               Write a review
             </button>
           )}
@@ -324,28 +328,32 @@ export default function StorePage({ user }) {
 
         {showReviewForm && (
           <form onSubmit={handleSubmitReview} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
-            <div className="flex items-center gap-1 mb-3">
+            <div className="flex items-center gap-1 mb-3" role="group" aria-label="Rating">
               {[1, 2, 3, 4, 5].map(i => (
                 <button
                   key={i}
                   type="button"
                   onClick={() => setReviewForm({ ...reviewForm, rating: i })}
                   aria-label={`Rate ${i} stars`}
+                  aria-pressed={i === reviewForm.rating}
+                  className="min-w-11 min-h-11 flex items-center justify-center"
                 >
                   <Star size={24} className={i <= reviewForm.rating ? 'text-amber-400' : 'text-gray-200'} fill="currentColor" />
                 </button>
               ))}
             </div>
+            <label htmlFor="review-comment" className="sr-only">Your review</label>
             <textarea
+              id="review-comment"
               value={reviewForm.comment}
               onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
-              placeholder="Share your experience with this store..."
+              placeholder="Share your experience with this store…"
               rows={3}
               className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200 text-sm"
             />
             <div className="flex gap-2 mt-3">
               <button type="submit" disabled={submittingReview} className="flex-1 bg-teal-600 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-60">
-                {submittingReview ? 'Saving...' : editingReview ? 'Save changes' : 'Post review'}
+                {submittingReview ? 'Saving…' : editingReview ? 'Save changes' : 'Post review'}
               </button>
               <button type="button" onClick={closeReviewForm} className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition">
                 Cancel
@@ -373,24 +381,24 @@ export default function StorePage({ user }) {
                         <Star key={i} size={13} className={i <= review.rating ? 'text-amber-400' : 'text-gray-200'} fill="currentColor" />
                       ))}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-gray-400">{review.createdAt?.slice(0, 10)}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-gray-400">{review.createdAt?.slice(0, 10)}</span>
                       {isOwn && (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center">
                           <button
                             type="button"
                             onClick={() => openEditReview(review)}
                             aria-label="Edit review"
-                            className="p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-teal-600 transition"
+                            className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-teal-600 transition"
                           >
                             <Pencil size={12} />
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteReview(review)}
+                            onClick={() => setReviewToDelete(review)}
                             disabled={deletingReviewId === review.reviewID}
                             aria-label="Delete review"
-                            className="p-1 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition disabled:opacity-50"
+                            className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition disabled:opacity-50"
                           >
                             <Trash2 size={12} />
                           </button>
@@ -408,6 +416,15 @@ export default function StorePage({ user }) {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={!!reviewToDelete}
+        title="Delete your review?"
+        message="This can't be undone."
+        confirmLabel="Delete"
+        onConfirm={handleDeleteReview}
+        onCancel={() => setReviewToDelete(null)}
+      />
     </div>
   );
 }

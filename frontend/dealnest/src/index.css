@@ -18,6 +18,14 @@
   }
 }
 
+/* Respect the OS-level motion preference for every animate-pulse skeleton
+   in the app, in one place, instead of adding motion-reduce: to each usage. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
+    animation: none;
+  }
+}
+
 @layer components {
   .card-glass {
     background-color: rgba(255, 255, 255, 0.8);
@@ -33,13 +41,13 @@
     border-radius: 0.75rem;
     border: 1px solid #e5e7eb;
     background-color: rgba(255, 255, 255, 0.8);
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
     color: #1f2937;
   }
-  
-  .input-field:focus {
-    outline: none;
-    ring: 2px solid #0d9488;
+
+  .input-field:focus-visible {
+    outline: 2px solid #0d9488;
+    outline-offset: 1px;
     border-color: transparent;
   }
 
@@ -51,7 +59,7 @@
     padding: 0.875rem 1.25rem;
     border-radius: 0.75rem;
     box-shadow: 0 4px 6px -1px rgba(13, 148, 136, 0.3);
-    transition: all 0.2s ease;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
   
   .btn-primary:hover {
@@ -71,7 +79,7 @@
     font-weight: 700;
     padding: 0.875rem 1.25rem;
     border-radius: 0.75rem;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease;
   }
   
   .btn-outline:hover {

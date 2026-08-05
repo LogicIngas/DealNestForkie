@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { userService, storeService } from '../services/api';
+import logo from '../assets/logo.png';
 
 export default function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -33,25 +34,60 @@ export default function LoginPage({ onLogin }) {
       <div className="w-full max-w-md transform transition-all">
         <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden border border-white/20">
           <div className="px-8 pt-8 pb-4 text-center">
-            <h1 className="text-3xl font-extrabold text-gray-800 tracking-tight">DealNest</h1>
+            <img src={logo} alt="DealNest" width={220} height={120} className="h-[120px] w-auto mx-auto" />
           </div>
           <div className="p-8">
             <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Welcome Back</h2>
-            {error && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl text-sm mb-4 text-center">{error}</div>}
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="relative">
-                <EnvelopeIcon className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" />
-                <input type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field pl-12" required />
+            {error && (
+              <div role="alert" aria-live="polite" className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl text-sm mb-4 text-center">
+                {error}
               </div>
-              <div className="relative">
-                <LockClosedIcon className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" />
-                <input type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="input-field pl-12 pr-12" required />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600">
-                  {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                </button>
+            )}
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label htmlFor="login-email" className="sr-only">Email address</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" aria-hidden="true" />
+                  <input
+                    id="login-email"
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    placeholder="Email Address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input-field pl-12"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="login-password" className="sr-only">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" aria-hidden="true" />
+                  <input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    autoComplete="current-password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input-field pl-12 pr-12"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
               <button type="submit" disabled={isLoading} className="btn-primary">
-                {isLoading ? 'Signing in...' : 'Sign In'}
+                {isLoading ? 'Signing in…' : 'Sign In'}
               </button>
             </form>
             <div className="mt-6 text-center space-y-2">

@@ -101,19 +101,23 @@ export default function HomePage({ user }) {
     .slice(0, 6);
 
   return (
-    <div className="p-6 pb-24">
+    <div className="p-6 pb-24 max-w-2xl mx-auto">
       {/* Hero */}
       <div className="mb-8 bg-gradient-to-br from-teal-600 to-teal-500 rounded-3xl p-6 text-white shadow-lg shadow-teal-200/50">
         <h2 className="text-2xl font-bold">Welcome back, {user?.firstName}!</h2>
         <p className="text-teal-50 text-sm mt-1 opacity-90">Discover the best deals near you today.</p>
 
         <form onSubmit={handleSearch} className="relative mt-4">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-teal-100" size={18} />
+          <label htmlFor="home-search" className="sr-only">Search stores, cities, or categories</label>
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-teal-100" size={18} aria-hidden="true" />
           <input
+            id="home-search"
             type="text"
+            name="search"
+            autoComplete="off"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search stores, cities, or categories..."
+            placeholder="Search stores, cities, or categories…"
             className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/15 placeholder-teal-100 text-white text-sm border border-white/20 focus:outline-none focus:bg-white/25 focus:border-white/40 transition"
           />
         </form>
@@ -176,7 +180,7 @@ export default function HomePage({ user }) {
                         type="button"
                         onClick={(e) => handleSavePromotion(promo.promotionID, e)}
                         aria-label="Save deal"
-                        className="p-1 rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600 flex-shrink-0"
+                        className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600 flex-shrink-0"
                       >
                         <Bookmark size={16} fill={savedPromotionIds.has(promo.promotionID) ? 'currentColor' : 'none'} className={savedPromotionIds.has(promo.promotionID) ? 'text-teal-600' : ''} />
                       </button>
@@ -193,7 +197,7 @@ export default function HomePage({ user }) {
                     )}
                   </div>
                   {remaining !== null && (
-                    <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center gap-1 text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">
                       <Clock size={11} /> {remaining === 0 ? 'Ends today' : `${remaining}d left`}
                     </div>
                   )}
@@ -258,7 +262,7 @@ export default function HomePage({ user }) {
                       <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                         <MapPin size={12} /> {store.city}
                       </p>
-                      <span className="inline-block bg-gray-100 text-gray-600 text-[9px] px-1.5 py-0.5 rounded mt-1.5 uppercase font-bold tracking-wider">
+                      <span className="inline-block bg-gray-100 text-gray-600 text-xs px-1.5 py-0.5 rounded mt-1.5 uppercase font-bold tracking-wider">
                         {store.category}
                       </span>
                     </div>
@@ -270,7 +274,7 @@ export default function HomePage({ user }) {
                         type="button"
                         onClick={(e) => handleFavorite(store.storeId, e)}
                         aria-label="Save store"
-                        className="p-1.5 rounded-full hover:bg-red-50 transition text-gray-500 hover:text-red-500"
+                        className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-red-50 transition text-gray-500 hover:text-red-500"
                       >
                         <Heart size={16} fill={favoriteStoreIds.has(store.storeId) ? 'currentColor' : 'none'} className={favoriteStoreIds.has(store.storeId) ? 'text-red-500' : ''} />
                       </button>
