@@ -66,6 +66,30 @@ public class Notification {
         return user;
     }
 
+    public void setNotificationID(String notificationID) {
+        this.notificationID = notificationID;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public void setRead(Boolean read) {
+        isRead = read;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
     public void send() {
         // Logic to send notification
     }

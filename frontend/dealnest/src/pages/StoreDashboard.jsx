@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import {
   ArrowRightOnRectangleIcon, PlusCircleIcon, XMarkIcon, BuildingStorefrontIcon,
   MapPinIcon, StarIcon, PencilSquareIcon, TrashIcon, TagIcon, UsersIcon,
-  CheckBadgeIcon, ClockIcon, PhoneIcon, EnvelopeIcon
+  CheckBadgeIcon, ClockIcon, PhoneIcon, EnvelopeIcon, ExclamationTriangleIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
-import { promotionService, storeService, favoriteService } from '../services/api';
+import { promotionService, storeService, favoriteService, reviewService } from '../services/api';
 import { CATEGORIES } from '../constants/categories';
 
 function daysLeft(endDate) {
@@ -22,6 +23,16 @@ const emptyPromo = {
   title: '', description: '', originalPrice: '', discountPrice: '', startDate: '', endDate: '', isActive: true
 };
 
+// Ordinal ramp: star count changes meaning, so it gets one hue in monotone steps
+// (lightest = 1 star, darkest = 5 stars) instead of a flat color per bar.
+const STAR_RAMP = {
+  1: 'bg-amber-200',
+  2: 'bg-amber-300',
+  3: 'bg-amber-400',
+  4: 'bg-amber-500',
+  5: 'bg-amber-600',
+};
+
 const emptyStoreForm = {
   storeName: '', category: 'OTHER', description: '', email: '', phoneNumber: '', address: '', city: '',
   openingTime: '', closingTime: ''
@@ -34,6 +45,8 @@ export default function StoreDashboard({ user, onLogout }) {
   const [promotions, setPromotions] = useState([]);
   const [loadingPromotions, setLoadingPromotions] = useState(true);
   const [followerCount, setFollowerCount] = useState(0);
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
 
   const [showForm, setShowForm] = useState(false);
   const [promoData, setPromoData] = useState(emptyPromo);
@@ -59,6 +72,11 @@ export default function StoreDashboard({ user, onLogout }) {
     favoriteService.getByStore(userStore.storeId)
       .then(data => setFollowerCount(data.length))
       .catch(() => {});
+    setLoadingReviews(true);
+    reviewService.getByStore(userStore.storeId)
+      .then(data => setReviews(data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))))
+      .catch(() => {})
+      .finally(() => setLoadingReviews(false));
   }, [userStore?.storeId]);
 
   const loadPromotions = async () => {
@@ -74,6 +92,19 @@ export default function StoreDashboard({ user, onLogout }) {
   };
 
   const activePromoCount = promotions.filter(p => p.isActive).length;
+  const avgReviewRating = reviews.length
+    ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1)
+    : null;
+  const ratingBreakdown = [5, 4, 3, 2, 1].map(star => ({
+    star,
+    count: reviews.filter(r => r.rating === star).length,
+  }));
+
+  const missingProfileFields = userStore ? [
+    !userStore.description && 'a description',
+    !userStore.phoneNumber && 'a phone number',
+    !toTimeInput(userStore.openingTime) && 'opening hours',
+  ].filter(Boolean) : [];
 
   const handlePromoChange = (e) => setPromoData({ ...promoData, [e.target.name]: e.target.value });
 
@@ -190,6 +221,28 @@ export default function StoreDashboard({ user, onLogout }) {
           </div>
         ) : (
           <>
+            {/* Profile completion nudge */}
+            {(missingProfileFields.length > 0 || !userStore.verified) && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-800">
+                    {!userStore.verified ? 'Your store isn\'t verified yet' : 'Finish setting up your store'}
+                  </p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    {missingProfileFields.length > 0
+                      ? `Add ${missingProfileFields.join(', ')} to help customers trust your store.`
+                      : 'Verification is reviewed by the DealNest team once your profile looks complete.'}
+                  </p>
+                  {missingProfileFields.length > 0 && (
+                    <button onClick={openEditStore} className="text-xs font-bold text-amber-800 hover:underline mt-1.5">
+                      Complete profile
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Store profile card */}
             <div className="card-glass p-6">
               <div className="flex items-start justify-between gap-3">
@@ -326,6 +379,63 @@ export default function StoreDashboard({ user, onLogout }) {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+
+            {/* Reviews */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-1.5">
+                <ChatBubbleLeftRightIcon className="w-5 h-5 text-gray-400" /> Customer Reviews
+              </h3>
+              {loadingReviews ? (
+                <div className="h-24 bg-white rounded-2xl border border-gray-100 animate-pulse" />
+              ) : reviews.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                  <ChatBubbleLeftRightIcon className="mx-auto text-gray-300 w-10 h-10" />
+                  <h4 className="font-bold text-gray-800 mt-3">No reviews yet</h4>
+                  <p className="text-gray-500 text-sm mt-1">Customer feedback will show up here once you get your first review.</p>
+                </div>
+              ) : (
+                <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
+                  <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
+                    <div className="text-center flex-shrink-0">
+                      <p className="text-3xl font-extrabold text-gray-800">{avgReviewRating}</p>
+                      <div className="flex items-center gap-0.5 justify-center mt-1">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <StarIcon key={i} className={`w-3.5 h-3.5 ${i <= Math.round(avgReviewRating) ? 'text-amber-400' : 'text-gray-200'}`} fill="currentColor" />
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-gray-400 mt-1">{reviews.length} review{reviews.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    <div className="flex-1 space-y-1.5">
+                      {ratingBreakdown.map(({ star, count }) => (
+                        <div key={star} className="flex items-center gap-2 text-xs" title={`${star} star: ${count} review${count !== 1 ? 's' : ''}`}>
+                          <span className="text-gray-500 w-3">{star}</span>
+                          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${STAR_RAMP[star]}`}
+                              style={{ width: reviews.length ? `${Math.max((count / reviews.length) * 100, count > 0 ? 4 : 0)}%` : '0%' }}
+                            />
+                          </div>
+                          <span className="text-gray-400 w-4 text-right">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-3 pt-4">
+                    {reviews.slice(0, 5).map(review => (
+                      <div key={review.reviewID} className="pb-3 border-b border-gray-50 last:border-0 last:pb-0">
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map(i => (
+                            <StarIcon key={i} className={`w-3.5 h-3.5 ${i <= review.rating ? 'text-amber-400' : 'text-gray-200'}`} fill="currentColor" />
+                          ))}
+                          <span className="text-[11px] text-gray-400 ml-2">{review.createdAt?.slice(0, 10)}</span>
+                        </div>
+                        {review.comment && <p className="text-sm text-gray-600 mt-1.5">{review.comment}</p>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

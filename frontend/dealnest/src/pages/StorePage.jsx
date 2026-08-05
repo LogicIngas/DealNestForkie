@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { storeService, promotionService, favoriteService, savedPromotionService } from '../services/api';
-import { ArrowLeft, MapPin, Star, Tag, Clock, Phone, Mail, Heart, Bookmark, Store as StoreIcon, BadgeCheck } from 'lucide-react';
+import { storeService, promotionService, favoriteService, savedPromotionService, reviewService } from '../services/api';
+import { ArrowLeft, MapPin, Star, Tag, Clock, Phone, Mail, Heart, Bookmark, Store as StoreIcon, BadgeCheck, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
 
 function daysLeft(endDate) {
@@ -29,6 +29,22 @@ export default function StorePage({ user }) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [savedPromotionIds, setSavedPromotionIds] = useState(new Set());
 
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [editingReview, setEditingReview] = useState(null);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [deletingReviewId, setDeletingReviewId] = useState(null);
+
+  const loadReviews = () => {
+    setLoadingReviews(true);
+    reviewService.getByStore(storeId)
+      .then(data => setReviews(data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))))
+      .catch(() => {})
+      .finally(() => setLoadingReviews(false));
+  };
+
   useEffect(() => {
     setLoading(true);
     setNotFound(false);
@@ -41,6 +57,8 @@ export default function StorePage({ user }) {
     promotionService.getActive()
       .then(data => setPromotions(data.filter(p => p.store?.storeId === storeId)))
       .catch(() => {});
+
+    loadReviews();
 
     if (user?.userID) {
       favoriteService.getByUser(user.userID)
@@ -60,6 +78,73 @@ export default function StorePage({ user }) {
       setIsFavorite(true);
     } catch (error) {
       // Store may already be saved; nothing else to do here.
+    }
+  };
+
+  const refreshStore = () => {
+    // averageRating/totalReviews are recalculated server-side on any review
+    // change, so re-fetch the store to reflect that immediately.
+    storeService.getById(storeId).then(setStore).catch(() => {});
+  };
+
+  const openCreateReview = () => {
+    setEditingReview(null);
+    setReviewForm({ rating: 5, comment: '' });
+    setShowReviewForm(true);
+  };
+
+  const openEditReview = (review) => {
+    setEditingReview(review);
+    setReviewForm({ rating: review.rating, comment: review.comment || '' });
+    setShowReviewForm(true);
+  };
+
+  const closeReviewForm = () => {
+    setShowReviewForm(false);
+    setEditingReview(null);
+  };
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!user?.userID) return;
+    setSubmittingReview(true);
+    try {
+      if (editingReview) {
+        await reviewService.update(editingReview.reviewID, {
+          ...editingReview,
+          rating: reviewForm.rating,
+          comment: reviewForm.comment,
+        });
+      } else {
+        await reviewService.create({
+          rating: reviewForm.rating,
+          comment: reviewForm.comment,
+          store: { storeId },
+          user: { userID: user.userID },
+        });
+      }
+      closeReviewForm();
+      setReviewForm({ rating: 5, comment: '' });
+      loadReviews();
+      refreshStore();
+    } catch (error) {
+      alert(error.message || 'Failed to save review.');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async (review) => {
+    if (!window.confirm("Delete your review? This can't be undone.")) return;
+    setDeletingReviewId(review.reviewID);
+    try {
+      await reviewService.remove(review.reviewID);
+      loadReviews();
+      refreshStore();
+    } catch (error) {
+      alert(error.message || 'Failed to delete review.');
+    } finally {
+      setDeletingReviewId(null);
     }
   };
 
@@ -223,6 +308,106 @@ export default function StorePage({ user }) {
           })}
         </div>
       )}
+
+      {/* Reviews */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-gray-800 flex items-center gap-1.5">
+            <MessageSquare size={18} className="text-gray-400" /> Reviews
+          </h3>
+          {user?.userID && !showReviewForm && !reviews.some(r => r.user?.userID === user.userID) && (
+            <button onClick={openCreateReview} className="text-xs font-semibold text-teal-600 hover:underline">
+              Write a review
+            </button>
+          )}
+        </div>
+
+        {showReviewForm && (
+          <form onSubmit={handleSubmitReview} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+            <div className="flex items-center gap-1 mb-3">
+              {[1, 2, 3, 4, 5].map(i => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setReviewForm({ ...reviewForm, rating: i })}
+                  aria-label={`Rate ${i} stars`}
+                >
+                  <Star size={24} className={i <= reviewForm.rating ? 'text-amber-400' : 'text-gray-200'} fill="currentColor" />
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={reviewForm.comment}
+              onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+              placeholder="Share your experience with this store..."
+              rows={3}
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200 text-sm"
+            />
+            <div className="flex gap-2 mt-3">
+              <button type="submit" disabled={submittingReview} className="flex-1 bg-teal-600 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-teal-700 transition disabled:opacity-60">
+                {submittingReview ? 'Saving...' : editingReview ? 'Save changes' : 'Post review'}
+              </button>
+              <button type="button" onClick={closeReviewForm} className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition">
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+
+        {loadingReviews ? (
+          <div className="h-20 bg-white rounded-2xl border border-gray-100 animate-pulse" />
+        ) : reviews.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <MessageSquare className="mx-auto text-gray-300" size={32} />
+            <p className="text-gray-500 text-sm mt-2">No reviews yet. Be the first to share your experience.</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-50">
+            {reviews.map(review => {
+              const isOwn = user?.userID && review.user?.userID === user.userID;
+              return (
+                <div key={review.reviewID} className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <Star key={i} size={13} className={i <= review.rating ? 'text-amber-400' : 'text-gray-200'} fill="currentColor" />
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-gray-400">{review.createdAt?.slice(0, 10)}</span>
+                      {isOwn && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEditReview(review)}
+                            aria-label="Edit review"
+                            className="p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-teal-600 transition"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteReview(review)}
+                            disabled={deletingReviewId === review.reviewID}
+                            aria-label="Delete review"
+                            className="p-1 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition disabled:opacity-50"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1 font-medium">
+                    {isOwn ? 'You' : review.user?.firstName ? `${review.user.firstName} ${review.user.lastName?.[0] || ''}.` : 'Anonymous'}
+                  </p>
+                  {review.comment && <p className="text-sm text-gray-600 mt-1.5">{review.comment}</p>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

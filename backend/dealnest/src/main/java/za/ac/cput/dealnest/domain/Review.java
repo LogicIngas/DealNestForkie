@@ -20,6 +20,10 @@ public class Review {
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     protected Review() {
     }
 
@@ -30,6 +34,7 @@ public class Review {
         this.createdAt = builder.createdAt;
         this.updatedAt = builder.updatedAt;
         this.store = builder.store;
+        this.user = builder.user;
     }
 
     @PrePersist
@@ -71,6 +76,38 @@ public class Review {
         return store;
     }
 
+    public User getUser() {
+        return user;
+    }
+
+    public void setReviewID(String reviewID) {
+        this.reviewID = reviewID;
+    }
+
+    public void setRating(Integer rating) {
+        this.rating = rating;
+    }
+
+    public void setComment(String comment) {
+        this.comment = comment;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public void setStore(Store store) {
+        this.store = store;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
     public void editReview(String newComment, Integer newRating) {
         this.comment = newComment;
         this.rating = newRating;
@@ -108,6 +145,7 @@ public class Review {
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private Store store;
+        private User user;
 
         public Builder setReviewID(String reviewID) {
             this.reviewID = reviewID;
@@ -139,6 +177,11 @@ public class Review {
             return this;
         }
 
+        public Builder setUser(User user) {
+            this.user = user;
+            return this;
+        }
+
         public Builder copy(Review review) {
             this.reviewID = review.reviewID;
             this.rating = review.rating;
@@ -146,6 +189,7 @@ public class Review {
             this.createdAt = review.createdAt;
             this.updatedAt = review.updatedAt;
             this.store = review.store;
+            this.user = review.user;
             return this;
         }
 

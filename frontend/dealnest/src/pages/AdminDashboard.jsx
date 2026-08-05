@@ -136,13 +136,18 @@ export default function AdminDashboard({ admin, onLogout }) {
             {[1, 2, 3].map(i => <div key={i} className="h-20 bg-white rounded-2xl border border-gray-100 animate-pulse" />)}
           </div>
         ) : tab === 'overview' ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <StatCard icon={BuildingStorefrontIcon} label="Total Stores" value={stores.length} color="text-teal-500" />
-            <StatCard icon={CheckBadgeIcon} label="Active Stores" value={activeStoreCount} color="text-green-500" />
-            <StatCard icon={ShieldCheckIcon} label="Unverified Stores" value={unverifiedCount} color="text-amber-500" />
-            <StatCard icon={UsersIcon} label="Total Users" value={users.length} color="text-pink-500" />
-            <StatCard icon={TagIcon} label="Total Promotions" value={promotions.length} color="text-purple-500" />
-            <StatCard icon={TagIcon} label="Active Promotions" value={activePromoCount} color="text-teal-500" />
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <StatCard icon={BuildingStorefrontIcon} label="Total Stores" value={stores.length} color="text-teal-500" />
+              <StatCard icon={CheckBadgeIcon} label="Active Stores" value={activeStoreCount} color="text-green-500" />
+              <StatCard icon={ShieldCheckIcon} label="Unverified Stores" value={unverifiedCount} color="text-amber-500" />
+              <StatCard icon={UsersIcon} label="Total Users" value={users.length} color="text-pink-500" />
+              <StatCard icon={TagIcon} label="Total Promotions" value={promotions.length} color="text-purple-500" />
+              <StatCard icon={TagIcon} label="Active Promotions" value={activePromoCount} color="text-teal-500" />
+            </div>
+
+            <CategoryBarChart stores={stores} />
+            <RecentActivityTable promotions={promotions} />
           </div>
         ) : tab === 'stores' ? (
           stores.length === 0 ? (
@@ -283,6 +288,85 @@ function EmptyState({ icon: Icon, text }) {
     <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
       <Icon className="mx-auto text-gray-300 w-10 h-10" />
       <p className="text-gray-500 text-sm mt-3">{text}</p>
+    </div>
+  );
+}
+
+// Nominal categorical, single series (count) -> one hue per the data-viz palette rule:
+// swapping category order doesn't change meaning, so every bar takes the same slot color.
+function CategoryBarChart({ stores }) {
+  const counts = useMemo(() => {
+    const byCategory = {};
+    stores.forEach(s => { byCategory[s.category] = (byCategory[s.category] || 0) + 1; });
+    return Object.entries(byCategory)
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [stores]);
+
+  if (counts.length === 0) return null;
+  const max = counts[0].count;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <h3 className="font-bold text-gray-800 text-sm mb-4">Stores by Category</h3>
+      <div className="space-y-2.5">
+        {counts.map(({ category, count }) => (
+          <div key={category} className="flex items-center gap-3" title={`${category}: ${count} store${count !== 1 ? 's' : ''}`}>
+            <span className="w-24 flex-shrink-0 text-[11px] font-semibold text-gray-500 uppercase tracking-wide truncate">
+              {category}
+            </span>
+            <div className="flex-1 h-4 bg-gray-50 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-teal-600 rounded-full transition-all"
+                style={{ width: `${Math.max((count / max) * 100, 4)}%` }}
+              />
+            </div>
+            <span className="w-6 flex-shrink-0 text-xs font-bold text-gray-700 text-right">{count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RecentActivityTable({ promotions }) {
+  const recent = useMemo(() => (
+    [...promotions]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 8)
+  ), [promotions]);
+
+  if (recent.length === 0) return null;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 overflow-x-auto">
+      <h3 className="font-bold text-gray-800 text-sm mb-4">Recent Promotions</h3>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-[11px] text-gray-400 uppercase tracking-wide">
+            <th className="font-semibold pb-2 pr-3">Deal</th>
+            <th className="font-semibold pb-2 pr-3">Store</th>
+            <th className="font-semibold pb-2 pr-3">Status</th>
+            <th className="font-semibold pb-2">Posted</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-50">
+          {recent.map(promo => (
+            <tr key={promo.promotionID}>
+              <td className="py-2.5 pr-3 font-medium text-gray-800 truncate max-w-[160px]">{promo.title}</td>
+              <td className="py-2.5 pr-3 text-gray-500 truncate max-w-[140px]">{promo.store?.storeName || 'Unknown'}</td>
+              <td className="py-2.5 pr-3">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${promo.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {promo.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </td>
+              <td className="py-2.5 text-gray-400 text-xs whitespace-nowrap" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                {promo.createdAt?.slice(0, 10)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

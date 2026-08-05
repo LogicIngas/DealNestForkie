@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { storeService, promotionService, favoriteService, savedPromotionService } from '../services/api';
-import { MapPin, Star, Tag, Clock, ArrowRight, Store as StoreIcon, Heart, Bookmark, Flame } from 'lucide-react';
+import { MapPin, Star, Tag, Clock, ArrowRight, Store as StoreIcon, Heart, Bookmark, Flame, Search, TrendingUp } from 'lucide-react';
 import { CATEGORIES, CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
 
 function daysLeft(endDate) {
@@ -14,26 +15,28 @@ function CategoryIcon({ category, size = 20 }) {
   return <Icon size={size} className={CATEGORY_COLOR[category] || 'text-gray-600'} />;
 }
 
-function SectionHeader({ title, icon: Icon }) {
+function SectionHeader({ title, icon: Icon, iconClassName = 'text-orange-500' }) {
   return (
     <div className="flex items-center justify-between mb-4">
       <h3 className="text-lg font-bold text-gray-800 flex items-center gap-1.5">
-        {Icon && <Icon size={18} className="text-orange-500" />} {title}
+        {Icon && <Icon size={18} className={iconClassName} />} {title}
       </h3>
-      <a href="/explore" className="text-xs font-semibold text-teal-600 flex items-center gap-0.5 hover:underline">
+      <Link to="/explore" className="text-xs font-semibold text-teal-600 flex items-center gap-0.5 hover:underline">
         See all <ArrowRight size={12} />
-      </a>
+      </Link>
     </div>
   );
 }
 
 export default function HomePage({ user }) {
+  const navigate = useNavigate();
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [promotions, setPromotions] = useState([]);
   const [loadingPromotions, setLoadingPromotions] = useState(true);
   const [favoriteStoreIds, setFavoriteStoreIds] = useState(new Set());
   const [savedPromotionIds, setSavedPromotionIds] = useState(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     storeService.getAll()
@@ -86,18 +89,34 @@ export default function HomePage({ user }) {
     }
   };
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchTerm.trim()) navigate(`/explore?category=${encodeURIComponent(searchTerm.trim())}`);
+    else navigate('/explore');
+  };
+
+  const topRatedStores = [...stores]
+    .filter(s => s.averageRating != null)
+    .sort((a, b) => b.averageRating - a.averageRating)
+    .slice(0, 6);
+
   return (
     <div className="p-6 pb-24">
       {/* Hero */}
       <div className="mb-8 bg-gradient-to-br from-teal-600 to-teal-500 rounded-3xl p-6 text-white shadow-lg shadow-teal-200/50">
         <h2 className="text-2xl font-bold">Welcome back, {user?.firstName}!</h2>
         <p className="text-teal-50 text-sm mt-1 opacity-90">Discover the best deals near you today.</p>
-        {!loading && !loadingPromotions && (
-          <div className="flex gap-2 mt-4">
-            <span className="bg-white/15 px-3 py-1 rounded-full text-xs font-semibold">{promotions.length} deals live</span>
-            <span className="bg-white/15 px-3 py-1 rounded-full text-xs font-semibold">{stores.length} stores nearby</span>
-          </div>
-        )}
+
+        <form onSubmit={handleSearch} className="relative mt-4">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-teal-100" size={18} />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search stores, cities, or categories..."
+            className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/15 placeholder-teal-100 text-white text-sm border border-white/20 focus:outline-none focus:bg-white/25 focus:border-white/40 transition"
+          />
+        </form>
       </div>
 
       {/* Browse by Category */}
@@ -105,16 +124,16 @@ export default function HomePage({ user }) {
         <h3 className="text-lg font-bold text-gray-800 mb-4">Browse by Category</h3>
         <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory">
           {CATEGORIES.map(cat => (
-            <a
+            <Link
               key={cat.value}
-              href={`/explore?category=${cat.value}`}
+              to={`/explore?category=${cat.value}`}
               className="flex-shrink-0 w-20 flex flex-col items-center gap-1.5 text-center snap-start group"
             >
               <div className={`w-14 h-14 ${cat.bg} rounded-2xl flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:scale-105 transition`}>
                 <cat.icon size={24} className={cat.color} />
               </div>
               <span className="text-xs text-gray-600 font-medium line-clamp-1">{cat.label}</span>
-            </a>
+            </Link>
           ))}
         </div>
       </div>
@@ -139,9 +158,9 @@ export default function HomePage({ user }) {
               const remaining = daysLeft(promo.endDate);
               const category = promo.store?.category;
               return (
-                <a
+                <Link
                   key={promo.promotionID}
-                  href={promo.store ? `/store/${promo.store.storeId}` : '#'}
+                  to={promo.store ? `/store/${promo.store.storeId}` : '#'}
                   className="flex-shrink-0 w-60 snap-start bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition"
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -178,15 +197,40 @@ export default function HomePage({ user }) {
                       <Clock size={11} /> {remaining === 0 ? 'Ends today' : `${remaining}d left`}
                     </div>
                   )}
-                </a>
+                </Link>
               );
             })}
           </div>
         </div>
       )}
 
-      {/* Featured Stores */}
-      <SectionHeader title="Featured Stores" />
+      {/* Top Rated */}
+      {!loading && topRatedStores.length > 0 && (
+        <div className="mb-8">
+          <SectionHeader title="Top Rated Near You" icon={TrendingUp} iconClassName="text-amber-500" />
+          <div className="flex gap-4 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory">
+            {topRatedStores.map(store => (
+              <Link
+                key={store.storeId}
+                to={`/store/${store.storeId}`}
+                className="flex-shrink-0 w-40 snap-start bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition text-center"
+              >
+                <div className={`w-14 h-14 mx-auto ${CATEGORY_BG[store.category] || 'bg-gray-100'} rounded-2xl flex items-center justify-center`}>
+                  <CategoryIcon category={store.category} size={24} />
+                </div>
+                <h4 className="font-bold text-gray-800 text-sm mt-2.5 line-clamp-1">{store.storeName}</h4>
+                <div className="flex items-center justify-center gap-1 mt-1 text-amber-500">
+                  <Star size={12} fill="currentColor" />
+                  <span className="text-xs font-bold">{store.averageRating.toFixed(1)}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All Stores */}
+      <SectionHeader title="Stores For You" />
       {loading ? (
         <div className="grid grid-cols-1 gap-4">
           {[1, 2, 3].map(i => (
@@ -201,8 +245,8 @@ export default function HomePage({ user }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
-          {stores.slice(0, 4).map(store => (
-            <a key={store.storeId} href={`/store/${store.storeId}`} className="block bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition">
+          {stores.slice(0, 6).map(store => (
+            <Link key={store.storeId} to={`/store/${store.storeId}`} className="block bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition">
               <div className="flex items-start gap-4">
                 <div className={`w-16 h-16 ${CATEGORY_BG[store.category] || 'bg-gray-100'} rounded-2xl flex items-center justify-center flex-shrink-0`}>
                   <CategoryIcon category={store.category} size={26} />
@@ -214,6 +258,9 @@ export default function HomePage({ user }) {
                       <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                         <MapPin size={12} /> {store.city}
                       </p>
+                      <span className="inline-block bg-gray-100 text-gray-600 text-[9px] px-1.5 py-0.5 rounded mt-1.5 uppercase font-bold tracking-wider">
+                        {store.category}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold">
@@ -229,10 +276,10 @@ export default function HomePage({ user }) {
                       </button>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1 line-clamp-1">{store.description || 'Local favorite store'}</p>
+                  <p className="text-xs text-gray-400 mt-1.5 line-clamp-1">{store.description || 'Local favorite store'}</p>
                 </div>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       )}
