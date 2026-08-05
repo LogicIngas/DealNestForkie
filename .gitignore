@@ -1,2 +1,6 @@
 # Claude Code
 .claude/
+bencium-claude-code-design-skill/
+
+# Markdown docs
+*.md
