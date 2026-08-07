@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
-import { ArrowRightOnRectangleIcon, HomeIcon, MagnifyingGlassIcon, HeartIcon, UserCircleIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
+import { LogOut, Home, Search, Heart, UserCircle } from 'lucide-react';
+import logo from './assets/logo.png';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
@@ -83,23 +84,20 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
   }
 
   const navItems = [
-    { path: '/', label: 'Home', icon: HomeIcon },
-    { path: '/explore', label: 'Explore', icon: MagnifyingGlassIcon },
-    { path: '/favorites', label: 'Saved', icon: HeartIcon },
-    { path: '/profile', label: 'Account', icon: UserCircleIcon },
+    { path: '/', label: 'Home', icon: Home },
+    { path: '/explore', label: 'Explore', icon: Search },
+    { path: '/favorites', label: 'Saved', icon: Heart },
+    { path: '/profile', label: 'Account', icon: UserCircle },
   ];
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
       <header className="bg-white px-6 py-4 flex justify-between items-center shadow-sm z-10 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <ShoppingBagIcon className="w-7 h-7 text-teal-600" />
-          <h1 className="text-xl font-extrabold text-gray-800 tracking-tight">DealNest</h1>
-        </div>
+        <img src={logo} alt="DealNest" width={103} height={56} className="h-14 w-auto" />
         <div className="flex items-center gap-4">
           <Link to="/profile" className="text-sm font-medium text-gray-600 hidden sm:block hover:text-teal-600 transition">Hi, {user?.firstName || 'User'}</Link>
-          <button onClick={onLogout} className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-full transition">
-            <ArrowRightOnRectangleIcon className="w-6 h-6" />
+          <button type="button" onClick={onLogout} aria-label="Log out" className="min-w-11 min-h-11 flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-full transition">
+            <LogOut className="w-6 h-6" />
           </button>
         </div>
       </header>
@@ -119,8 +117,8 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
           const isActive = location.pathname === item.path;
           return (
             <Link key={item.path} to={item.path} className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${isActive ? 'text-teal-600' : 'text-gray-500 hover:text-teal-600'}`}>
-              <item.icon className={`w-7 h-7 ${isActive ? 'stroke-2' : 'stroke-1'}`} />
-              <span className="text-[10px] font-semibold mt-1">{item.label}</span>
+              <item.icon className={`w-7 h-7 ${isActive ? 'stroke-2' : 'stroke-1'}`} aria-hidden="true" />
+              <span className="text-xs font-semibold mt-1">{item.label}</span>
             </Link>
           );
         })}

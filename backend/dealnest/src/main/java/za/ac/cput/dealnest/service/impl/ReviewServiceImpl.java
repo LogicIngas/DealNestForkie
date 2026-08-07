@@ -2,8 +2,10 @@ package za.ac.cput.dealnest.service.impl;
 
 import org.springframework.stereotype.Service;
 import za.ac.cput.dealnest.domain.Review;
+import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.repository.IReviewRepository;
 import za.ac.cput.dealnest.service.IReviewService;
+import za.ac.cput.dealnest.service.IStoreService;
 
 import java.util.List;
 
@@ -11,14 +13,18 @@ import java.util.List;
 public class ReviewServiceImpl implements IReviewService {
 
     private final IReviewRepository repository;
+    private final IStoreService storeService;
 
-    public ReviewServiceImpl(IReviewRepository repository) {
+    public ReviewServiceImpl(IReviewRepository repository, IStoreService storeService) {
         this.repository = repository;
+        this.storeService = storeService;
     }
 
     @Override
     public Review create(Review review) {
-        return repository.save(review);
+        Review saved = repository.save(review);
+        recalculateStoreRating(saved.getStore());
+        return saved;
     }
 
     @Override
@@ -28,13 +34,31 @@ public class ReviewServiceImpl implements IReviewService {
 
     @Override
     public Review update(Review review) {
-        return repository.save(review);
+        Review saved = repository.save(review);
+        recalculateStoreRating(saved.getStore());
+        return saved;
     }
 
     @Override
     public boolean delete(String reviewId) {
+        Review existing = repository.findById(reviewId).orElse(null);
         repository.deleteById(reviewId);
+        if (existing != null) {
+            recalculateStoreRating(existing.getStore());
+        }
         return true;
+    }
+
+    private void recalculateStoreRating(Store storeRef) {
+        if (storeRef == null) return;
+        Store store = storeService.read(storeRef.getStoreId());
+        if (store == null) return;
+        List<Review> reviews = repository.findByStore_StoreId(store.getStoreId());
+        int count = reviews.size();
+        double average = count == 0 ? 0.0 : reviews.stream().mapToInt(r -> r.getRating() == null ? 0 : r.getRating()).average().orElse(0.0);
+        store.setTotalReviews(count);
+        store.setAverageRating(count == 0 ? null : Math.round(average * 10.0) / 10.0);
+        storeService.update(store);
     }
 
     @Override

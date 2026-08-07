@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheckIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { ShieldCheck, Mail, Lock } from 'lucide-react';
 import { adminService } from '../services/api';
+import logo from '../assets/logo.png';
 
 export default function AdminLoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -30,22 +31,54 @@ export default function AdminLoginPage({ onLogin }) {
       <div className="w-full max-w-md">
         <div className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden border border-white/20">
           <div className="px-8 pt-8 pb-4 text-center">
-            <ShieldCheckIcon className="w-10 h-10 text-gray-800 mx-auto" />
-            <h1 className="text-2xl font-extrabold text-gray-800 tracking-tight mt-2">DealNest Admin</h1>
+            <img src={logo} alt="DealNest" width={183} height={100} className="h-[100px] w-auto mx-auto" />
+            <p className="flex items-center justify-center gap-1 text-xs font-bold text-gray-500 uppercase tracking-wider mt-2">
+              <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" /> Admin Portal
+            </p>
           </div>
           <div className="p-8 pt-4">
-            {error && <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl text-sm mb-4 text-center">{error}</div>}
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="relative">
-                <EnvelopeIcon className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" />
-                <input type="email" placeholder="Admin Email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field pl-12" required />
+            {error && (
+              <div role="alert" aria-live="polite" className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl text-sm mb-4 text-center">
+                {error}
               </div>
-              <div className="relative">
-                <LockClosedIcon className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" />
-                <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="input-field pl-12" required />
+            )}
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label htmlFor="admin-email" className="sr-only">Admin email</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" aria-hidden="true" />
+                  <input
+                    id="admin-email"
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    placeholder="Admin Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input-field pl-12"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="admin-password" className="sr-only">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" aria-hidden="true" />
+                  <input
+                    id="admin-password"
+                    type="password"
+                    name="password"
+                    autoComplete="current-password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input-field pl-12"
+                    required
+                  />
+                </div>
               </div>
               <button type="submit" disabled={isLoading} className="btn-primary">
-                {isLoading ? 'Signing in...' : 'Sign In'}
+                {isLoading ? 'Signing in…' : 'Sign In'}
               </button>
             </form>
           </div>

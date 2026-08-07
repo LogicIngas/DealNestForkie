@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ArrowRightOnRectangleIcon, PlusCircleIcon, XMarkIcon, BuildingStorefrontIcon,
-  MapPinIcon, StarIcon, PencilSquareIcon, TrashIcon, TagIcon, UsersIcon,
-  CheckBadgeIcon, ClockIcon, PhoneIcon, EnvelopeIcon
-} from '@heroicons/react/24/outline';
-import { promotionService, storeService, favoriteService } from '../services/api';
+  LogOut, PlusCircle, X, Store as StoreIcon,
+  MapPin, Star, Pencil, Trash2, Tag, Users,
+  BadgeCheck, Clock, Phone, Mail, AlertTriangle,
+  MessageSquare
+} from 'lucide-react';
+import { promotionService, storeService, favoriteService, reviewService } from '../services/api';
 import { CATEGORIES } from '../constants/categories';
+import ConfirmModal from '../components/ConfirmModal';
+import logo from '../assets/logo.png';
 
 function daysLeft(endDate) {
   if (!endDate) return null;
@@ -22,6 +25,16 @@ const emptyPromo = {
   title: '', description: '', originalPrice: '', discountPrice: '', startDate: '', endDate: '', isActive: true
 };
 
+// Ordinal ramp: star count changes meaning, so it gets one hue in monotone steps
+// (lightest = 1 star, darkest = 5 stars) instead of a flat color per bar.
+const STAR_RAMP = {
+  1: 'bg-amber-200',
+  2: 'bg-amber-300',
+  3: 'bg-amber-400',
+  4: 'bg-amber-500',
+  5: 'bg-amber-600',
+};
+
 const emptyStoreForm = {
   storeName: '', category: 'OTHER', description: '', email: '', phoneNumber: '', address: '', city: '',
   openingTime: '', closingTime: ''
@@ -34,6 +47,8 @@ export default function StoreDashboard({ user, onLogout }) {
   const [promotions, setPromotions] = useState([]);
   const [loadingPromotions, setLoadingPromotions] = useState(true);
   const [followerCount, setFollowerCount] = useState(0);
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
 
   const [showForm, setShowForm] = useState(false);
   const [promoData, setPromoData] = useState(emptyPromo);
@@ -44,6 +59,7 @@ export default function StoreDashboard({ user, onLogout }) {
 
   const [togglingId, setTogglingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [promoToDelete, setPromoToDelete] = useState(null);
 
   useEffect(() => {
     if (!user?.userID) return;
@@ -59,6 +75,11 @@ export default function StoreDashboard({ user, onLogout }) {
     favoriteService.getByStore(userStore.storeId)
       .then(data => setFollowerCount(data.length))
       .catch(() => {});
+    setLoadingReviews(true);
+    reviewService.getByStore(userStore.storeId)
+      .then(data => setReviews(data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))))
+      .catch(() => {})
+      .finally(() => setLoadingReviews(false));
   }, [userStore?.storeId]);
 
   const loadPromotions = async () => {
@@ -74,6 +95,19 @@ export default function StoreDashboard({ user, onLogout }) {
   };
 
   const activePromoCount = promotions.filter(p => p.isActive).length;
+  const avgReviewRating = reviews.length
+    ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1)
+    : null;
+  const ratingBreakdown = [5, 4, 3, 2, 1].map(star => ({
+    star,
+    count: reviews.filter(r => r.rating === star).length,
+  }));
+
+  const missingProfileFields = userStore ? [
+    !userStore.description && 'a description',
+    !userStore.phoneNumber && 'a phone number',
+    !toTimeInput(userStore.openingTime) && 'opening hours',
+  ].filter(Boolean) : [];
 
   const handlePromoChange = (e) => setPromoData({ ...promoData, [e.target.name]: e.target.value });
 
@@ -116,8 +150,10 @@ export default function StoreDashboard({ user, onLogout }) {
     }
   };
 
-  const handleDeletePromo = async (promo) => {
-    if (!window.confirm(`Delete "${promo.title}"? This can't be undone.`)) return;
+  const handleDeletePromo = async () => {
+    const promo = promoToDelete;
+    if (!promo) return;
+    setPromoToDelete(null);
     setDeletingId(promo.promotionID);
     try {
       const success = await promotionService.remove(promo.promotionID);
@@ -171,11 +207,11 @@ export default function StoreDashboard({ user, onLogout }) {
     <div className="min-h-screen bg-gray-50 pb-12">
       <div className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <BuildingStorefrontIcon className="w-7 h-7 text-teal-600" />
-          <h1 className="text-xl font-extrabold text-gray-800">DealNest Store</h1>
+          <img src={logo} alt="DealNest" width={103} height={56} className="h-14 w-auto" />
+          <span className="text-xs font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded uppercase tracking-wider">Store</span>
         </div>
-        <button onClick={onLogout} className="p-2 text-gray-500 hover:text-red-500 transition">
-          <ArrowRightOnRectangleIcon className="w-6 h-6" />
+        <button type="button" onClick={onLogout} aria-label="Log out" className="min-w-11 min-h-11 flex items-center justify-center text-gray-500 hover:text-red-500 transition">
+          <LogOut className="w-6 h-6" />
         </button>
       </div>
 
@@ -184,39 +220,61 @@ export default function StoreDashboard({ user, onLogout }) {
           <div className="h-40 bg-white rounded-3xl border border-gray-100 animate-pulse" />
         ) : !userStore ? (
           <div className="text-center py-16 bg-white rounded-3xl border border-gray-100 shadow-sm">
-            <BuildingStorefrontIcon className="mx-auto text-gray-300 w-12 h-12" />
+            <StoreIcon className="mx-auto text-gray-300 w-12 h-12" />
             <h3 className="text-xl font-bold text-gray-800 mt-4">No store found</h3>
             <p className="text-gray-500 text-sm mt-2">We couldn't find a store linked to this account.</p>
           </div>
         ) : (
           <>
+            {/* Profile completion nudge */}
+            {(missingProfileFields.length > 0 || !userStore.verified) && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-800">
+                    {!userStore.verified ? 'Your store isn\'t verified yet' : 'Finish setting up your store'}
+                  </p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    {missingProfileFields.length > 0
+                      ? `Add ${missingProfileFields.join(', ')} to help customers trust your store.`
+                      : 'Verification is reviewed by the DealNest team once your profile looks complete.'}
+                  </p>
+                  {missingProfileFields.length > 0 && (
+                    <button type="button" onClick={openEditStore} className="text-xs font-bold text-amber-800 hover:underline mt-1.5">
+                      Complete profile
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Store profile card */}
             <div className="card-glass p-6">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="text-xl font-bold text-gray-800 flex items-center gap-1.5">
                     {userStore.storeName}
-                    {userStore.verified && <CheckBadgeIcon className="w-5 h-5 text-teal-500" />}
+                    {userStore.verified && <BadgeCheck className="w-5 h-5 text-teal-500" aria-label="Verified" />}
                   </h2>
                   <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                    <MapPinIcon className="w-4 h-4" /> {userStore.address ? `${userStore.address}, ` : ''}{userStore.city}
+                    <MapPin className="w-4 h-4" aria-hidden="true" /> {userStore.address ? `${userStore.address}, ` : ''}{userStore.city}
                   </p>
                 </div>
-                <button onClick={openEditStore} className="p-2 rounded-full hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition flex-shrink-0">
-                  <PencilSquareIcon className="w-5 h-5" />
+                <button type="button" onClick={openEditStore} aria-label="Edit store details" className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 text-gray-500 hover:text-teal-600 transition flex-shrink-0">
+                  <Pencil className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="flex items-center gap-3 mt-3 flex-wrap">
                 <span className="flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-xs font-bold">
-                  <StarIcon className="w-3.5 h-3.5" fill="currentColor" /> {userStore.averageRating?.toFixed(1) || 'New'} {userStore.totalReviews > 0 && `(${userStore.totalReviews})`}
+                  <Star className="w-3.5 h-3.5" fill="currentColor" aria-hidden="true" /> {userStore.averageRating?.toFixed(1) || 'New'} {userStore.totalReviews > 0 && `(${userStore.totalReviews})`}
                 </span>
-                <span className="bg-gray-100 text-gray-600 text-[10px] px-2 py-1 rounded uppercase font-bold tracking-wider">
+                <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded uppercase font-bold tracking-wider">
                   {userStore.category}
                 </span>
                 {toTimeInput(userStore.openingTime) && toTimeInput(userStore.closingTime) && (
                   <span className="flex items-center gap-1 text-xs text-gray-500">
-                    <ClockIcon className="w-3.5 h-3.5" /> {toTimeInput(userStore.openingTime)} - {toTimeInput(userStore.closingTime)}
+                    <Clock className="w-3.5 h-3.5" aria-hidden="true" /> {toTimeInput(userStore.openingTime)} - {toTimeInput(userStore.closingTime)}
                   </span>
                 )}
               </div>
@@ -229,12 +287,12 @@ export default function StoreDashboard({ user, onLogout }) {
                 <div className="flex flex-col gap-1.5 mt-4 pt-4 border-t border-gray-100">
                   {userStore.phoneNumber && (
                     <span className="flex items-center gap-2 text-sm text-gray-600">
-                      <PhoneIcon className="w-4 h-4" /> {userStore.phoneNumber}
+                      <Phone className="w-4 h-4" aria-hidden="true" /> {userStore.phoneNumber}
                     </span>
                   )}
                   {userStore.email && (
                     <span className="flex items-center gap-2 text-sm text-gray-600">
-                      <EnvelopeIcon className="w-4 h-4" /> {userStore.email}
+                      <Mail className="w-4 h-4" aria-hidden="true" /> {userStore.email}
                     </span>
                   )}
                 </div>
@@ -244,25 +302,25 @@ export default function StoreDashboard({ user, onLogout }) {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
-                <TagIcon className="w-5 h-5 text-teal-500 mx-auto" />
+                <Tag className="w-5 h-5 text-teal-500 mx-auto" aria-hidden="true" />
                 <p className="text-xl font-extrabold text-gray-800 mt-1">{promotions.length}</p>
-                <p className="text-[11px] text-gray-500 font-medium">Promotions</p>
+                <p className="text-xs text-gray-500 font-medium">Promotions</p>
               </div>
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
-                <TagIcon className="w-5 h-5 text-green-500 mx-auto" />
+                <Tag className="w-5 h-5 text-green-500 mx-auto" aria-hidden="true" />
                 <p className="text-xl font-extrabold text-gray-800 mt-1">{activePromoCount}</p>
-                <p className="text-[11px] text-gray-500 font-medium">Active</p>
+                <p className="text-xs text-gray-500 font-medium">Active</p>
               </div>
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
-                <UsersIcon className="w-5 h-5 text-pink-500 mx-auto" />
+                <Users className="w-5 h-5 text-pink-500 mx-auto" aria-hidden="true" />
                 <p className="text-xl font-extrabold text-gray-800 mt-1">{followerCount}</p>
-                <p className="text-[11px] text-gray-500 font-medium">Followers</p>
+                <p className="text-xs text-gray-500 font-medium">Followers</p>
               </div>
             </div>
 
             {/* Add promotion */}
-            <button onClick={() => setShowForm(true)} className="btn-primary w-full flex items-center justify-center gap-3 py-4 text-lg">
-              <PlusCircleIcon className="w-6 h-6" />
+            <button type="button" onClick={() => setShowForm(true)} className="btn-primary w-full flex items-center justify-center gap-3 py-4 text-lg">
+              <PlusCircle className="w-6 h-6" aria-hidden="true" />
               Add New Promotion
             </button>
 
@@ -275,7 +333,7 @@ export default function StoreDashboard({ user, onLogout }) {
                 </div>
               ) : promotions.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                  <TagIcon className="mx-auto text-gray-300 w-10 h-10" />
+                  <Tag className="mx-auto text-gray-300 w-10 h-10" />
                   <h4 className="font-bold text-gray-800 mt-3">No promotions yet</h4>
                   <p className="text-gray-500 text-sm mt-1">Create your first deal to start attracting customers.</p>
                 </div>
@@ -286,8 +344,8 @@ export default function StoreDashboard({ user, onLogout }) {
                     return (
                       <div key={promo.promotionID} className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
                         <div className="flex justify-between items-start gap-2">
-                          <h4 className="font-bold text-gray-800">{promo.title}</h4>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex-shrink-0 ${promo.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          <h4 className="font-bold text-gray-800 line-clamp-1 min-w-0">{promo.title}</h4>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex-shrink-0 ${promo.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                             {promo.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </div>
@@ -300,7 +358,7 @@ export default function StoreDashboard({ user, onLogout }) {
                           )}
                         </div>
                         <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                          <p className="text-[11px] text-gray-400">
+                          <p className="text-xs text-gray-400">
                             {promo.startDate?.slice(0, 10)} - {promo.endDate?.slice(0, 10)}
                           </p>
                           <div className="flex items-center gap-2">
@@ -310,22 +368,79 @@ export default function StoreDashboard({ user, onLogout }) {
                               disabled={togglingId === promo.promotionID}
                               className={`text-xs font-semibold px-3 py-1 rounded-full transition disabled:opacity-50 ${promo.isActive ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-teal-600 text-white hover:bg-teal-700'}`}
                             >
-                              {togglingId === promo.promotionID ? '...' : promo.isActive ? 'Deactivate' : 'Activate'}
+                              {togglingId === promo.promotionID ? '…' : promo.isActive ? 'Deactivate' : 'Activate'}
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeletePromo(promo)}
+                              onClick={() => setPromoToDelete(promo)}
                               disabled={deletingId === promo.promotionID}
                               aria-label="Delete promotion"
-                              className="p-1.5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition disabled:opacity-50"
+                              className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition disabled:opacity-50"
                             >
-                              <TrashIcon className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+
+            {/* Reviews */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-1.5">
+                <MessageSquare className="w-5 h-5 text-gray-400" aria-hidden="true" /> Customer Reviews
+              </h3>
+              {loadingReviews ? (
+                <div className="h-24 bg-white rounded-2xl border border-gray-100 animate-pulse" />
+              ) : reviews.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                  <MessageSquare className="mx-auto text-gray-300 w-10 h-10" />
+                  <h4 className="font-bold text-gray-800 mt-3">No reviews yet</h4>
+                  <p className="text-gray-500 text-sm mt-1">Customer feedback will show up here once you get your first review.</p>
+                </div>
+              ) : (
+                <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
+                  <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
+                    <div className="text-center flex-shrink-0">
+                      <p className="text-3xl font-extrabold text-gray-800">{avgReviewRating}</p>
+                      <div className="flex items-center gap-0.5 justify-center mt-1">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <Star key={i} className={`w-3.5 h-3.5 ${i <= Math.round(avgReviewRating) ? 'text-amber-400' : 'text-gray-200'}`} fill="currentColor" />
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">{reviews.length} review{reviews.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    <div className="flex-1 space-y-1.5">
+                      {ratingBreakdown.map(({ star, count }) => (
+                        <div key={star} className="flex items-center gap-2 text-xs" title={`${star} star: ${count} review${count !== 1 ? 's' : ''}`}>
+                          <span className="text-gray-500 w-3">{star}</span>
+                          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${STAR_RAMP[star]}`}
+                              style={{ width: reviews.length ? `${Math.max((count / reviews.length) * 100, count > 0 ? 4 : 0)}%` : '0%' }}
+                            />
+                          </div>
+                          <span className="text-gray-400 w-4 text-right">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-3 pt-4">
+                    {reviews.slice(0, 5).map(review => (
+                      <div key={review.reviewID} className="pb-3 border-b border-gray-50 last:border-0 last:pb-0">
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map(i => (
+                            <Star key={i} className={`w-3.5 h-3.5 ${i <= review.rating ? 'text-amber-400' : 'text-gray-200'}`} fill="currentColor" />
+                          ))}
+                          <span className="text-xs text-gray-400 ml-2">{review.createdAt?.slice(0, 10)}</span>
+                        </div>
+                        {review.comment && <p className="text-sm text-gray-600 mt-1.5">{review.comment}</p>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -336,25 +451,37 @@ export default function StoreDashboard({ user, onLogout }) {
       {showForm && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative">
-            <button onClick={() => setShowForm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-              <XMarkIcon className="w-6 h-6" />
+            <button type="button" onClick={() => setShowForm(false)} aria-label="Close" className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+              <X className="w-6 h-6" />
             </button>
             <h3 className="text-xl font-bold text-gray-800 mb-4">Create New Promotion</h3>
             <form onSubmit={handleSubmitPromo} className="space-y-4">
-              <input type="text" name="title" placeholder="Title" value={promoData.title} onChange={handlePromoChange} className="input-field" required />
-              <textarea name="description" placeholder="Description" value={promoData.description} onChange={handlePromoChange} className="input-field" rows="2" />
-              <div className="grid grid-cols-2 gap-4">
-                <input type="number" step="0.01" name="originalPrice" placeholder="Original Price" value={promoData.originalPrice} onChange={handlePromoChange} className="input-field" required />
-                <input type="number" step="0.01" name="discountPrice" placeholder="Discount Price" value={promoData.discountPrice} onChange={handlePromoChange} className="input-field" required />
+              <div>
+                <label htmlFor="promo-title" className="sr-only">Title</label>
+                <input id="promo-title" type="text" name="title" placeholder="Title" value={promoData.title} onChange={handlePromoChange} className="input-field" required />
+              </div>
+              <div>
+                <label htmlFor="promo-description" className="sr-only">Description</label>
+                <textarea id="promo-description" name="description" placeholder="Description" value={promoData.description} onChange={handlePromoChange} className="input-field" rows="2" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Start date</label>
-                  <input type="date" name="startDate" value={promoData.startDate} onChange={handlePromoChange} className="input-field" required />
+                  <label htmlFor="promo-original-price" className="sr-only">Original price</label>
+                  <input id="promo-original-price" type="number" step="0.01" name="originalPrice" placeholder="Original Price" value={promoData.originalPrice} onChange={handlePromoChange} className="input-field" required />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">End date</label>
-                  <input type="date" name="endDate" value={promoData.endDate} onChange={handlePromoChange} className="input-field" required />
+                  <label htmlFor="promo-discount-price" className="sr-only">Discount price</label>
+                  <input id="promo-discount-price" type="number" step="0.01" name="discountPrice" placeholder="Discount Price" value={promoData.discountPrice} onChange={handlePromoChange} className="input-field" required />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="promo-start-date" className="text-xs text-gray-500 mb-1 block">Start date</label>
+                  <input id="promo-start-date" type="date" name="startDate" value={promoData.startDate} onChange={handlePromoChange} className="input-field" required />
+                </div>
+                <div>
+                  <label htmlFor="promo-end-date" className="text-xs text-gray-500 mb-1 block">End date</label>
+                  <input id="promo-end-date" type="date" name="endDate" value={promoData.endDate} onChange={handlePromoChange} className="input-field" required />
                 </div>
               </div>
               <button type="submit" className="btn-primary mt-2">Publish Promotion</button>
@@ -366,39 +493,69 @@ export default function StoreDashboard({ user, onLogout }) {
       {showEditStore && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative max-h-[85vh] overflow-y-auto">
-            <button onClick={() => setShowEditStore(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-              <XMarkIcon className="w-6 h-6" />
+            <button type="button" onClick={() => setShowEditStore(false)} aria-label="Close" className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+              <X className="w-6 h-6" />
             </button>
             <h3 className="text-xl font-bold text-gray-800 mb-4">Edit Store Details</h3>
             <form onSubmit={handleSubmitStore} className="space-y-4">
-              <input type="text" name="storeName" placeholder="Store Name" value={storeForm.storeName} onChange={handleStoreFormChange} className="input-field" required />
-              <select name="category" value={storeForm.category} onChange={handleStoreFormChange} className="input-field">
-                {CATEGORIES.map(cat => <option key={cat.value} value={cat.value}>{cat.label}</option>)}
-              </select>
-              <textarea name="description" placeholder="Description" value={storeForm.description} onChange={handleStoreFormChange} className="input-field" rows="2" />
-              <div className="grid grid-cols-2 gap-4">
-                <input type="email" name="email" placeholder="Email" value={storeForm.email} onChange={handleStoreFormChange} className="input-field" />
-                <input type="text" name="phoneNumber" placeholder="Phone Number" value={storeForm.phoneNumber} onChange={handleStoreFormChange} className="input-field" />
+              <div>
+                <label htmlFor="store-name" className="sr-only">Store name</label>
+                <input id="store-name" type="text" name="storeName" placeholder="Store Name" value={storeForm.storeName} onChange={handleStoreFormChange} className="input-field" required />
               </div>
-              <input type="text" name="address" placeholder="Address" value={storeForm.address} onChange={handleStoreFormChange} className="input-field" />
-              <input type="text" name="city" placeholder="City" value={storeForm.city} onChange={handleStoreFormChange} className="input-field" />
+              <div>
+                <label htmlFor="store-category" className="sr-only">Category</label>
+                <select id="store-category" name="category" value={storeForm.category} onChange={handleStoreFormChange} className="input-field">
+                  {CATEGORIES.map(cat => <option key={cat.value} value={cat.value}>{cat.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="store-description" className="sr-only">Description</label>
+                <textarea id="store-description" name="description" placeholder="Description" value={storeForm.description} onChange={handleStoreFormChange} className="input-field" rows="2" />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Opening time</label>
-                  <input type="time" name="openingTime" value={storeForm.openingTime} onChange={handleStoreFormChange} className="input-field" />
+                  <label htmlFor="store-email" className="sr-only">Email</label>
+                  <input id="store-email" type="email" name="email" autoComplete="email" placeholder="Email" value={storeForm.email} onChange={handleStoreFormChange} className="input-field" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Closing time</label>
-                  <input type="time" name="closingTime" value={storeForm.closingTime} onChange={handleStoreFormChange} className="input-field" />
+                  <label htmlFor="store-phone" className="sr-only">Phone number</label>
+                  <input id="store-phone" type="tel" name="phoneNumber" autoComplete="tel" placeholder="Phone Number" value={storeForm.phoneNumber} onChange={handleStoreFormChange} className="input-field" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="store-address" className="sr-only">Address</label>
+                <input id="store-address" type="text" name="address" autoComplete="street-address" placeholder="Address" value={storeForm.address} onChange={handleStoreFormChange} className="input-field" />
+              </div>
+              <div>
+                <label htmlFor="store-city" className="sr-only">City</label>
+                <input id="store-city" type="text" name="city" autoComplete="address-level2" placeholder="City" value={storeForm.city} onChange={handleStoreFormChange} className="input-field" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="store-opening-time" className="text-xs text-gray-500 mb-1 block">Opening time</label>
+                  <input id="store-opening-time" type="time" name="openingTime" value={storeForm.openingTime} onChange={handleStoreFormChange} className="input-field" />
+                </div>
+                <div>
+                  <label htmlFor="store-closing-time" className="text-xs text-gray-500 mb-1 block">Closing time</label>
+                  <input id="store-closing-time" type="time" name="closingTime" value={storeForm.closingTime} onChange={handleStoreFormChange} className="input-field" />
                 </div>
               </div>
               <button type="submit" disabled={savingStore} className="btn-primary mt-2 disabled:opacity-50">
-                {savingStore ? 'Saving...' : 'Save Changes'}
+                {savingStore ? 'Saving…' : 'Save Changes'}
               </button>
             </form>
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!promoToDelete}
+        title={promoToDelete ? `Delete "${promoToDelete.title}"?` : ''}
+        message="This can't be undone."
+        confirmLabel="Delete"
+        onConfirm={handleDeletePromo}
+        onCancel={() => setPromoToDelete(null)}
+      />
     </div>
   );
 }

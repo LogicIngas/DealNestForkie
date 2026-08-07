@@ -54,6 +54,12 @@ export const userService = {
   getAll: async () => {
     const response = await fetch(`${API_BASE_URL}/user/getAll`);
     return handleResponse(response);
+  },
+  remove: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/user/delete/${userId}`, {
+      method: 'DELETE',
+    });
+    return response.ok;
   }
 };
 
@@ -193,6 +199,45 @@ export const notificationService = {
   getByUser: async (userId) => {
     const response = await fetch(`${API_BASE_URL}/notification/findByUserId/${userId}`);
     return handleResponse(response);
+  },
+  markRead: async (notification) => {
+    const response = await fetch(`${API_BASE_URL}/notification/update/${notification.notificationID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...notification, read: true }),
+    });
+    return handleResponse(response);
+  }
+};
+
+// 7. REVIEW CONTROLLER
+export const reviewService = {
+  getByStore: async (storeId) => {
+    const response = await fetch(`${API_BASE_URL}/review/findByStoreId/${storeId}`);
+    if (!response.ok) return [];
+    return handleResponse(response);
+  },
+  create: async (reviewData) => {
+    const response = await fetch(`${API_BASE_URL}/review/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reviewData),
+    });
+    return handleResponse(response);
+  },
+  update: async (reviewId, reviewData) => {
+    const response = await fetch(`${API_BASE_URL}/review/update/${reviewId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reviewData),
+    });
+    return handleResponse(response);
+  },
+  remove: async (reviewId) => {
+    const response = await fetch(`${API_BASE_URL}/review/delete/${reviewId}`, {
+      method: 'DELETE',
+    });
+    return response.ok;
   }
 };
 
