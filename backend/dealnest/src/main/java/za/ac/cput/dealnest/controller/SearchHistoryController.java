@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/searchHistory")
-@CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*")
+@CrossOrigin(origins = "${cors.allowed.origin:http://localhost:5173}")
 public class SearchHistoryController {
 
     private final ISearchHistoryService searchHistoryService;

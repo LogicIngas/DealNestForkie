@@ -13,7 +13,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/admin")
-@CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*")
+@CrossOrigin(origins = "${cors.allowed.origin:http://localhost:5173}")
 public class AdminController {
 
     private final IAdminService adminService;

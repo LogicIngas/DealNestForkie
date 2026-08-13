@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/review")
-@CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*")
+@CrossOrigin(origins = "${cors.allowed.origin:http://localhost:5173}")
 public class ReviewController {
 
     private final IReviewService reviewService;

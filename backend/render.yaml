@@ -1,0 +1,25 @@
+services:
+  - type: static
+    name: react-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    publishDir: dist
+    envVars:
+      - key: VITE_API_URL
+        value: "https://java-backend.onrender.com"
+
+  - type: web
+    name: java-backend
+    env: docker
+    rootDir: backend
+    plan: free
+    envVars:
+      - key: DB_URL
+        value: "jdbc:postgresql://db.qgrnvjvrcdtrxastqzfp.supabase.co:5432/postgres?sslmode=require"
+      - key: DB_USERNAME
+        value: "postgres"
+      - key: DB_PASSWORD
+        value: "@dealnest.com"
+      - key: CORS_ALLOWED_ORIGIN
+        value: "https://react-frontend.onrender.com"

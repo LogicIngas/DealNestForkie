@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/notification")
-@CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*")
+@CrossOrigin(origins = "${cors.allowed.origin:http://localhost:5173}")
 public class NotificationController {
 
     private final INotificationService notificationService;

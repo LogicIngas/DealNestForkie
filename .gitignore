@@ -4,3 +4,10 @@ bencium-claude-code-design-skill/
 
 # Markdown docs
 *.md
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
