@@ -8,7 +8,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/savedPromotion")
-@CrossOrigin(origins = "http://localhost:5173", allowedHeaders = "*")
+@CrossOrigin(origins = "${cors.allowed.origin:http://localhost:5173}")
 public class SavedPromotionController {
 
     private final ISavedPromotionService savedPromotionService;

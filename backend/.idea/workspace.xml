@@ -2,8 +2,23 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="697f9b62-6dc5-42c2-88f6-40d7aa5b0924" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../frontend/package-lock.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/AdminController.java" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/AdminController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/FavoriteStoreController.java" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/FavoriteStoreController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/LocationController.java" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/LocationController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/NotificationController.java" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/NotificationController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/PromotionController.java" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/PromotionController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/ReviewController.java" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/ReviewController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/SavedPromotionController.java" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/SavedPromotionController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/SearchHistoryController.java" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/SearchHistoryController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/StoreController.java" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/StoreController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/UserController.java" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/src/main/java/za/ac/cput/dealnest/controller/UserController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dealnest/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/dealnest/src/main/resources/application.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../frontend/dealnest/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend/dealnest/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../frontend/dealnest/src/services/api.js" beforeDir="false" afterPath="$PROJECT_DIR$/../frontend/dealnest/src/services/api.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -13,9 +28,21 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 8
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "LogicIngas"
+  }
 }]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/LogicIngas/DealNestFork.git",
+    "accountId": "63292884-860e-4330-a10d-94d160712f81"
+  }
+}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8
+}</component>
   <component name="ProjectId" id="3HEMFygysI8XQHjTLndi7YfWtdF" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -25,12 +52,22 @@
   "keyToString": {
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
     "git-widget-placeholder": "main",
     "kotlin-language-version-configured": "true",
     "nodejs_package_manager_path": "npm",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-30f59d01ecdd-63390994e64e-intellij.indexing.shared.core-IU-262.8665.337" />
+        <option value="bundled-js-predefined-d6986cc7102b-4abd2a77f808-JavaScript-IU-262.8665.337" />
+      </set>
+    </attachedChunks>
+  </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">

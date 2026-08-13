@@ -34,3 +34,10 @@ build/
 
 ### DTO Package ###
 src/main/java/za/ac/cput/dealnest/dto/
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
