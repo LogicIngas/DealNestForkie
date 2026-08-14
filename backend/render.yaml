@@ -1,18 +1,24 @@
 services:
-  - type: static
+  - type: web
     name: react-frontend
-    env: static
-    rootDir: frontend
+    runtime: static
+    rootDir: frontend/dealnest
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: "https://java-backend.onrender.com"
+        value: "https://java-backend.onrender.com/api"
 
   - type: web
     name: java-backend
-    env: docker
-    rootDir: backend
+    runtime: docker
+    rootDir: backend/dealnest
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     plan: free
     envVars:
       - key: DB_URL
@@ -20,6 +26,6 @@ services:
       - key: DB_USERNAME
         value: "postgres"
       - key: DB_PASSWORD
-        value: "@dealnest.com"
+        sync: false
       - key: CORS_ALLOWED_ORIGIN
         value: "https://react-frontend.onrender.com"
