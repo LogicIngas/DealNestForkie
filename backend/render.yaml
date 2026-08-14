@@ -11,7 +11,7 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        value: "https://java-backend.onrender.com/api"
+        value: "https://java-backend-05j0.onrender.com/api"
 
   - type: web
     name: java-backend
@@ -27,4 +27,4 @@ services:
       - key: DB_PASSWORD
         sync: false
       - key: CORS_ALLOWED_ORIGIN
-        value: "https://react-frontend.onrender.com"
+        value: "https://react-frontend-eplq.onrender.com"
