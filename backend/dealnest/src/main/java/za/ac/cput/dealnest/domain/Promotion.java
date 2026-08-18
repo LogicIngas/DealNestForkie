@@ -23,8 +23,10 @@ public class Promotion {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private Boolean isActive;
+    private String imageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Boolean featured;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id", nullable = false)
@@ -47,10 +49,12 @@ public class Promotion {
         this.startDate = builder.startDate;
         this.endDate = builder.endDate;
         this.isActive = builder.isActive;
+        this.imageUrl = builder.imageUrl;
         this.createdAt = builder.createdAt;
         this.updatedAt = builder.updatedAt;
         this.store = builder.store;
         this.savedPromotions = builder.savedPromotions;
+        this.featured = builder.featured;
     }
 
     @PrePersist
@@ -63,6 +67,9 @@ public class Promotion {
         }
         if (isActive == null) {
             isActive = true;
+        }
+        if (featured == null) {
+            featured = false;
         }
     }
 
@@ -108,6 +115,10 @@ public class Promotion {
         return isActive;
     }
 
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -122,6 +133,10 @@ public class Promotion {
 
     public List<SavedPromotion> getSavedPromotions() {
         return savedPromotions;
+    }
+
+    public Boolean getFeatured() {
+        return featured;
     }
 
     public void setPromotionID(String promotionID) {
@@ -161,6 +176,10 @@ public class Promotion {
         isActive = active;
     }
 
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
@@ -171,6 +190,10 @@ public class Promotion {
 
     public void setStore(Store store) {
         this.store = store;
+    }
+
+    public void setFeatured(Boolean featured) {
+        this.featured = featured;
     }
 
     public Double calculateDiscount() {
@@ -217,6 +240,8 @@ public class Promotion {
                 ", discountPrice=" + discountPrice +
                 ", discountPercentage=" + discountPercentage +
                 ", isActive=" + isActive +
+                ", imageUrl='" + imageUrl + '\'' +
+                ", featured=" + featured +
                 '}';
     }
 
@@ -230,10 +255,12 @@ public class Promotion {
         private LocalDateTime startDate;
         private LocalDateTime endDate;
         private Boolean isActive;
+        private String imageUrl;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private Store store;
         private List<SavedPromotion> savedPromotions = new ArrayList<>();
+        private Boolean featured;
 
         public Builder setPromotionID(String promotionID) {
             this.promotionID = promotionID;
@@ -280,6 +307,11 @@ public class Promotion {
             return this;
         }
 
+        public Builder setImageUrl(String imageUrl) {
+            this.imageUrl = imageUrl;
+            return this;
+        }
+
         public Builder setCreatedAt(LocalDateTime createdAt) {
             this.createdAt = createdAt;
             return this;
@@ -300,6 +332,11 @@ public class Promotion {
             return this;
         }
 
+        public Builder setFeatured(Boolean featured) {
+            this.featured = featured;
+            return this;
+        }
+
         public Builder copy(Promotion promotion) {
             this.promotionID = promotion.promotionID;
             this.title = promotion.title;
@@ -310,10 +347,12 @@ public class Promotion {
             this.startDate = promotion.startDate;
             this.endDate = promotion.endDate;
             this.isActive = promotion.isActive;
+            this.imageUrl = promotion.imageUrl;
             this.createdAt = promotion.createdAt;
             this.updatedAt = promotion.updatedAt;
             this.store = promotion.store;
             this.savedPromotions = promotion.savedPromotions;
+            this.featured = promotion.featured;
             return this;
         }
 

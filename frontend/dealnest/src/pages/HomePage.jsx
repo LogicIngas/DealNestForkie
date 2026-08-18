@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { storeService, promotionService, favoriteService, savedPromotionService } from '../services/api';
-import { MapPin, Star, Tag, Clock, ArrowRight, Store as StoreIcon, Heart, Bookmark, Flame, Search, TrendingUp } from 'lucide-react';
+import { storeService, promotionService, favoriteService, savedPromotionService, redemptionService } from '../services/api';
+import { MapPin, Star, Tag, Clock, ArrowRight, Store as StoreIcon, Heart, Bookmark, Flame, Search, TrendingUp, Ticket } from 'lucide-react';
 import { CATEGORIES, CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
 
 function daysLeft(endDate) {
@@ -37,6 +37,9 @@ export default function HomePage({ user }) {
   const [favoriteStoreIds, setFavoriteStoreIds] = useState(new Set());
   const [savedPromotionIds, setSavedPromotionIds] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [recommendedStores, setRecommendedStores] = useState(null);
+  const [claimingId, setClaimingId] = useState(null);
+  const [claimedCode, setClaimedCode] = useState(null);
 
   useEffect(() => {
     storeService.getAll()
@@ -49,7 +52,8 @@ export default function HomePage({ user }) {
 
     promotionService.getActive()
       .then(data => {
-        setPromotions(data.slice(0, 6));
+        const sorted = [...data].sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
+        setPromotions(sorted.slice(0, 6));
         setLoadingPromotions(false);
       })
       .catch(() => setLoadingPromotions(false));
@@ -62,6 +66,10 @@ export default function HomePage({ user }) {
       savedPromotionService.getByUser(user.userID)
         .then(data => setSavedPromotionIds(new Set(data.map(sp => sp.promotion?.promotionID))))
         .catch(() => {});
+
+      storeService.getRecommended(user.userID)
+        .then(data => setRecommendedStores(data))
+        .catch(() => setRecommendedStores(null));
     }
   }, [user?.userID]);
 
@@ -85,7 +93,24 @@ export default function HomePage({ user }) {
       await savedPromotionService.add(user.userID, promotionId);
       setSavedPromotionIds(prev => new Set(prev).add(promotionId));
     } catch (error) {
-      // Promotion may already be saved; nothing else to do here.
+      // Surface the free-plan save cap distinctly; otherwise the promotion may
+      // already be saved, which is fine to ignore.
+      if (error.message?.includes('Upgrade to DealNest Plus')) alert(error.message);
+    }
+  };
+
+  const handleClaimPromo = async (promotionId, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user?.userID || claimingId) return;
+    setClaimingId(promotionId);
+    try {
+      const redemption = await redemptionService.claim(user.userID, promotionId);
+      setClaimedCode(redemption.code);
+    } catch (error) {
+      alert(error.message || 'Failed to claim this deal.');
+    } finally {
+      setClaimingId(null);
     }
   };
 
@@ -100,8 +125,10 @@ export default function HomePage({ user }) {
     .sort((a, b) => b.averageRating - a.averageRating)
     .slice(0, 6);
 
+  const displayRecommended = recommendedStores && recommendedStores.length > 0 ? recommendedStores : topRatedStores;
+
   return (
-    <div className="p-6 pb-24 max-w-2xl mx-auto">
+    <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto">
       {/* Hero */}
       <div className="mb-8 bg-gradient-to-br from-teal-600 to-teal-500 rounded-3xl p-6 text-white shadow-lg shadow-teal-200/50">
         <h2 className="text-2xl font-bold">Welcome back, {user?.firstName}!</h2>
@@ -168,14 +195,27 @@ export default function HomePage({ user }) {
                   className="flex-shrink-0 w-60 snap-start bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition"
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <div className={`w-11 h-11 ${CATEGORY_BG[category] || 'bg-gray-100'} rounded-xl flex items-center justify-center`}>
-                      <CategoryIcon category={category} size={20} />
-                    </div>
+                    {promo.imageUrl ? (
+                      <img src={promo.imageUrl} alt="" className="w-11 h-11 rounded-xl object-cover" />
+                    ) : (
+                      <div className={`w-11 h-11 ${CATEGORY_BG[category] || 'bg-gray-100'} rounded-xl flex items-center justify-center`}>
+                        <CategoryIcon category={category} size={20} />
+                      </div>
+                    )}
                     <div className="flex items-center gap-1.5">
                       <span className="flex items-center gap-1 bg-teal-600 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-sm">
                         <Tag size={11} />
                         {promo.discountPercentage ? `${promo.discountPercentage}%` : 'DEAL'}
                       </span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleClaimPromo(promo.promotionID, e)}
+                        disabled={claimingId === promo.promotionID}
+                        aria-label="Claim deal"
+                        className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600 flex-shrink-0 disabled:opacity-50"
+                      >
+                        <Ticket size={16} />
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => handleSavePromotion(promo.promotionID, e)}
@@ -186,7 +226,14 @@ export default function HomePage({ user }) {
                       </button>
                     </div>
                   </div>
-                  <h4 className="font-bold text-gray-800 line-clamp-1">{promo.title}</h4>
+                  <h4 className="font-bold text-gray-800 line-clamp-1 flex items-center gap-1.5">
+                    {promo.title}
+                    {promo.featured && (
+                      <span className="flex items-center gap-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">
+                        <Star size={9} fill="currentColor" /> Featured
+                      </span>
+                    )}
+                  </h4>
                   <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{promo.store?.storeName || 'DealNest Store'}</p>
                   <div className="flex items-baseline gap-2 mt-3">
                     {promo.discountPrice != null && (
@@ -208,20 +255,24 @@ export default function HomePage({ user }) {
         </div>
       )}
 
-      {/* Top Rated */}
-      {!loading && topRatedStores.length > 0 && (
+      {/* Recommended */}
+      {!loading && displayRecommended.length > 0 && (
         <div className="mb-8">
-          <SectionHeader title="Top Rated Near You" icon={TrendingUp} iconClassName="text-amber-500" />
+          <SectionHeader title="Recommended for You" icon={TrendingUp} iconClassName="text-amber-500" />
           <div className="flex gap-4 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory">
-            {topRatedStores.map(store => (
+            {displayRecommended.map(store => (
               <Link
                 key={store.storeId}
                 to={`/store/${store.storeId}`}
                 className="flex-shrink-0 w-40 snap-start bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition text-center"
               >
-                <div className={`w-14 h-14 mx-auto ${CATEGORY_BG[store.category] || 'bg-gray-100'} rounded-2xl flex items-center justify-center`}>
-                  <CategoryIcon category={store.category} size={24} />
-                </div>
+                {store.imageUrl ? (
+                  <img src={store.imageUrl} alt="" className="w-14 h-14 mx-auto rounded-2xl object-cover" />
+                ) : (
+                  <div className={`w-14 h-14 mx-auto ${CATEGORY_BG[store.category] || 'bg-gray-100'} rounded-2xl flex items-center justify-center`}>
+                    <CategoryIcon category={store.category} size={24} />
+                  </div>
+                )}
                 <h4 className="font-bold text-gray-800 text-sm mt-2.5 line-clamp-1">{store.storeName}</h4>
                 <div className="flex items-center justify-center gap-1 mt-1 text-amber-500">
                   <Star size={12} fill="currentColor" />
@@ -236,7 +287,7 @@ export default function HomePage({ user }) {
       {/* All Stores */}
       <SectionHeader title="Stores For You" />
       {loading ? (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map(i => (
             <div key={i} className="h-24 bg-white rounded-3xl border border-gray-100 animate-pulse" />
           ))}
@@ -248,13 +299,17 @@ export default function HomePage({ user }) {
           <p className="text-gray-500 text-sm mt-1">Check back soon for local favorites.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {stores.slice(0, 6).map(store => (
             <Link key={store.storeId} to={`/store/${store.storeId}`} className="block bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition">
               <div className="flex items-start gap-4">
-                <div className={`w-16 h-16 ${CATEGORY_BG[store.category] || 'bg-gray-100'} rounded-2xl flex items-center justify-center flex-shrink-0`}>
-                  <CategoryIcon category={store.category} size={26} />
-                </div>
+                {store.imageUrl ? (
+                  <img src={store.imageUrl} alt="" className="w-16 h-16 rounded-2xl object-cover flex-shrink-0" />
+                ) : (
+                  <div className={`w-16 h-16 ${CATEGORY_BG[store.category] || 'bg-gray-100'} rounded-2xl flex items-center justify-center flex-shrink-0`}>
+                    <CategoryIcon category={store.category} size={26} />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start gap-2">
                     <div className="min-w-0">
@@ -285,6 +340,18 @@ export default function HomePage({ user }) {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {claimedCode && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setClaimedCode(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center" onClick={(e) => e.stopPropagation()}>
+            <Ticket className="mx-auto text-teal-600 w-10 h-10" aria-hidden="true" />
+            <h3 className="text-lg font-bold text-gray-800 mt-3">Deal claimed!</h3>
+            <p className="text-sm text-gray-500 mt-1">Show this code in-store to redeem it.</p>
+            <p className="font-mono text-2xl font-bold tracking-widest text-teal-600 bg-teal-50 rounded-xl py-4 mt-4">{claimedCode}</p>
+            <button type="button" onClick={() => setClaimedCode(null)} className="btn-primary mt-4">Got it</button>
+          </div>
         </div>
       )}
     </div>

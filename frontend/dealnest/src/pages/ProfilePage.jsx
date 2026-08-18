@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { userService, favoriteService, savedPromotionService, notificationService } from '../services/api';
 import {
   Mail, Phone, Pencil, LogOut, Check, X, User as UserIcon, Bell, Heart, Bookmark,
-  ChevronRight, Lock, Trash2
+  ChevronRight, Lock, Trash2, Sparkles
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+
+const PLUS_PERKS = ['Unlimited saved deals (free plan caps at 10)', 'A Plus badge on your reviews'];
 
 export default function ProfilePage({ user, onLogout, onUpdateUser }) {
   const [editing, setEditing] = useState(false);
@@ -31,6 +33,9 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
 
   const [deleting, setDeleting] = useState(false);
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+
+  const [subscribing, setSubscribing] = useState(false);
+  const [confirmCancelPlan, setConfirmCancelPlan] = useState(false);
 
   useEffect(() => {
     if (!user?.userID) return;
@@ -111,6 +116,32 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
     }
   };
 
+  const handleUpgradeToPlus = async () => {
+    setSubscribing(true);
+    try {
+      const renewsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const updated = await userService.update(user.userID, { ...user, planTier: 'PLUS', planRenewsAt: renewsAt });
+      onUpdateUser(updated);
+    } catch (err) {
+      alert(err.message || 'Failed to upgrade to Plus.');
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
+  const handleCancelPlus = async () => {
+    setConfirmCancelPlan(false);
+    setSubscribing(true);
+    try {
+      const updated = await userService.update(user.userID, { ...user, planTier: 'FREE', planRenewsAt: null });
+      onUpdateUser(updated);
+    } catch (err) {
+      alert(err.message || 'Failed to cancel subscription.');
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     setConfirmDeleteAccount(false);
     setDeleting(true);
@@ -129,6 +160,10 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
     ? new Date(user.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
     : null;
   const unreadCount = notifications.filter(n => !n.read).length;
+  const isPlus = user?.planTier === 'PLUS';
+  const renewsOn = user?.planRenewsAt
+    ? new Date(user.planRenewsAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+    : null;
 
   return (
     <div className="p-6 pb-24 max-w-lg mx-auto">
@@ -138,9 +173,55 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
           {initials || <UserIcon size={28} />}
         </div>
         <div className="min-w-0">
-          <h2 className="text-xl font-bold truncate">{user?.firstName} {user?.lastName}</h2>
+          <h2 className="text-xl font-bold truncate flex items-center gap-1.5">
+            {user?.firstName} {user?.lastName}
+            {isPlus && (
+              <span className="flex items-center gap-0.5 bg-white/20 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                <Sparkles size={10} /> Plus
+              </span>
+            )}
+          </h2>
           {memberSince && <p className="text-teal-50 text-sm opacity-90 mt-0.5">Member since {memberSince}</p>}
         </div>
+      </div>
+
+      {/* Subscription */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-bold text-gray-800 flex items-center gap-1.5">
+            <Sparkles size={16} className="text-amber-500" aria-hidden="true" /> DealNest Plus
+          </h3>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${isPlus ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+            {isPlus ? 'Active' : 'Free plan'}
+          </span>
+        </div>
+        {isPlus ? (
+          <>
+            {renewsOn && <p className="text-xs text-gray-500 mt-2">Renews on {renewsOn}</p>}
+            <button
+              type="button"
+              onClick={() => setConfirmCancelPlan(true)}
+              disabled={subscribing}
+              className="text-xs font-semibold text-gray-500 hover:text-red-500 mt-3 disabled:opacity-60"
+            >
+              Cancel subscription
+            </button>
+          </>
+        ) : (
+          <>
+            <ul className="text-xs text-gray-500 mt-2 space-y-1 list-disc list-inside">
+              {PLUS_PERKS.map(perk => <li key={perk}>{perk}</li>)}
+            </ul>
+            <button
+              type="button"
+              onClick={handleUpgradeToPlus}
+              disabled={subscribing}
+              className="w-full flex items-center justify-center gap-1.5 bg-amber-500 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-600 transition disabled:opacity-60 mt-3"
+            >
+              <Sparkles size={14} /> {subscribing ? 'Upgrading…' : 'Upgrade to Plus — R49/month'}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Stats */}
@@ -425,6 +506,15 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
         confirmLabel="Delete account"
         onConfirm={handleDeleteAccount}
         onCancel={() => setConfirmDeleteAccount(false)}
+      />
+
+      <ConfirmModal
+        open={confirmCancelPlan}
+        title="Cancel DealNest Plus?"
+        message="You'll immediately lose unlimited saved deals and the Plus badge."
+        confirmLabel="Cancel subscription"
+        onConfirm={handleCancelPlus}
+        onCancel={() => setConfirmCancelPlan(false)}
       />
     </div>
   );

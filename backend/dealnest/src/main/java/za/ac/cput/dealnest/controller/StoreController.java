@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.service.IStoreService;
+import za.ac.cput.dealnest.service.IRecommendationService;
 
 import java.util.List;
 
@@ -12,12 +13,14 @@ import java.util.List;
 @RequestMapping("/api/stores")
 @CrossOrigin(origins = "${cors.allowed.origin:http://localhost:5173}")
 public class StoreController {
-    
+
     private final IStoreService storeService;
+    private final IRecommendationService recommendationService;
 
     @Autowired
-    public StoreController(IStoreService storeService) {
+    public StoreController(IStoreService storeService, IRecommendationService recommendationService) {
         this.storeService = storeService;
+        this.recommendationService = recommendationService;
     }
 
     @PostMapping
@@ -51,5 +54,10 @@ public class StoreController {
     @GetMapping
     public List<Store> getAllStores() {
         return storeService.getAll();
+    }
+
+    @GetMapping("/recommended/{userId}")
+    public List<Store> getRecommended(@PathVariable String userId) {
+        return recommendationService.getRecommendedForUser(userId);
     }
 }

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { storeService, promotionService, favoriteService, savedPromotionService, reviewService } from '../services/api';
-import { ArrowLeft, MapPin, Star, Tag, Clock, Phone, Mail, Heart, Bookmark, Store as StoreIcon, BadgeCheck, MessageSquare, Pencil, Trash2 } from 'lucide-react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { storeService, promotionService, favoriteService, savedPromotionService, reviewService, redemptionService, dealReportService, priceHistoryService } from '../services/api';
+import { ArrowLeft, MapPin, Star, Tag, Clock, Phone, Mail, Heart, Bookmark, Store as StoreIcon, BadgeCheck, MessageSquare, Pencil, Trash2, Ticket, Flag, Share2, Check } from 'lucide-react';
 import { CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
 import ConfirmModal from '../components/ConfirmModal';
+import ReportDealModal from '../components/ReportDealModal';
+import PriceSparkline from '../components/PriceSparkline';
 
 function daysLeft(endDate) {
   if (!endDate) return null;
@@ -23,6 +25,7 @@ function formatTime(time) {
 export default function StorePage({ user }) {
   const { storeId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [store, setStore] = useState(null);
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +41,36 @@ export default function StorePage({ user }) {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [deletingReviewId, setDeletingReviewId] = useState(null);
   const [reviewToDelete, setReviewToDelete] = useState(null);
+
+  const [claimingId, setClaimingId] = useState(null);
+  const [claimedCode, setClaimedCode] = useState(null);
+
+  const [reportingPromo, setReportingPromo] = useState(null);
+  const [submittingReport, setSubmittingReport] = useState(false);
+  const [reportedIds, setReportedIds] = useState(new Set());
+
+  const [priceHistories, setPriceHistories] = useState({});
+
+  const [copiedId, setCopiedId] = useState(null);
+  const [highlightedPromoId, setHighlightedPromoId] = useState(null);
+
+  const handleShare = async (shareData, copyKey) => {
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (error) {
+        // User cancelled the native share sheet; nothing else to do.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(shareData.url);
+      setCopiedId(copyKey);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (error) {
+      alert(shareData.url);
+    }
+  };
 
   const loadReviews = () => {
     setLoadingReviews(true);
@@ -57,7 +90,15 @@ export default function StorePage({ user }) {
       .finally(() => setLoading(false));
 
     promotionService.getActive()
-      .then(data => setPromotions(data.filter(p => p.store?.storeId === storeId)))
+      .then(data => {
+        const storePromos = data.filter(p => p.store?.storeId === storeId);
+        setPromotions(storePromos);
+        storePromos.forEach(promo => {
+          priceHistoryService.getByPromotion(promo.promotionID)
+            .then(points => setPriceHistories(prev => ({ ...prev, [promo.promotionID]: points })))
+            .catch(() => {});
+        });
+      })
       .catch(() => {});
 
     loadReviews();
@@ -72,6 +113,17 @@ export default function StorePage({ user }) {
         .catch(() => {});
     }
   }, [storeId, user?.userID]);
+
+  useEffect(() => {
+    if (!location.hash.startsWith('#deal-') || promotions.length === 0) return;
+    const promotionId = location.hash.slice('#deal-'.length);
+    const el = document.getElementById(`deal-${promotionId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedPromoId(promotionId);
+    const timeout = setTimeout(() => setHighlightedPromoId(null), 2500);
+    return () => clearTimeout(timeout);
+  }, [location.hash, promotions]);
 
   const handleFavorite = async () => {
     if (!user?.userID || isFavorite) return;
@@ -158,13 +210,42 @@ export default function StorePage({ user }) {
       await savedPromotionService.add(user.userID, promotionId);
       setSavedPromotionIds(prev => new Set(prev).add(promotionId));
     } catch (error) {
-      // Promotion may already be saved; nothing else to do here.
+      // Surface the free-plan save cap distinctly; otherwise the promotion may
+      // already be saved, which is fine to ignore.
+      if (error.message?.includes('Upgrade to DealNest Plus')) alert(error.message);
+    }
+  };
+
+  const handleClaimPromo = async (promotionId) => {
+    if (!user?.userID || claimingId) return;
+    setClaimingId(promotionId);
+    try {
+      const redemption = await redemptionService.claim(user.userID, promotionId);
+      setClaimedCode(redemption.code);
+    } catch (error) {
+      alert(error.message || 'Failed to claim this deal.');
+    } finally {
+      setClaimingId(null);
+    }
+  };
+
+  const handleSubmitReport = async (reason, details) => {
+    if (!user?.userID || !reportingPromo) return;
+    setSubmittingReport(true);
+    try {
+      await dealReportService.create(user.userID, reportingPromo.promotionID, reason, details);
+      setReportedIds(prev => new Set(prev).add(reportingPromo.promotionID));
+      setReportingPromo(null);
+    } catch (error) {
+      alert(error.message || 'Failed to submit report.');
+    } finally {
+      setSubmittingReport(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="p-6 pb-24 max-w-2xl mx-auto">
+      <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto">
         <div className="h-40 bg-white rounded-3xl border border-gray-100 animate-pulse mb-6" />
         <div className="h-24 bg-white rounded-3xl border border-gray-100 animate-pulse" />
       </div>
@@ -173,7 +254,7 @@ export default function StorePage({ user }) {
 
   if (notFound || !store) {
     return (
-      <div className="p-6 pb-24 max-w-2xl mx-auto">
+      <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto">
         <button type="button" onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-teal-600 mb-6">
           <ArrowLeft size={16} /> Back
         </button>
@@ -191,7 +272,7 @@ export default function StorePage({ user }) {
   const closeTime = formatTime(store.closingTime);
 
   return (
-    <div className="p-6 pb-24 max-w-2xl mx-auto">
+    <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto">
       <button type="button" onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-teal-600 mb-6">
         <ArrowLeft size={16} /> Back
       </button>
@@ -199,9 +280,13 @@ export default function StorePage({ user }) {
       {/* Store header */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 mb-8">
         <div className="flex items-start gap-4">
-          <div className={`w-16 h-16 ${CATEGORY_BG[store.category] || 'bg-gray-100'} rounded-2xl flex items-center justify-center flex-shrink-0`}>
-            <CatIcon size={28} className={CATEGORY_COLOR[store.category] || 'text-gray-600'} />
-          </div>
+          {store.imageUrl ? (
+            <img src={store.imageUrl} alt="" className="w-16 h-16 rounded-2xl object-cover flex-shrink-0" />
+          ) : (
+            <div className={`w-16 h-16 ${CATEGORY_BG[store.category] || 'bg-gray-100'} rounded-2xl flex items-center justify-center flex-shrink-0`}>
+              <CatIcon size={28} className={CATEGORY_COLOR[store.category] || 'text-gray-600'} />
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex justify-between items-start gap-2">
               <div className="min-w-0">
@@ -213,14 +298,24 @@ export default function StorePage({ user }) {
                   <MapPin size={13} /> {store.address ? `${store.address}, ` : ''}{store.city}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={handleFavorite}
-                aria-label="Save store"
-                className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-red-50 transition text-gray-500 hover:text-red-500 flex-shrink-0"
-              >
-                <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} className={isFavorite ? 'text-red-500' : ''} />
-              </button>
+              <div className="flex items-center flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleShare({ title: store.storeName, text: `Check out ${store.storeName} on DealNest`, url: `${window.location.origin}/store/${storeId}` }, 'store')}
+                  aria-label="Share store"
+                  className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600"
+                >
+                  {copiedId === 'store' ? <Check size={20} className="text-teal-600" /> : <Share2 size={20} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFavorite}
+                  aria-label="Save store"
+                  className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-red-50 transition text-gray-500 hover:text-red-500"
+                >
+                  <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} className={isFavorite ? 'text-red-500' : ''} />
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-3 mt-3 flex-wrap">
@@ -268,26 +363,70 @@ export default function StorePage({ user }) {
           <p className="text-gray-500 text-sm mt-1">Check back soon for offers from this store.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {promotions.map(promo => {
             const remaining = daysLeft(promo.endDate);
+            const highlighted = highlightedPromoId === promo.promotionID;
             return (
-              <div key={promo.promotionID} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition">
+              <div
+                key={promo.promotionID}
+                id={`deal-${promo.promotionID}`}
+                className={`bg-white rounded-2xl shadow-sm border p-4 transition ${highlighted ? 'border-teal-400 ring-2 ring-teal-200' : 'border-gray-100 hover:shadow-md'}`}
+              >
+                {promo.imageUrl && (
+                  <img src={promo.imageUrl} alt="" className="w-full h-32 rounded-xl object-cover mb-3" />
+                )}
                 <div className="flex justify-between items-start gap-2">
                   <div className="min-w-0">
-                    <h4 className="font-bold text-gray-800 line-clamp-1">{promo.title}</h4>
+                    <h4 className="font-bold text-gray-800 line-clamp-1 flex items-center gap-1.5">
+                      {promo.title}
+                      {promo.featured && (
+                        <span className="flex items-center gap-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">
+                          <Star size={9} fill="currentColor" /> Featured
+                        </span>
+                      )}
+                    </h4>
                     {promo.description && (
                       <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{promo.description}</p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSavePromotion(promo.promotionID)}
-                    aria-label="Save deal"
-                    className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600 flex-shrink-0"
-                  >
-                    <Bookmark size={18} fill={savedPromotionIds.has(promo.promotionID) ? 'currentColor' : 'none'} className={savedPromotionIds.has(promo.promotionID) ? 'text-teal-600' : ''} />
-                  </button>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleClaimPromo(promo.promotionID)}
+                      disabled={claimingId === promo.promotionID}
+                      aria-label="Claim deal"
+                      className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600 disabled:opacity-50"
+                    >
+                      <Ticket size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSavePromotion(promo.promotionID)}
+                      aria-label="Save deal"
+                      className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600"
+                    >
+                      <Bookmark size={18} fill={savedPromotionIds.has(promo.promotionID) ? 'currentColor' : 'none'} className={savedPromotionIds.has(promo.promotionID) ? 'text-teal-600' : ''} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleShare({ title: promo.title, text: `${promo.title} at ${store.storeName} — on DealNest`, url: `${window.location.origin}/store/${storeId}#deal-${promo.promotionID}` }, promo.promotionID)}
+                      aria-label="Share deal"
+                      className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600"
+                    >
+                      {copiedId === promo.promotionID ? <Check size={16} className="text-teal-600" /> : <Share2 size={16} />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportingPromo(promo)}
+                      disabled={reportedIds.has(promo.promotionID)}
+                      aria-label={reportedIds.has(promo.promotionID) ? 'Deal reported' : 'Report deal'}
+                      title={reportedIds.has(promo.promotionID) ? 'Reported' : 'Report this deal'}
+                      className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-red-50 transition text-gray-500 hover:text-red-500 disabled:opacity-40"
+                    >
+                      <Flag size={16} fill={reportedIds.has(promo.promotionID) ? 'currentColor' : 'none'} className={reportedIds.has(promo.promotionID) ? 'text-red-500' : ''} />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 mt-3 flex-wrap">
                   {promo.discountPercentage != null && (
@@ -307,6 +446,11 @@ export default function StorePage({ user }) {
                     </span>
                   )}
                 </div>
+                {priceHistories[promo.promotionID]?.length > 1 && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <PriceSparkline points={priceHistories[promo.promotionID]} />
+                  </div>
+                )}
               </div>
             );
           })}
@@ -425,6 +569,26 @@ export default function StorePage({ user }) {
         onConfirm={handleDeleteReview}
         onCancel={() => setReviewToDelete(null)}
       />
+
+      <ReportDealModal
+        open={!!reportingPromo}
+        dealTitle={reportingPromo?.title}
+        submitting={submittingReport}
+        onSubmit={handleSubmitReport}
+        onClose={() => setReportingPromo(null)}
+      />
+
+      {claimedCode && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setClaimedCode(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center" onClick={(e) => e.stopPropagation()}>
+            <Ticket className="mx-auto text-teal-600 w-10 h-10" aria-hidden="true" />
+            <h3 className="text-lg font-bold text-gray-800 mt-3">Deal claimed!</h3>
+            <p className="text-sm text-gray-500 mt-1">Show this code in-store to redeem it.</p>
+            <p className="font-mono text-2xl font-bold tracking-widest text-teal-600 bg-teal-50 rounded-xl py-4 mt-4">{claimedCode}</p>
+            <button type="button" onClick={() => setClaimedCode(null)} className="btn-primary mt-4">Got it</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

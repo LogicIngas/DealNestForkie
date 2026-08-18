@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  ShieldCheck, LogOut, Users, Tag, BadgeCheck, Trash2, MapPin, Store as StoreIcon
+  ShieldCheck, LogOut, Users, Tag, BadgeCheck, Trash2, MapPin, Store as StoreIcon, Flag, Check, X as XIcon, Sparkles, Crown
 } from 'lucide-react';
-import { storeService, userService, promotionService } from '../services/api';
+import { storeService, userService, promotionService, dealReportService } from '../services/api';
 import { CATEGORY_ICON } from '../constants/categories';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -11,7 +11,17 @@ const TABS = [
   { key: 'stores', label: 'Stores' },
   { key: 'users', label: 'Users' },
   { key: 'promotions', label: 'Promotions' },
+  { key: 'reports', label: 'Reports' },
 ];
+
+const REPORT_REASON_LABELS = {
+  MISLEADING: 'Misleading information',
+  EXPIRED: 'Deal has expired',
+  INAPPROPRIATE: 'Inappropriate content',
+  SCAM: 'Looks like a scam',
+  DUPLICATE: 'Duplicate listing',
+  OTHER: 'Other',
+};
 
 export default function AdminDashboard({ admin, onLogout }) {
   const [tab, setTab] = useState('overview');
@@ -19,12 +29,14 @@ export default function AdminDashboard({ admin, onLogout }) {
   const [stores, setStores] = useState([]);
   const [users, setUsers] = useState([]);
   const [promotions, setPromotions] = useState([]);
+  const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [storeBusyId, setStoreBusyId] = useState(null);
   const [userBusyId, setUserBusyId] = useState(null);
   const [promoBusyId, setPromoBusyId] = useState(null);
   const [promoToDelete, setPromoToDelete] = useState(null);
+  const [reportBusyId, setReportBusyId] = useState(null);
 
   useEffect(() => {
     loadAll();
@@ -33,18 +45,32 @@ export default function AdminDashboard({ admin, onLogout }) {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [storesData, usersData, promosData] = await Promise.all([
+      const [storesData, usersData, promosData, reportsData] = await Promise.all([
         storeService.getAll(),
         userService.getAll(),
         promotionService.getAll(),
+        dealReportService.getAll().catch(() => []),
       ]);
       setStores(storesData);
       setUsers(usersData);
       setPromotions(promosData);
+      setReports(reportsData);
     } catch (error) {
       // Non-fatal: individual tabs stay empty and can be retried on refresh.
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResolveReport = async (report, status) => {
+    setReportBusyId(report.reportID);
+    try {
+      const updated = await dealReportService.resolve(report.reportID, status);
+      setReports(prev => prev.map(r => r.reportID === updated.reportID ? updated : r));
+    } catch (error) {
+      alert(error.message || 'Failed to update report.');
+    } finally {
+      setReportBusyId(null);
     }
   };
 
@@ -104,6 +130,9 @@ export default function AdminDashboard({ admin, onLogout }) {
   const activeStoreCount = stores.filter(s => s.active).length;
   const unverifiedCount = stores.filter(s => !s.verified).length;
   const activePromoCount = promotions.filter(p => p.isActive).length;
+  const pendingReportCount = reports.filter(r => r.status === 'PENDING').length;
+  const plusUserCount = users.filter(u => u.planTier === 'PLUS').length;
+  const proStoreCount = stores.filter(s => s.planTier === 'PRO').length;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
@@ -134,9 +163,9 @@ export default function AdminDashboard({ admin, onLogout }) {
         ))}
       </div>
 
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-6 max-w-4xl xl:max-w-6xl mx-auto">
         {loading ? (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[1, 2, 3].map(i => <div key={i} className="h-20 bg-white rounded-2xl border border-gray-100 animate-pulse" />)}
           </div>
         ) : tab === 'overview' ? (
@@ -148,6 +177,9 @@ export default function AdminDashboard({ admin, onLogout }) {
               <StatCard icon={Users} label="Total Users" value={users.length} color="text-pink-500" />
               <StatCard icon={Tag} label="Total Promotions" value={promotions.length} color="text-purple-500" />
               <StatCard icon={Tag} label="Active Promotions" value={activePromoCount} color="text-teal-500" />
+              <StatCard icon={Flag} label="Pending Reports" value={pendingReportCount} color="text-red-500" />
+              <StatCard icon={Sparkles} label="Plus Users" value={plusUserCount} color="text-amber-500" />
+              <StatCard icon={Crown} label="Pro Stores" value={proStoreCount} color="text-amber-500" />
             </div>
 
             <CategoryBarChart stores={stores} />
@@ -157,7 +189,7 @@ export default function AdminDashboard({ admin, onLogout }) {
           stores.length === 0 ? (
             <EmptyState icon={StoreIcon} text="No stores yet." />
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {stores.map(store => {
                 const CatIcon = CATEGORY_ICON[store.category] || StoreIcon;
                 const busy = storeBusyId === store.storeId;
@@ -207,7 +239,7 @@ export default function AdminDashboard({ admin, onLogout }) {
           users.length === 0 ? (
             <EmptyState icon={Users} text="No users yet." />
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {users.map(user => {
                 const busy = userBusyId === user.userID;
                 return (
@@ -239,11 +271,11 @@ export default function AdminDashboard({ admin, onLogout }) {
               })}
             </div>
           )
-        ) : (
+        ) : tab === 'promotions' ? (
           promotions.length === 0 ? (
             <EmptyState icon={Tag} text="No promotions yet." />
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {promotions.map(promo => {
                 const busy = promoBusyId === promo.promotionID;
                 return (
@@ -266,6 +298,56 @@ export default function AdminDashboard({ admin, onLogout }) {
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          reports.length === 0 ? (
+            <EmptyState icon={Flag} text="No reports yet." />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {[...reports].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(report => {
+                const busy = reportBusyId === report.reportID;
+                return (
+                  <div key={report.reportID} className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-gray-800 truncate">{report.promotion?.title || 'Unknown deal'}</h4>
+                        <p className="text-xs text-gray-500 truncate">{report.promotion?.store?.storeName || 'Unknown store'}</p>
+                        <span className="inline-block text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded font-bold uppercase tracking-wider mt-1.5">
+                          {REPORT_REASON_LABELS[report.reason] || report.reason}
+                        </span>
+                        {report.details && <p className="text-xs text-gray-500 mt-1.5">{report.details}</p>}
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex-shrink-0 ${
+                        report.status === 'PENDING' ? 'bg-amber-50 text-amber-700' :
+                        report.status === 'REVIEWED' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {report.status}
+                      </span>
+                    </div>
+                    {report.status === 'PENDING' && (
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => handleResolveReport(report, 'REVIEWED')}
+                          className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full bg-teal-600 text-white hover:bg-teal-700 transition disabled:opacity-50"
+                        >
+                          <Check className="w-3.5 h-3.5" /> Mark reviewed
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => handleResolveReport(report, 'DISMISSED')}
+                          className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition disabled:opacity-50"
+                        >
+                          <XIcon className="w-3.5 h-3.5" /> Dismiss
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

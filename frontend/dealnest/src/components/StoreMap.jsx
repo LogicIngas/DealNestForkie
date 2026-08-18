@@ -101,6 +101,13 @@ export default function StoreMap({ stores, promotions }) {
             <Marker key={store.storeId} position={[store.latitude, store.longitude]}>
               <Popup>
                 <div style={{ minWidth: 160 }}>
+                  {store.imageUrl && (
+                    <img
+                      src={store.imageUrl}
+                      alt=""
+                      style={{ width: '100%', height: 70, objectFit: 'cover', borderRadius: 8, marginBottom: 6 }}
+                    />
+                  )}
                   <div style={{ fontWeight: 700, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                     <CatIcon size={14} /> {store.storeName}
                   </div>

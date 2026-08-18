@@ -3,10 +3,11 @@ import {
   LogOut, PlusCircle, X, Store as StoreIcon,
   MapPin, Star, Pencil, Trash2, Tag, Users,
   BadgeCheck, Clock, Phone, Mail, AlertTriangle,
-  MessageSquare
+  MessageSquare, ImagePlus, Ticket, Sparkles, Crown
 } from 'lucide-react';
-import { promotionService, storeService, favoriteService, reviewService } from '../services/api';
+import { promotionService, storeService, favoriteService, reviewService, redemptionService } from '../services/api';
 import { CATEGORIES } from '../constants/categories';
+import { storageService } from '../services/storageService';
 import ConfirmModal from '../components/ConfirmModal';
 import logo from '../assets/logo.png';
 
@@ -22,7 +23,7 @@ function toTimeInput(time) {
 }
 
 const emptyPromo = {
-  title: '', description: '', originalPrice: '', discountPrice: '', startDate: '', endDate: '', isActive: true
+  title: '', description: '', originalPrice: '', discountPrice: '', startDate: '', endDate: '', isActive: true, imageUrl: ''
 };
 
 // Ordinal ramp: star count changes meaning, so it gets one hue in monotone steps
@@ -35,9 +36,11 @@ const STAR_RAMP = {
   5: 'bg-amber-600',
 };
 
+const PRO_PERKS = ['Feature one deal at the top of Home\'s Hot Deals', 'A Pro badge on your store profile'];
+
 const emptyStoreForm = {
   storeName: '', category: 'OTHER', description: '', email: '', phoneNumber: '', address: '', city: '',
-  openingTime: '', closingTime: ''
+  openingTime: '', closingTime: '', imageUrl: ''
 };
 
 export default function StoreDashboard({ user, onLogout }) {
@@ -60,6 +63,17 @@ export default function StoreDashboard({ user, onLogout }) {
   const [togglingId, setTogglingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [promoToDelete, setPromoToDelete] = useState(null);
+
+  const [uploadingStoreImage, setUploadingStoreImage] = useState(false);
+  const [uploadingPromoImage, setUploadingPromoImage] = useState(false);
+
+  const [redeemCode, setRedeemCode] = useState('');
+  const [redeeming, setRedeeming] = useState(false);
+  const [redeemResult, setRedeemResult] = useState(null);
+
+  const [subscribingStore, setSubscribingStore] = useState(false);
+  const [confirmCancelStorePlan, setConfirmCancelStorePlan] = useState(false);
+  const [featuringId, setFeaturingId] = useState(null);
 
   useEffect(() => {
     if (!user?.userID) return;
@@ -103,6 +117,11 @@ export default function StoreDashboard({ user, onLogout }) {
     count: reviews.filter(r => r.rating === star).length,
   }));
 
+  const isPro = userStore?.planTier === 'PRO';
+  const storeRenewsOn = userStore?.planRenewsAt
+    ? new Date(userStore.planRenewsAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+    : null;
+
   const missingProfileFields = userStore ? [
     !userStore.description && 'a description',
     !userStore.phoneNumber && 'a phone number',
@@ -110,6 +129,36 @@ export default function StoreDashboard({ user, onLogout }) {
   ].filter(Boolean) : [];
 
   const handlePromoChange = (e) => setPromoData({ ...promoData, [e.target.name]: e.target.value });
+
+  const handlePromoImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPromoImage(true);
+    try {
+      const url = await storageService.uploadImage(file, 'promotions');
+      setPromoData(prev => ({ ...prev, imageUrl: url }));
+    } catch (error) {
+      alert(error.message || 'Failed to upload image.');
+    } finally {
+      setUploadingPromoImage(false);
+    }
+  };
+
+  const handleRedeemCode = async (e) => {
+    e.preventDefault();
+    if (!redeemCode.trim() || !userStore) return;
+    setRedeeming(true);
+    setRedeemResult(null);
+    try {
+      const redemption = await redemptionService.redeemCode(userStore.storeId, redeemCode.trim());
+      setRedeemResult({ ok: true, message: `Redeemed — ${redemption.promotion?.title || 'deal'}` });
+      setRedeemCode('');
+    } catch (error) {
+      setRedeemResult({ ok: false, message: error.message || 'Invalid or already-redeemed code.' });
+    } finally {
+      setRedeeming(false);
+    }
+  };
 
   const handleSubmitPromo = async (e) => {
     e.preventDefault();
@@ -178,11 +227,26 @@ export default function StoreDashboard({ user, onLogout }) {
       city: userStore.city || '',
       openingTime: toTimeInput(userStore.openingTime),
       closingTime: toTimeInput(userStore.closingTime),
+      imageUrl: userStore.imageUrl || '',
     });
     setShowEditStore(true);
   };
 
   const handleStoreFormChange = (e) => setStoreForm({ ...storeForm, [e.target.name]: e.target.value });
+
+  const handleStoreImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingStoreImage(true);
+    try {
+      const url = await storageService.uploadImage(file, 'stores');
+      setStoreForm(prev => ({ ...prev, imageUrl: url }));
+    } catch (error) {
+      alert(error.message || 'Failed to upload image.');
+    } finally {
+      setUploadingStoreImage(false);
+    }
+  };
 
   const handleSubmitStore = async (e) => {
     e.preventDefault();
@@ -203,6 +267,50 @@ export default function StoreDashboard({ user, onLogout }) {
     }
   };
 
+  const handleUpgradeToPro = async () => {
+    setSubscribingStore(true);
+    try {
+      const renewsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const updated = await storeService.update(userStore.storeId, { ...userStore, planTier: 'PRO', planRenewsAt: renewsAt });
+      setUserStore(updated);
+    } catch (error) {
+      alert(error.message || 'Failed to upgrade to Pro.');
+    } finally {
+      setSubscribingStore(false);
+    }
+  };
+
+  const handleCancelProPlan = async () => {
+    setConfirmCancelStorePlan(false);
+    setSubscribingStore(true);
+    try {
+      const updated = await storeService.update(userStore.storeId, { ...userStore, planTier: 'FREE', planRenewsAt: null });
+      setUserStore(updated);
+    } catch (error) {
+      alert(error.message || 'Failed to cancel subscription.');
+    } finally {
+      setSubscribingStore(false);
+    }
+  };
+
+  const handleToggleFeatured = async (promo) => {
+    setFeaturingId(promo.promotionID);
+    try {
+      const wasFeatured = promo.featured;
+      const updated = await promotionService.update(promo.promotionID, { ...promo, featured: !wasFeatured });
+      setPromotions(prev => prev.map(p => {
+        if (p.promotionID === updated.promotionID) return updated;
+        // Featuring a new deal auto-unfeatures the previous one server-side.
+        if (!wasFeatured && p.featured) return { ...p, featured: false };
+        return p;
+      }));
+    } catch (error) {
+      alert(error.message || 'Failed to update featured status.');
+    } finally {
+      setFeaturingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       <div className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
@@ -215,7 +323,7 @@ export default function StoreDashboard({ user, onLogout }) {
         </button>
       </div>
 
-      <div className="p-6 max-w-2xl mx-auto space-y-6">
+      <div className="p-6 max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto space-y-6">
         {loadingStore ? (
           <div className="h-40 bg-white rounded-3xl border border-gray-100 animate-pulse" />
         ) : !userStore ? (
@@ -255,6 +363,11 @@ export default function StoreDashboard({ user, onLogout }) {
                   <h2 className="text-xl font-bold text-gray-800 flex items-center gap-1.5">
                     {userStore.storeName}
                     {userStore.verified && <BadgeCheck className="w-5 h-5 text-teal-500" aria-label="Verified" />}
+                    {isPro && (
+                      <span className="flex items-center gap-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                        <Crown size={10} /> Pro
+                      </span>
+                    )}
                   </h2>
                   <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
                     <MapPin className="w-4 h-4" aria-hidden="true" /> {userStore.address ? `${userStore.address}, ` : ''}{userStore.city}
@@ -299,6 +412,45 @@ export default function StoreDashboard({ user, onLogout }) {
               )}
             </div>
 
+            {/* Store plan */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-bold text-gray-800 flex items-center gap-1.5">
+                  <Crown size={16} className="text-amber-500" aria-hidden="true" /> Store Plan
+                </h3>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${isPro ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {isPro ? 'Pro' : 'Free plan'}
+                </span>
+              </div>
+              {isPro ? (
+                <>
+                  {storeRenewsOn && <p className="text-xs text-gray-500 mt-2">Renews on {storeRenewsOn}</p>}
+                  <button
+                    type="button"
+                    onClick={() => setConfirmCancelStorePlan(true)}
+                    disabled={subscribingStore}
+                    className="text-xs font-semibold text-gray-500 hover:text-red-500 mt-3 disabled:opacity-60"
+                  >
+                    Cancel subscription
+                  </button>
+                </>
+              ) : (
+                <>
+                  <ul className="text-xs text-gray-500 mt-2 space-y-1 list-disc list-inside">
+                    {PRO_PERKS.map(perk => <li key={perk}>{perk}</li>)}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={handleUpgradeToPro}
+                    disabled={subscribingStore}
+                    className="w-full flex items-center justify-center gap-1.5 bg-amber-500 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-600 transition disabled:opacity-60 mt-3"
+                  >
+                    <Sparkles size={14} /> {subscribingStore ? 'Upgrading…' : 'Upgrade to Pro — R199/month'}
+                  </button>
+                </>
+              )}
+            </div>
+
             {/* Stats */}
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
@@ -324,11 +476,37 @@ export default function StoreDashboard({ user, onLogout }) {
               Add New Promotion
             </button>
 
+            {/* Redeem a code */}
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
+              <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
+                <Ticket className="w-4 h-4 text-teal-500" aria-hidden="true" /> Redeem a code
+              </h3>
+              <form onSubmit={handleRedeemCode} className="flex gap-2">
+                <label htmlFor="redeem-code" className="sr-only">Voucher code</label>
+                <input
+                  id="redeem-code"
+                  type="text"
+                  value={redeemCode}
+                  onChange={(e) => { setRedeemCode(e.target.value.toUpperCase()); setRedeemResult(null); }}
+                  placeholder="DN-XXXXXXXXXXXX"
+                  className="input-field flex-1 font-mono tracking-wide"
+                />
+                <button type="submit" disabled={redeeming || !redeemCode.trim()} className="px-4 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition disabled:opacity-50 flex-shrink-0">
+                  {redeeming ? '…' : 'Redeem'}
+                </button>
+              </form>
+              {redeemResult && (
+                <p className={`text-xs font-semibold mt-2 ${redeemResult.ok ? 'text-green-600' : 'text-red-500'}`}>
+                  {redeemResult.message}
+                </p>
+              )}
+            </div>
+
             {/* Promotions list */}
             <div>
               <h3 className="text-lg font-bold text-gray-800 mb-3">Your Promotions</h3>
               {loadingPromotions ? (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {[1, 2].map(i => <div key={i} className="h-24 bg-white rounded-2xl border border-gray-100 animate-pulse" />)}
                 </div>
               ) : promotions.length === 0 ? (
@@ -338,13 +516,20 @@ export default function StoreDashboard({ user, onLogout }) {
                   <p className="text-gray-500 text-sm mt-1">Create your first deal to start attracting customers.</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {promotions.map(promo => {
                     const remaining = daysLeft(promo.endDate);
                     return (
                       <div key={promo.promotionID} className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
                         <div className="flex justify-between items-start gap-2">
-                          <h4 className="font-bold text-gray-800 line-clamp-1 min-w-0">{promo.title}</h4>
+                          <h4 className="font-bold text-gray-800 line-clamp-1 min-w-0 flex items-center gap-1.5">
+                            {promo.title}
+                            {promo.featured && (
+                              <span className="flex items-center gap-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">
+                                <Star size={9} fill="currentColor" /> Featured
+                              </span>
+                            )}
+                          </h4>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex-shrink-0 ${promo.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                             {promo.isActive ? 'Active' : 'Inactive'}
                           </span>
@@ -362,6 +547,18 @@ export default function StoreDashboard({ user, onLogout }) {
                             {promo.startDate?.slice(0, 10)} - {promo.endDate?.slice(0, 10)}
                           </p>
                           <div className="flex items-center gap-2">
+                            {isPro && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleFeatured(promo)}
+                                disabled={featuringId === promo.promotionID}
+                                aria-label={promo.featured ? 'Unfeature this deal' : 'Feature this deal'}
+                                title={promo.featured ? 'Unfeature this deal' : 'Feature this deal'}
+                                className={`min-w-11 min-h-11 flex items-center justify-center rounded-full transition disabled:opacity-50 ${promo.featured ? 'text-amber-500 hover:bg-amber-50' : 'text-gray-400 hover:bg-amber-50 hover:text-amber-500'}`}
+                              >
+                                <Star size={16} fill={promo.featured ? 'currentColor' : 'none'} />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleToggleActive(promo)}
@@ -456,6 +653,19 @@ export default function StoreDashboard({ user, onLogout }) {
             </button>
             <h3 className="text-xl font-bold text-gray-800 mb-4">Create New Promotion</h3>
             <form onSubmit={handleSubmitPromo} className="space-y-4">
+              <div className="flex items-center gap-3">
+                {promoData.imageUrl ? (
+                  <img src={promoData.imageUrl} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <ImagePlus className="w-6 h-6 text-gray-300" aria-hidden="true" />
+                  </div>
+                )}
+                <label className="text-sm font-semibold text-teal-600 hover:text-teal-700 cursor-pointer">
+                  {uploadingPromoImage ? 'Uploading…' : promoData.imageUrl ? 'Change photo' : 'Add a photo'}
+                  <input type="file" accept="image/*" onChange={handlePromoImageChange} disabled={uploadingPromoImage} className="sr-only" />
+                </label>
+              </div>
               <div>
                 <label htmlFor="promo-title" className="sr-only">Title</label>
                 <input id="promo-title" type="text" name="title" placeholder="Title" value={promoData.title} onChange={handlePromoChange} className="input-field" required />
@@ -498,6 +708,19 @@ export default function StoreDashboard({ user, onLogout }) {
             </button>
             <h3 className="text-xl font-bold text-gray-800 mb-4">Edit Store Details</h3>
             <form onSubmit={handleSubmitStore} className="space-y-4">
+              <div className="flex items-center gap-3">
+                {storeForm.imageUrl ? (
+                  <img src={storeForm.imageUrl} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <ImagePlus className="w-6 h-6 text-gray-300" aria-hidden="true" />
+                  </div>
+                )}
+                <label className="text-sm font-semibold text-teal-600 hover:text-teal-700 cursor-pointer">
+                  {uploadingStoreImage ? 'Uploading…' : storeForm.imageUrl ? 'Change photo' : 'Add a photo'}
+                  <input type="file" accept="image/*" onChange={handleStoreImageChange} disabled={uploadingStoreImage} className="sr-only" />
+                </label>
+              </div>
               <div>
                 <label htmlFor="store-name" className="sr-only">Store name</label>
                 <input id="store-name" type="text" name="storeName" placeholder="Store Name" value={storeForm.storeName} onChange={handleStoreFormChange} className="input-field" required />
@@ -555,6 +778,15 @@ export default function StoreDashboard({ user, onLogout }) {
         confirmLabel="Delete"
         onConfirm={handleDeletePromo}
         onCancel={() => setPromoToDelete(null)}
+      />
+
+      <ConfirmModal
+        open={confirmCancelStorePlan}
+        title="Cancel your Pro plan?"
+        message="You'll immediately lose the ability to feature a deal and the Pro badge."
+        confirmLabel="Cancel subscription"
+        onConfirm={handleCancelProPlan}
+        onCancel={() => setConfirmCancelStorePlan(false)}
       />
     </div>
   );

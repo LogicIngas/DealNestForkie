@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { LogOut, Home, Search, Heart, UserCircle } from 'lucide-react';
 import logo from './assets/logo.png';
+import NotificationBell from './components/NotificationBell';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
@@ -94,8 +95,9 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
     <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
       <header className="bg-white px-6 py-4 flex justify-between items-center shadow-sm z-10 flex-shrink-0">
         <img src={logo} alt="DealNest" width={103} height={56} className="h-14 w-auto" />
-        <div className="flex items-center gap-4">
-          <Link to="/profile" className="text-sm font-medium text-gray-600 hidden sm:block hover:text-teal-600 transition">Hi, {user?.firstName || 'User'}</Link>
+        <div className="flex items-center gap-2">
+          <Link to="/profile" className="text-sm font-medium text-gray-600 hidden sm:block hover:text-teal-600 transition mr-2">Hi, {user?.firstName || 'User'}</Link>
+          <NotificationBell user={user} />
           <button type="button" onClick={onLogout} aria-label="Log out" className="min-w-11 min-h-11 flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-full transition">
             <LogOut className="w-6 h-6" />
           </button>

@@ -92,6 +92,11 @@ export const storeService = {
       body: JSON.stringify(storeData),
     });
     return handleResponse(response);
+  },
+  getRecommended: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/stores/recommended/${userId}`);
+    if (!response.ok) return [];
+    return handleResponse(response);
   }
 };
 
@@ -199,6 +204,11 @@ export const notificationService = {
     const response = await fetch(`${API_BASE_URL}/notification/findByUserId/${userId}`);
     return handleResponse(response);
   },
+  getUnreadByUser: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/notification/findUnreadByUserId/${userId}`);
+    if (!response.ok) return [];
+    return handleResponse(response);
+  },
   markRead: async (notification) => {
     const response = await fetch(`${API_BASE_URL}/notification/update/${notification.notificationID}`, {
       method: 'PUT',
@@ -237,6 +247,75 @@ export const reviewService = {
       method: 'DELETE',
     });
     return response.ok;
+  }
+};
+
+// 8. REDEMPTION CONTROLLER
+export const redemptionService = {
+  claim: async (userId, promotionId) => {
+    const payload = { user: { userID: userId }, promotion: { promotionID: promotionId } };
+    const response = await fetch(`${API_BASE_URL}/redemption/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+  redeemCode: async (storeId, code) => {
+    const response = await fetch(`${API_BASE_URL}/redemption/redeem`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, storeId }),
+    });
+    return handleResponse(response);
+  },
+  getByUser: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/redemption/findByUserId/${userId}`);
+    if (!response.ok) return [];
+    return handleResponse(response);
+  }
+};
+
+// 9. DEAL REPORT CONTROLLER
+export const dealReportService = {
+  create: async (userId, promotionId, reason, details) => {
+    const payload = {
+      reason,
+      details,
+      user: { userID: userId },
+      promotion: { promotionID: promotionId },
+    };
+    const response = await fetch(`${API_BASE_URL}/dealReport/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+  getAll: async () => {
+    const response = await fetch(`${API_BASE_URL}/dealReport/getAll`);
+    return handleResponse(response);
+  },
+  findByStatus: async (status) => {
+    const response = await fetch(`${API_BASE_URL}/dealReport/findByStatus/${status}`);
+    return handleResponse(response);
+  },
+  resolve: async (reportId, status) => {
+    const response = await fetch(`${API_BASE_URL}/dealReport/resolve/${reportId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    return handleResponse(response);
+  }
+};
+
+// 10. PRICE HISTORY CONTROLLER
+export const priceHistoryService = {
+  getByPromotion: async (promotionId) => {
+    const response = await fetch(`${API_BASE_URL}/priceHistory/findByPromotionId/${promotionId}`);
+    if (!response.ok) return [];
+    return handleResponse(response);
   }
 };
 

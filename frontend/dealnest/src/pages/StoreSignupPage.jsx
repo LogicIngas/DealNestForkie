@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { MapPin } from 'lucide-react';
 import { storeService, userService } from '../services/api';
+import { CATEGORIES } from '../constants/categories';
 
 export default function StoreSignupPage() {
   const [formData, setFormData] = useState({
@@ -19,9 +21,35 @@ export default function StoreSignupPage() {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [lookupStatus, setLookupStatus] = useState('');
   const navigate = useNavigate();
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleLookupAddress = async () => {
+    if (!formData.address || !formData.city) {
+      setLookupStatus('Enter an address and city first.');
+      return;
+    }
+    setIsLookingUp(true);
+    setLookupStatus('');
+    try {
+      const query = encodeURIComponent(`${formData.address}, ${formData.city}`);
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`);
+      const results = await response.json();
+      if (results.length === 0) {
+        setLookupStatus('Address not found — try being more specific.');
+        return;
+      }
+      setFormData((prev) => ({ ...prev, latitude: parseFloat(results[0].lat), longitude: parseFloat(results[0].lon) }));
+      setLookupStatus('Location found ✓');
+    } catch {
+      setLookupStatus('Lookup failed — you can still register, just fix it later.');
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,12 +110,21 @@ export default function StoreSignupPage() {
           <input name="phoneNumber" placeholder="Phone Number" onChange={handleChange} className="input-field" required />
           <input name="address" placeholder="Address" onChange={handleChange} className="input-field" required />
           <input name="city" placeholder="City" onChange={handleChange} className="input-field" required />
-          <select name="category" onChange={handleChange} className="input-field">
-            <option value="OTHER">Other</option>
-            <option value="RESTAURANT">Restaurant</option>
-            <option value="GROCERY">Grocery</option>
-            <option value="ELECTRONICS">Electronics</option>
-            <option value="FASHION">Fashion</option>
+          <div>
+            <button
+              type="button"
+              onClick={handleLookupAddress}
+              disabled={isLookingUp}
+              className="flex items-center gap-1.5 text-sm font-semibold text-teal-600 hover:text-teal-700 disabled:opacity-60"
+            >
+              <MapPin size={15} /> {isLookingUp ? 'Looking up…' : 'Look up address'}
+            </button>
+            {lookupStatus && <p className="text-xs text-gray-400 mt-1">{lookupStatus}</p>}
+          </div>
+          <select name="category" onChange={handleChange} className="input-field" value={formData.category}>
+            {CATEGORIES.map((cat) => (
+              <option key={cat.value} value={cat.value}>{cat.label}</option>
+            ))}
           </select>
           <button type="submit" disabled={isLoading} className="btn-primary">
             {isLoading ? 'Registering...' : 'Register Store'}

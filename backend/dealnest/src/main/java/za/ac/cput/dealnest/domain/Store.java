@@ -34,8 +34,14 @@ public class Store {
     private Boolean isActive;
     private Double averageRating;
     private int totalReviews;
+    private String imageUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @Enumerated(EnumType.STRING)
+    private StorePlanTier planTier;
+
+    private LocalDateTime planRenewsAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -70,12 +76,15 @@ public class Store {
         this.isActive = builder.isActive;
         this.averageRating = builder.averageRating;
         this.totalReviews = builder.totalReviews;
+        this.imageUrl = builder.imageUrl;
         this.createdAt = builder.createdAt;
         this.updatedAt = builder.updatedAt;
         this.user = builder.user;
         this.promotions = builder.promotions;
         this.reviews = builder.reviews;
         this.favoriteStores = builder.favoriteStores;
+        this.planTier = builder.planTier;
+        this.planRenewsAt = builder.planRenewsAt;
     }
 
     protected Store() {
@@ -94,6 +103,9 @@ public class Store {
         }
         if (isActive == null) {
             isActive = true;
+        }
+        if (planTier == null) {
+            planTier = StorePlanTier.FREE;
         }
     }
 
@@ -166,6 +178,10 @@ public class Store {
         return totalReviews;
     }
 
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -188,6 +204,14 @@ public class Store {
 
     public List<FavoriteStore> getFavoriteStores() {
         return favoriteStores;
+    }
+
+    public StorePlanTier getPlanTier() {
+        return planTier;
+    }
+
+    public LocalDateTime getPlanRenewsAt() {
+        return planRenewsAt;
     }
 
     public void setStoreId(String storeId) {
@@ -254,6 +278,10 @@ public class Store {
         this.totalReviews = totalReviews;
     }
 
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
@@ -266,16 +294,24 @@ public class Store {
         this.user = user;
     }
 
+    public void setPlanTier(StorePlanTier planTier) {
+        this.planTier = planTier;
+    }
+
+    public void setPlanRenewsAt(LocalDateTime planRenewsAt) {
+        this.planRenewsAt = planRenewsAt;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         Store store = (Store) o;
-        return Double.compare(latitude, store.latitude) == 0 && Double.compare(longitude, store.longitude) == 0 && totalReviews == store.totalReviews && Objects.equals(storeId, store.storeId) && Objects.equals(category, store.category) && Objects.equals(storeName, store.storeName) && Objects.equals(description, store.description) && Objects.equals(email, store.email) && Objects.equals(phoneNumber, store.phoneNumber) && Objects.equals(address, store.address) && Objects.equals(city, store.city) && Objects.equals(openingTime, store.openingTime) && Objects.equals(closingTime, store.closingTime) && Objects.equals(isVerified, store.isVerified) && Objects.equals(isActive, store.isActive) && Objects.equals(averageRating, store.averageRating) && Objects.equals(createdAt, store.createdAt) && Objects.equals(updatedAt, store.updatedAt);
+        return Double.compare(latitude, store.latitude) == 0 && Double.compare(longitude, store.longitude) == 0 && totalReviews == store.totalReviews && Objects.equals(storeId, store.storeId) && Objects.equals(category, store.category) && Objects.equals(storeName, store.storeName) && Objects.equals(description, store.description) && Objects.equals(email, store.email) && Objects.equals(phoneNumber, store.phoneNumber) && Objects.equals(address, store.address) && Objects.equals(city, store.city) && Objects.equals(openingTime, store.openingTime) && Objects.equals(closingTime, store.closingTime) && Objects.equals(isVerified, store.isVerified) && Objects.equals(isActive, store.isActive) && Objects.equals(averageRating, store.averageRating) && Objects.equals(imageUrl, store.imageUrl) && Objects.equals(createdAt, store.createdAt) && Objects.equals(updatedAt, store.updatedAt) && planTier == store.planTier && Objects.equals(planRenewsAt, store.planRenewsAt);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(storeId, category, storeName, description, email, phoneNumber, address, city, latitude, longitude, openingTime, closingTime, isVerified, isActive, averageRating, totalReviews, createdAt, updatedAt);
+        return Objects.hash(storeId, category, storeName, description, email, phoneNumber, address, city, latitude, longitude, openingTime, closingTime, isVerified, isActive, averageRating, totalReviews, imageUrl, createdAt, updatedAt, planTier, planRenewsAt);
     }
 
     @Override
@@ -297,8 +333,11 @@ public class Store {
                 ", isActive=" + isActive +
                 ", averageRating=" + averageRating +
                 ", totalReviews=" + totalReviews +
+                ", imageUrl='" + imageUrl + '\'' +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
+                ", planTier=" + planTier +
+                ", planRenewsAt=" + planRenewsAt +
                 '}';
     }
 
@@ -319,12 +358,15 @@ public class Store {
         private Boolean isActive;
         private Double averageRating;
         private int totalReviews;
+        private String imageUrl;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private User user;
         private List<Promotion> promotions = new ArrayList<>();
         private List<Review> reviews = new ArrayList<>();
         private List<FavoriteStore> favoriteStores = new ArrayList<>();
+        private StorePlanTier planTier;
+        private LocalDateTime planRenewsAt;
 
         public Builder setStoreId(String storeId) {
             this.storeId = storeId;
@@ -406,6 +448,11 @@ public class Store {
             return this;
         }
 
+        public Builder setImageUrl(String imageUrl) {
+            this.imageUrl = imageUrl;
+            return this;
+        }
+
         public Builder setCreatedAt(LocalDateTime createdAt) {
             this.createdAt = createdAt;
             return this;
@@ -436,6 +483,16 @@ public class Store {
             return this;
         }
 
+        public Builder setPlanTier(StorePlanTier planTier) {
+            this.planTier = planTier;
+            return this;
+        }
+
+        public Builder setPlanRenewsAt(LocalDateTime planRenewsAt) {
+            this.planRenewsAt = planRenewsAt;
+            return this;
+        }
+
         public Builder copy(Store store) {
             this.storeId = store.storeId;
             this.category = store.category;
@@ -453,12 +510,15 @@ public class Store {
             this.isActive = store.isActive;
             this.averageRating = store.averageRating;
             this.totalReviews = store.totalReviews;
+            this.imageUrl = store.imageUrl;
             this.createdAt = store.createdAt;
             this.updatedAt = store.updatedAt;
             this.user = store.user;
             this.promotions = store.promotions;
             this.reviews = store.reviews;
             this.favoriteStores = store.favoriteStores;
+            this.planTier = store.planTier;
+            this.planRenewsAt = store.planRenewsAt;
             return this;
         }
 

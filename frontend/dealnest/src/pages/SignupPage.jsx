@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, Phone, User, ShoppingBag } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Phone, User, ShoppingBag, MapPin } from 'lucide-react';
 import { userService } from '../services/api';
 
 export default function SignupPage() {
@@ -17,7 +17,19 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [locationGranted, setLocationGranted] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setFormData((prev) => ({ ...prev, latitude: pos.coords.latitude, longitude: pos.coords.longitude }));
+        setLocationGranted(true);
+      },
+      () => {}
+    );
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -131,8 +143,14 @@ export default function SignupPage() {
                 </button>
               </div>
 
-              <button 
-                type="submit" 
+              {!locationGranted && (
+                <p className="flex items-center gap-1.5 text-xs text-gray-400">
+                  <MapPin size={13} /> Enable location so we can show nearby deals
+                </p>
+              )}
+
+              <button
+                type="submit"
                 disabled={isLoading}
                 className={`w-full bg-gradient-to-r from-teal-600 to-teal-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-teal-200/50 transition-all ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:shadow-xl hover:scale-[1.02]'}`}
               >

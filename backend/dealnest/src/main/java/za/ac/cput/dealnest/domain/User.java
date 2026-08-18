@@ -29,6 +29,11 @@ public class User {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    @Enumerated(EnumType.STRING)
+    private UserPlanTier planTier;
+
+    private LocalDateTime planRenewsAt;
+
     @JsonIgnore
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Store> stores = new ArrayList<>();
@@ -74,6 +79,15 @@ public class User {
         this.favoriteStores = builder.favoriteStores;
         this.searchHistories = builder.searchHistories;
         this.notifications = builder.notifications;
+        this.planTier = builder.planTier;
+        this.planRenewsAt = builder.planRenewsAt;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        if (planTier == null) {
+            planTier = UserPlanTier.FREE;
+        }
     }
 
     public String getUserID() {
@@ -146,6 +160,14 @@ public class User {
         return notifications;
     }
 
+    public UserPlanTier getPlanTier() {
+        return planTier;
+    }
+
+    public LocalDateTime getPlanRenewsAt() {
+        return planRenewsAt;
+    }
+
     public void setUserID(String userID) {
         this.userID = userID;
     }
@@ -191,16 +213,24 @@ public class User {
         this.updatedAt = updatedAt;
     }
 
+    public void setPlanTier(UserPlanTier planTier) {
+        this.planTier = planTier;
+    }
+
+    public void setPlanRenewsAt(LocalDateTime planRenewsAt) {
+        this.planRenewsAt = planRenewsAt;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         User user = (User) o;
-        return Double.compare(latitude, user.latitude) == 0 && Double.compare(longitude, user.longitude) == 0 && isActive == user.isActive && Objects.equals(userID, user.userID) && Objects.equals(email, user.email) && Objects.equals(password, user.password) && Objects.equals(firstName, user.firstName) && Objects.equals(lastName, user.lastName) && Objects.equals(phoneNumber, user.phoneNumber) && Objects.equals(createdAt, user.createdAt) && Objects.equals(updatedAt, user.updatedAt);
+        return Double.compare(latitude, user.latitude) == 0 && Double.compare(longitude, user.longitude) == 0 && isActive == user.isActive && Objects.equals(userID, user.userID) && Objects.equals(email, user.email) && Objects.equals(password, user.password) && Objects.equals(firstName, user.firstName) && Objects.equals(lastName, user.lastName) && Objects.equals(phoneNumber, user.phoneNumber) && Objects.equals(createdAt, user.createdAt) && Objects.equals(updatedAt, user.updatedAt) && planTier == user.planTier && Objects.equals(planRenewsAt, user.planRenewsAt);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(userID, email, password, firstName, lastName, phoneNumber, latitude, longitude, isActive, createdAt, updatedAt);
+        return Objects.hash(userID, email, password, firstName, lastName, phoneNumber, latitude, longitude, isActive, createdAt, updatedAt, planTier, planRenewsAt);
     }
 
     @Override
@@ -217,6 +247,8 @@ public class User {
                 ", isActive=" + isActive +
                 ", createdAt=" + createdAt +
                 ", updatedAt=" + updatedAt +
+                ", planTier=" + planTier +
+                ", planRenewsAt=" + planRenewsAt +
                 '}';
     }
 
@@ -238,6 +270,8 @@ public class User {
         private List<FavoriteStore> favoriteStores = new ArrayList<>();
         private List<SearchHistory> searchHistories = new ArrayList<>();
         private List<Notification> notifications = new ArrayList<>();
+        private UserPlanTier planTier;
+        private LocalDateTime planRenewsAt;
 
         public Builder setUserID(String userID) {
             this.userID = userID;
@@ -324,6 +358,16 @@ public class User {
             return this;
         }
 
+        public Builder setPlanTier(UserPlanTier planTier) {
+            this.planTier = planTier;
+            return this;
+        }
+
+        public Builder setPlanRenewsAt(LocalDateTime planRenewsAt) {
+            this.planRenewsAt = planRenewsAt;
+            return this;
+        }
+
         public Builder copy(User user) {
             this.userID = user.userID;
             this.email = user.email;
@@ -342,6 +386,8 @@ public class User {
             this.favoriteStores = user.favoriteStores;
             this.searchHistories = user.searchHistories;
             this.notifications = user.notifications;
+            this.planTier = user.planTier;
+            this.planRenewsAt = user.planRenewsAt;
             return this;
         }
 

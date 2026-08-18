@@ -41,3 +41,6 @@ src/main/java/za/ac/cput/dealnest/dto/
 .env.development
 .env.production
 .env.*.local
+
+# Local-only Spring profile (holds real DB credentials, never committed)
+application-local.properties
