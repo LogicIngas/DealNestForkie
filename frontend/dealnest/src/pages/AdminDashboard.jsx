@@ -163,7 +163,7 @@ export default function AdminDashboard({ admin, onLogout }) {
         ))}
       </div>
 
-      <div className="p-6 max-w-4xl xl:max-w-6xl mx-auto">
+      <div className="p-6 max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto">
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {[1, 2, 3].map(i => <div key={i} className="h-20 bg-white rounded-2xl border border-gray-100 animate-pulse" />)}

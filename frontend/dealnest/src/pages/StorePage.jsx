@@ -245,7 +245,7 @@ export default function StorePage({ user }) {
 
   if (loading) {
     return (
-      <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto">
+      <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto">
         <div className="h-40 bg-white rounded-3xl border border-gray-100 animate-pulse mb-6" />
         <div className="h-24 bg-white rounded-3xl border border-gray-100 animate-pulse" />
       </div>
@@ -254,7 +254,7 @@ export default function StorePage({ user }) {
 
   if (notFound || !store) {
     return (
-      <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto">
+      <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto">
         <button type="button" onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-teal-600 mb-6">
           <ArrowLeft size={16} /> Back
         </button>
@@ -272,7 +272,7 @@ export default function StorePage({ user }) {
   const closeTime = formatTime(store.closingTime);
 
   return (
-    <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto">
+    <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto">
       <button type="button" onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-teal-600 mb-6">
         <ArrowLeft size={16} /> Back
       </button>
@@ -363,7 +363,7 @@ export default function StorePage({ user }) {
           <p className="text-gray-500 text-sm mt-1">Check back soon for offers from this store.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {promotions.map(promo => {
             const remaining = daysLeft(promo.endDate);
             const highlighted = highlightedPromoId === promo.promotionID;

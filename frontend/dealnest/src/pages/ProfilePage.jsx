@@ -166,7 +166,7 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
     : null;
 
   return (
-    <div className="p-6 pb-24 max-w-lg mx-auto">
+    <div className="p-6 pb-24 max-w-lg lg:max-w-xl mx-auto">
       {/* Hero */}
       <div className="mb-6 bg-gradient-to-br from-teal-600 to-teal-500 rounded-3xl p-6 text-white shadow-lg shadow-teal-200/50 flex items-center gap-4">
         <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold flex-shrink-0">

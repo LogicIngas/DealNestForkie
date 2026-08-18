@@ -142,7 +142,7 @@ export default function ExplorePage({ user }) {
   };
 
   return (
-    <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto">
+    <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-4 gap-3">
         <h2 className="text-2xl font-bold text-gray-800">Explore</h2>
         <div className="flex bg-gray-100 rounded-xl p-1 flex-shrink-0">
@@ -309,7 +309,7 @@ export default function ExplorePage({ user }) {
           <StoreMap stores={filteredStores} promotions={promotions} />
         )
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredStores.length === 0 && (
             <div className="col-span-full text-center text-gray-500 py-20">No stores found matching your search.</div>
           )}

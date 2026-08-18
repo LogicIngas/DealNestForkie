@@ -128,7 +128,7 @@ export default function HomePage({ user }) {
   const displayRecommended = recommendedStores && recommendedStores.length > 0 ? recommendedStores : topRatedStores;
 
   return (
-    <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto">
+    <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto">
       {/* Hero */}
       <div className="mb-8 bg-gradient-to-br from-teal-600 to-teal-500 rounded-3xl p-6 text-white shadow-lg shadow-teal-200/50">
         <h2 className="text-2xl font-bold">Welcome back, {user?.firstName}!</h2>
@@ -287,7 +287,7 @@ export default function HomePage({ user }) {
       {/* All Stores */}
       <SectionHeader title="Stores For You" />
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[1, 2, 3].map(i => (
             <div key={i} className="h-24 bg-white rounded-3xl border border-gray-100 animate-pulse" />
           ))}
@@ -299,7 +299,7 @@ export default function HomePage({ user }) {
           <p className="text-gray-500 text-sm mt-1">Check back soon for local favorites.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {stores.slice(0, 6).map(store => (
             <Link key={store.storeId} to={`/store/${store.storeId}`} className="block bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition">
               <div className="flex items-start gap-4">

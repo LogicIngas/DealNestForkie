@@ -323,7 +323,7 @@ export default function StoreDashboard({ user, onLogout }) {
         </button>
       </div>
 
-      <div className="p-6 max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto space-y-6">
+      <div className="p-6 max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto space-y-6">
         {loadingStore ? (
           <div className="h-40 bg-white rounded-3xl border border-gray-100 animate-pulse" />
         ) : !userStore ? (
@@ -506,7 +506,7 @@ export default function StoreDashboard({ user, onLogout }) {
             <div>
               <h3 className="text-lg font-bold text-gray-800 mb-3">Your Promotions</h3>
               {loadingPromotions ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {[1, 2].map(i => <div key={i} className="h-24 bg-white rounded-2xl border border-gray-100 animate-pulse" />)}
                 </div>
               ) : promotions.length === 0 ? (
@@ -516,7 +516,7 @@ export default function StoreDashboard({ user, onLogout }) {
                   <p className="text-gray-500 text-sm mt-1">Create your first deal to start attracting customers.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {promotions.map(promo => {
                     const remaining = daysLeft(promo.endDate);
                     return (

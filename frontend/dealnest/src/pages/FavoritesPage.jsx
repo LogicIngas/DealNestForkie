@@ -85,7 +85,7 @@ export default function FavoritesPage({ user }) {
     .filter(promo => promo && compareIds.has(promo.promotionID));
 
   return (
-    <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-5xl mx-auto">
+    <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">My Favorites</h2>
 
       <div className="flex bg-gray-100 rounded-xl p-1 mb-6 w-fit">
@@ -119,7 +119,7 @@ export default function FavoritesPage({ user }) {
             <p className="text-gray-500 text-sm mt-2">Explore stores and tap the heart to save them here.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {favorites.map(fav => {
               const CatIcon = CATEGORY_ICON[fav.store.category] || StoreIcon;
               return (
@@ -169,7 +169,7 @@ export default function FavoritesPage({ user }) {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-16">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-16">
             {savedPromotions.map(sp => {
               const promo = sp.promotion;
               const remaining = daysLeft(promo?.endDate);
@@ -244,7 +244,7 @@ export default function FavoritesPage({ user }) {
             <p className="text-gray-500 text-sm mt-2">Tap the ticket icon on a deal to claim a redeemable code.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {redemptions.map(r => (
               <div key={r.redemptionID} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
                 <div className="flex justify-between items-start gap-2">
