@@ -11,3 +11,4 @@ bencium-claude-code-design-skill/
 .env.development
 .env.production
 .env.*.local
+!frontend/dealnest/.env
