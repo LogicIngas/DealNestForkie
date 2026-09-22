@@ -10,6 +10,18 @@
 -- ON CONFLICT DO NOTHING
 -- ============================================================
 
+-- ============================================================
+-- ONE-TIME MIGRATION: re-hash any plaintext passwords left in
+-- the users table from before BCrypt was introduced.
+-- BCrypt hashes always start with '$2a$' or '$2b$'.
+-- Running this every startup is safe — it only touches rows
+-- that still hold a plaintext value.
+-- Password being hashed: Password123
+-- ============================================================
+UPDATE users
+SET password = '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy'
+WHERE password NOT LIKE '$2%';
+
 
 -- ============================================================
 -- ADMIN
@@ -62,7 +74,7 @@ VALUES
 (
     '51f55b70-7e96-4ad4-a3a8-564e13aec78e',
     'owner@freshbasket.co.za',
-    'Password123',
+    '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy',
     'Nomvula',
     'Dlamini',
     '0821234501',
@@ -75,7 +87,7 @@ VALUES
 (
     '7efbbced-729a-4a8e-b949-85773783ac8e',
     'owner@mzansigrill.co.za',
-    'Password123',
+    '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy',
     'Sipho',
     'Mokoena',
     '0821234502',
@@ -88,7 +100,7 @@ VALUES
 (
     'b3d4fb6d-2671-4d8c-9b94-64c225d16d1d',
     'owner@urbanthread.co.za',
-    'Password123',
+    '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy',
     'Aisha',
     'Petersen',
     '0821234503',
@@ -101,7 +113,7 @@ VALUES
 (
     '86fde77e-acf2-4540-af20-394d0bf4527f',
     'owner@techhub.co.za',
-    'Password123',
+    '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy',
     'Liam',
     'van der Merwe',
     '0821234504',
@@ -114,7 +126,7 @@ VALUES
 (
     '076960fb-1650-49a9-8e81-3faf7c33389c',
     'thandi.customer@example.com',
-    'Password123',
+    '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy',
     'Thandi',
     'Nkosi',
     '0731234505',
@@ -127,7 +139,7 @@ VALUES
 (
     'c2082ccf-a259-49e6-97ce-11e36d986aaa',
     'jordan.customer@example.com',
-    'Password123',
+    '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy',
     'Jordan',
     'Adams',
     '0731234506',
