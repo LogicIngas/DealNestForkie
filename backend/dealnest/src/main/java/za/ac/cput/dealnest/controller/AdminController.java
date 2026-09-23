@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.ac.cput.dealnest.domain.Admin;
+import za.ac.cput.dealnest.security.JwtUtil;
 import za.ac.cput.dealnest.service.IAdminService;
 
 import java.util.List;
@@ -17,10 +18,12 @@ import java.util.Optional;
 public class AdminController {
 
     private final IAdminService adminService;
+    private final JwtUtil jwtUtil;
 
     @Autowired
-    public AdminController(IAdminService adminService) {
+    public AdminController(IAdminService adminService, JwtUtil jwtUtil) {
         this.adminService = adminService;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/create")
@@ -41,7 +44,10 @@ public class AdminController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Admin credentials) {
         return adminService.login(credentials.getEmail(), credentials.getPasswordHash())
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .<ResponseEntity<?>>map(admin -> {
+                    String token = jwtUtil.generateAdminToken(admin.getAdminID(), admin.getEmail());
+                    return ResponseEntity.ok(Map.of("token", token, "admin", admin));
+                })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("message", "Incorrect email or password.")));
     }

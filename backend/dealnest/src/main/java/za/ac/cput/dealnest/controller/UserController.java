@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.ac.cput.dealnest.domain.User;
+import za.ac.cput.dealnest.security.JwtUtil;
 import za.ac.cput.dealnest.service.IUserService;
 
 import java.util.List;
@@ -18,10 +19,12 @@ import java.util.Optional;
 public class UserController {
 
     private final IUserService userService;
+    private final JwtUtil jwtUtil;
 
     @Autowired
-    public UserController(IUserService userService) {
+    public UserController(IUserService userService, JwtUtil jwtUtil) {
         this.userService = userService;
+        this.jwtUtil = jwtUtil;
     }
 
     @PostMapping("/create")
@@ -32,7 +35,10 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User credentials) {
         return userService.login(credentials.getEmail(), credentials.getPassword())
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
+                .<ResponseEntity<?>>map(user -> {
+                    String token = jwtUtil.generateUserToken(user.getUserID(), user.getEmail());
+                    return ResponseEntity.ok(Map.of("token", token, "user", user));
+                })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("message", "Incorrect email or password.")));
     }

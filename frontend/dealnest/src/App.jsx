@@ -40,6 +40,7 @@ function App() {
     setUser(null);
     localStorage.removeItem('dealnest_user');
     localStorage.removeItem('dealnest_role');
+    localStorage.removeItem('dealnest_token');
   };
 
   const updateUser = (userData) => {
@@ -55,6 +56,7 @@ function App() {
   const adminLogout = () => {
     setAdmin(null);
     localStorage.removeItem('dealnest_admin');
+    localStorage.removeItem('dealnest_admin_token');
   };
 
   return (

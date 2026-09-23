@@ -1,5 +1,6 @@
 package za.ac.cput.dealnest.service.impl;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import za.ac.cput.dealnest.domain.User;
 import za.ac.cput.dealnest.repository.IUserRepository;
@@ -12,13 +13,17 @@ import java.util.Optional;
 public class UserServiceImpl implements IUserService {
 
     private final IUserRepository repository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(IUserRepository repository) {
+    public UserServiceImpl(IUserRepository repository, PasswordEncoder passwordEncoder) {
         this.repository = repository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public User create(User user) {
+        // Hash the plaintext password before persisting
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         return repository.save(user);
     }
 
@@ -50,7 +55,8 @@ public class UserServiceImpl implements IUserService {
 
     @Override
     public Optional<User> login(String email, String password) {
-        return repository.findByEmailAndPassword(email, password);
+        return repository.findByEmail(email)
+                .filter(user -> passwordEncoder.matches(password, user.getPassword()));
     }
 
     @Override
