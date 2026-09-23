@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface IRecommendationService {
     List<Store> getRecommendedForUser(String userId);
+
+    List<Store> getPersonalizedForUser(String userId);
 }

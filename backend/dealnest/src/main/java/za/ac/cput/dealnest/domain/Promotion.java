@@ -27,6 +27,8 @@ public class Promotion {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Boolean featured;
+    private Boolean promoted;
+    private Boolean scheduleEnabled;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id", nullable = false)
@@ -55,6 +57,8 @@ public class Promotion {
         this.store = builder.store;
         this.savedPromotions = builder.savedPromotions;
         this.featured = builder.featured;
+        this.promoted = builder.promoted;
+        this.scheduleEnabled = builder.scheduleEnabled;
     }
 
     @PrePersist
@@ -70,6 +74,12 @@ public class Promotion {
         }
         if (featured == null) {
             featured = false;
+        }
+        if (promoted == null) {
+            promoted = false;
+        }
+        if (scheduleEnabled == null) {
+            scheduleEnabled = true;
         }
     }
 
@@ -139,6 +149,14 @@ public class Promotion {
         return featured;
     }
 
+    public Boolean getPromoted() {
+        return promoted;
+    }
+
+    public Boolean getScheduleEnabled() {
+        return scheduleEnabled;
+    }
+
     public void setPromotionID(String promotionID) {
         this.promotionID = promotionID;
     }
@@ -196,6 +214,14 @@ public class Promotion {
         this.featured = featured;
     }
 
+    public void setPromoted(Boolean promoted) {
+        this.promoted = promoted;
+    }
+
+    public void setScheduleEnabled(Boolean scheduleEnabled) {
+        this.scheduleEnabled = scheduleEnabled;
+    }
+
     public Double calculateDiscount() {
         if (originalPrice == null || discountPrice == null) {
             return 0.0;
@@ -242,6 +268,8 @@ public class Promotion {
                 ", isActive=" + isActive +
                 ", imageUrl='" + imageUrl + '\'' +
                 ", featured=" + featured +
+                ", promoted=" + promoted +
+                ", scheduleEnabled=" + scheduleEnabled +
                 '}';
     }
 
@@ -261,6 +289,8 @@ public class Promotion {
         private Store store;
         private List<SavedPromotion> savedPromotions = new ArrayList<>();
         private Boolean featured;
+        private Boolean promoted;
+        private Boolean scheduleEnabled;
 
         public Builder setPromotionID(String promotionID) {
             this.promotionID = promotionID;
@@ -337,6 +367,16 @@ public class Promotion {
             return this;
         }
 
+        public Builder setPromoted(Boolean promoted) {
+            this.promoted = promoted;
+            return this;
+        }
+
+        public Builder setScheduleEnabled(Boolean scheduleEnabled) {
+            this.scheduleEnabled = scheduleEnabled;
+            return this;
+        }
+
         public Builder copy(Promotion promotion) {
             this.promotionID = promotion.promotionID;
             this.title = promotion.title;
@@ -353,6 +393,8 @@ public class Promotion {
             this.store = promotion.store;
             this.savedPromotions = promotion.savedPromotions;
             this.featured = promotion.featured;
+            this.promoted = promotion.promoted;
+            this.scheduleEnabled = promotion.scheduleEnabled;
             return this;
         }
 

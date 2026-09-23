@@ -3,9 +3,10 @@ import {
   LogOut, PlusCircle, X, Store as StoreIcon,
   MapPin, Star, Pencil, Trash2, Tag, Users,
   BadgeCheck, Clock, Phone, Mail, AlertTriangle,
-  MessageSquare, ImagePlus, Ticket, Sparkles, Crown
+  MessageSquare, ImagePlus, Ticket, Sparkles, Crown,
+  BarChart3, TrendingUp, UploadCloud, CalendarClock, Eye, Bookmark, CheckCircle2, Flame
 } from 'lucide-react';
-import { promotionService, storeService, favoriteService, reviewService, redemptionService } from '../services/api';
+import { promotionService, storeService, favoriteService, reviewService, redemptionService, analyticsService } from '../services/api';
 import { CATEGORIES } from '../constants/categories';
 import { storageService } from '../services/storageService';
 import ConfirmModal from '../components/ConfirmModal';
@@ -36,7 +37,9 @@ const STAR_RAMP = {
   5: 'bg-amber-600',
 };
 
-const PRO_PERKS = ['Feature one deal at the top of Home\'s Hot Deals', 'A Pro badge on your store profile'];
+const PRO_PERKS = ['Feature one deal at the top of Home\'s Hot Deals', 'A Pro badge on your store profile', 'Analytics dashboard with conversion tracking', 'Bulk-upload promotions from a CSV', 'Schedule deals to auto-activate and expire'];
+
+const CSV_HEADERS = ['title', 'description', 'originalPrice', 'discountPrice', 'startDate', 'endDate', 'imageUrl'];
 
 const emptyStoreForm = {
   storeName: '', category: 'OTHER', description: '', email: '', phoneNumber: '', address: '', city: '',
@@ -74,6 +77,17 @@ export default function StoreDashboard({ user, onLogout }) {
   const [subscribingStore, setSubscribingStore] = useState(false);
   const [confirmCancelStorePlan, setConfirmCancelStorePlan] = useState(false);
   const [featuringId, setFeaturingId] = useState(null);
+  const [promotingId, setPromotingId] = useState(null);
+
+  const [analytics, setAnalytics] = useState(null);
+  const [insights, setInsights] = useState(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState('');
+
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null);
+
+  const isPro = userStore?.planTier === 'PRO';
 
   useEffect(() => {
     if (!user?.userID) return;
@@ -96,6 +110,22 @@ export default function StoreDashboard({ user, onLogout }) {
       .finally(() => setLoadingReviews(false));
   }, [userStore?.storeId]);
 
+  useEffect(() => {
+    if (!isPro || !userStore?.storeId) return;
+    setLoadingAnalytics(true);
+    Promise.all([
+      analyticsService.getStoreAnalytics(userStore.storeId),
+      analyticsService.getCustomerInsights(userStore.storeId),
+    ])
+      .then(([stats, cities]) => {
+        setAnalytics(stats);
+        setInsights(cities);
+        setAnalyticsError('');
+      })
+      .catch(error => setAnalyticsError(error.message || 'Failed to load analytics.'))
+      .finally(() => setLoadingAnalytics(false));
+  }, [isPro, userStore?.storeId]);
+
   const loadPromotions = async () => {
     setLoadingPromotions(true);
     try {
@@ -117,7 +147,6 @@ export default function StoreDashboard({ user, onLogout }) {
     count: reviews.filter(r => r.rating === star).length,
   }));
 
-  const isPro = userStore?.planTier === 'PRO';
   const storeRenewsOn = userStore?.planRenewsAt
     ? new Date(userStore.planRenewsAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
     : null;
@@ -311,6 +340,93 @@ export default function StoreDashboard({ user, onLogout }) {
     }
   };
 
+  const handleTogglePromoted = async (promo) => {
+    setPromotingId(promo.promotionID);
+    try {
+      const wasPromoted = !!promo.promoted;
+      const updated = await promotionService.update(promo.promotionID, { ...promo, promoted: !wasPromoted });
+      setPromotions(prev => prev.map(p => {
+        if (p.promotionID === updated.promotionID) return updated;
+        if (!wasPromoted && p.promoted) return { ...p, promoted: false };
+        return p;
+      }));
+    } catch (error) {
+      alert(error.message || 'Failed to update promoted status.');
+    } finally {
+      setPromotingId(null);
+    }
+  };
+
+  const handleToggleSchedule = async (promo) => {
+    try {
+      const updated = await promotionService.update(promo.promotionID, {
+        ...promo,
+        scheduleEnabled: !promo.scheduleEnabled,
+      });
+      setPromotions(prev => prev.map(p => p.promotionID === updated.promotionID ? updated : p));
+    } catch (error) {
+      alert(error.message || 'Failed to update scheduling.');
+    }
+  };
+
+  const parsePromoCsv = (text) => {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) throw new Error('CSV must have a header row and at least one promotion.');
+    const headers = lines[0].split(',').map(h => h.trim());
+    return lines.slice(1).map(line => {
+      const values = [];
+      let current = '';
+      let inQuotes = false;
+      for (const ch of line) {
+        if (ch === '"') { inQuotes = !inQuotes; continue; }
+        if (ch === ',' && !inQuotes) { values.push(current.trim()); current = ''; continue; }
+        current += ch;
+      }
+      values.push(current.trim());
+      const row = {};
+      headers.forEach((h, i) => { row[h] = values[i] ?? ''; });
+      return {
+        title: row.title,
+        description: row.description || '',
+        originalPrice: parseFloat(row.originalPrice),
+        discountPrice: parseFloat(row.discountPrice),
+        startDate: `${row.startDate}T00:00:00`,
+        endDate: `${row.endDate}T23:59:59`,
+        imageUrl: row.imageUrl || '',
+        isActive: row.isActive === undefined || row.isActive === '' || row.isActive !== 'false',
+      };
+    }).filter(p => p.title && !Number.isNaN(p.originalPrice) && !Number.isNaN(p.discountPrice));
+  };
+
+  const handleCsvUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !userStore) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      setBulkResult(null);
+      try {
+        const parsed = parsePromoCsv(reader.result);
+        if (!parsed.length) {
+          setBulkResult({ ok: false, message: 'No valid rows found. Check your headers and prices.' });
+          return;
+        }
+        setBulkUploading(true);
+        const result = await promotionService.bulkCreate(userStore.storeId, parsed);
+        setBulkResult({
+          ok: !result.message,
+          message: result.message || `Created ${result.created} promotion(s)${result.skipped ? `, skipped ${result.skipped} invalid row(s).` : ''}.`,
+        });
+        if (result.created > 0) loadPromotions();
+      } catch (error) {
+        setBulkResult({ ok: false, message: error.message || 'Failed to upload CSV.' });
+      } finally {
+        setBulkUploading(false);
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
       <div className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
@@ -470,11 +586,116 @@ export default function StoreDashboard({ user, onLogout }) {
               </div>
             </div>
 
+            {/* Analytics (Pro) */}
+            {isPro && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-bold text-gray-800 flex items-center gap-1.5">
+                    <BarChart3 size={16} className="text-teal-500" aria-hidden="true" /> Analytics
+                  </h3>
+                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Pro</span>
+                </div>
+
+                {loadingAnalytics ? (
+                  <div className="h-20 mt-3 animate-pulse rounded-xl bg-gray-50" />
+                ) : analyticsError ? (
+                  <p className="text-xs text-red-500 mt-3">{analyticsError}</p>
+                ) : analytics ? (
+                  <>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-3">
+                      {[
+                        { label: 'Views', value: analytics.views, icon: <Eye className="w-4 h-4 text-teal-500" aria-hidden="true" /> },
+                        { label: 'Saves', value: analytics.saves, icon: <Bookmark className="w-4 h-4 text-blue-500" aria-hidden="true" /> },
+                        { label: 'Claims', value: analytics.claims, icon: <CheckCircle2 className="w-4 h-4 text-green-500" aria-hidden="true" /> },
+                        { label: 'Redeems', value: analytics.redeems, icon: <Flame className="w-4 h-4 text-orange-500" aria-hidden="true" /> },
+                        { label: 'Shares', value: analytics.shares, icon: <TrendingUp className="w-4 h-4 text-pink-500" aria-hidden="true" /> },
+                        { label: 'Followers', value: analytics.followers, icon: <Users className="w-4 h-4 text-purple-500" aria-hidden="true" /> },
+                      ].map(metric => (
+                        <div key={metric.label} className="bg-gray-50 rounded-xl p-3 text-center">
+                          <span className="flex items-center justify-center gap-1 text-xs text-gray-400 font-semibold uppercase tracking-wider">
+                            {metric.icon} {metric.label}
+                          </span>
+                          <p className="text-xl font-extrabold text-gray-800 mt-1">{metric.value ?? 0}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {analytics.promotionStats?.length > 0 && (
+                      <div className="mt-4 overflow-x-auto">
+                        <table className="w-full text-sm min-w-[420px]">
+                          <thead>
+                            <tr className="text-left text-xs text-gray-400 uppercase tracking-wider">
+                              <th className="py-2 pr-3 font-semibold">Deal</th>
+                              <th className="py-2 pr-3 font-semibold text-center">Views</th>
+                              <th className="py-2 pr-3 font-semibold text-center">Saves</th>
+                              <th className="py-2 pr-3 font-semibold text-center">Redeems</th>
+                              <th className="py-2 font-semibold text-center">Conv. rate</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {analytics.promotionStats.map(row => (
+                              <tr key={row.promotionID} className="border-t border-gray-50">
+                                <td className="py-2 pr-3 text-gray-700 font-medium truncate max-w-[160px]">{row.title}</td>
+                                <td className="py-2 pr-3 text-center text-gray-600">{row.views}</td>
+                                <td className="py-2 pr-3 text-center text-gray-600">{row.saves}</td>
+                                <td className="py-2 pr-3 text-center text-gray-600">{row.redeems}</td>
+                                <td className="py-2 text-center">
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${row.conversionRate > 0 ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                                    {row.conversionRate}%
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {insights?.topCities && Object.keys(insights.topCities).length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                          Where your customers come from ({insights.totalEngagements} engagements)
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(insights.topCities).map(([city, count]) => (
+                            <span key={city} className="flex items-center gap-1.5 bg-gray-50 text-gray-600 text-xs px-2.5 py-1 rounded-full">
+                              <MapPin className="w-3 h-3 text-teal-500" aria-hidden="true" /> {city}
+                              <span className="font-bold text-gray-800">{count}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : null}
+              </div>
+            )}
+
             {/* Add promotion */}
             <button type="button" onClick={() => setShowForm(true)} className="btn-primary w-full flex items-center justify-center gap-3 py-4 text-lg">
               <PlusCircle className="w-6 h-6" aria-hidden="true" />
               Add New Promotion
             </button>
+
+            {isPro && (
+              <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
+                <h3 className="text-sm font-bold text-gray-800 mb-1 flex items-center gap-1.5">
+                  <UploadCloud className="w-4 h-4 text-teal-500" aria-hidden="true" /> Bulk upload from CSV
+                </h3>
+                <p className="text-xs text-gray-500 mb-3">
+                  Header: {CSV_HEADERS.join(', ')}. Dates as YYYY-MM-DD.
+                </p>
+                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold text-teal-600 hover:border-teal-400 hover:bg-teal-50 transition cursor-pointer">
+                  {bulkUploading ? 'Uploading…' : 'Choose CSV file'}
+                  <input type="file" accept=".csv,text/csv" onChange={handleCsvUpload} disabled={bulkUploading} className="sr-only" />
+                </label>
+                {bulkResult && (
+                  <p className={`text-xs font-semibold mt-2 ${bulkResult.ok ? 'text-green-600' : 'text-red-500'}`}>
+                    {bulkResult.message}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Redeem a code */}
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
@@ -529,6 +750,11 @@ export default function StoreDashboard({ user, onLogout }) {
                                 <Star size={9} fill="currentColor" /> Featured
                               </span>
                             )}
+                            {promo.promoted && (
+                              <span className="flex items-center gap-0.5 bg-teal-50 text-teal-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">
+                                <Flame size={9} /> Promoted
+                              </span>
+                            )}
                           </h4>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex-shrink-0 ${promo.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                             {promo.isActive ? 'Active' : 'Inactive'}
@@ -557,6 +783,29 @@ export default function StoreDashboard({ user, onLogout }) {
                                 className={`min-w-11 min-h-11 flex items-center justify-center rounded-full transition disabled:opacity-50 ${promo.featured ? 'text-amber-500 hover:bg-amber-50' : 'text-gray-400 hover:bg-amber-50 hover:text-amber-500'}`}
                               >
                                 <Star size={16} fill={promo.featured ? 'currentColor' : 'none'} />
+                              </button>
+                            )}
+                            {isPro && (
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePromoted(promo)}
+                                disabled={promotingId === promo.promotionID}
+                                aria-label={promo.promoted ? 'Remove from promoted' : 'Promote this deal'}
+                                title={promo.promoted ? 'Remove from promoted (top of Hot Deals)' : 'Promote to the top of Hot Deals'}
+                                className={`min-w-11 min-h-11 flex items-center justify-center rounded-full transition disabled:opacity-50 ${promo.promoted ? 'text-teal-500 hover:bg-teal-50' : 'text-gray-400 hover:bg-teal-50 hover:text-teal-500'}`}
+                              >
+                                <Flame size={16} fill={promo.promoted ? 'currentColor' : 'none'} />
+                              </button>
+                            )}
+                            {isPro && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSchedule(promo)}
+                                aria-label={promo.scheduleEnabled ? 'Disable auto-scheduling' : 'Enable auto-scheduling'}
+                                title={promo.scheduleEnabled ? 'Auto-schedule on: activates and expires by date' : 'Auto-schedule off: change dates manually only'}
+                                className={`min-w-11 min-h-11 flex items-center justify-center rounded-full transition ${promo.scheduleEnabled ? 'text-teal-500 hover:bg-teal-50' : 'text-gray-400 hover:bg-teal-50 hover:text-teal-500'}`}
+                              >
+                                <CalendarClock size={16} />
                               </button>
                             )}
                             <button

@@ -18,4 +18,12 @@ public class NotificationFactory {
                 .setRead(false)
                 .build();
     }
+
+    public static Notification createPriorityNotification(String title, String message, User user) {
+        Notification notification = createNotification(title, message, user);
+        if (notification != null) {
+            notification.setPriority(true);
+        }
+        return notification;
+    }
 }

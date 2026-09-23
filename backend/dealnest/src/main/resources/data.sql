@@ -19,7 +19,7 @@
 -- Password being hashed: Password123
 -- ============================================================
 UPDATE users
-SET password = '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy'
+SET password = '$2b$10$50L6r6Me6eRZD5DMcnlKEeCQfL3iT7Jn.zLb8N9JrJUM4lXhklWPC'
 WHERE password NOT LIKE '$2%';
 
 
@@ -42,7 +42,7 @@ INSERT INTO admins (
 VALUES (
     '5b89bce5-d8a7-476e-899e-a263ba813212',
     'admin@dealnest',
-    '$2a$10$madqrhkCXDhF2hEVwfJ1Zu7y4GdG.sI8eOpqMUEg2tYQ7FJ5LPKU.',
+    '$2b$10$g8mrETSe5uPbGtZQL4LYTeQaAwpZIdI14oEH7s7fNVErzJW3gP0hO',
     TRUE,
     NOW(),
     NOW()
@@ -74,7 +74,7 @@ VALUES
 (
     '51f55b70-7e96-4ad4-a3a8-564e13aec78e',
     'owner@freshbasket.co.za',
-    '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy',
+    '$2b$10$50L6r6Me6eRZD5DMcnlKEeCQfL3iT7Jn.zLb8N9JrJUM4lXhklWPC',
     'Nomvula',
     'Dlamini',
     '0821234501',
@@ -87,7 +87,7 @@ VALUES
 (
     '7efbbced-729a-4a8e-b949-85773783ac8e',
     'owner@mzansigrill.co.za',
-    '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy',
+    '$2b$10$50L6r6Me6eRZD5DMcnlKEeCQfL3iT7Jn.zLb8N9JrJUM4lXhklWPC',
     'Sipho',
     'Mokoena',
     '0821234502',
@@ -100,7 +100,7 @@ VALUES
 (
     'b3d4fb6d-2671-4d8c-9b94-64c225d16d1d',
     'owner@urbanthread.co.za',
-    '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy',
+    '$2b$10$50L6r6Me6eRZD5DMcnlKEeCQfL3iT7Jn.zLb8N9JrJUM4lXhklWPC',
     'Aisha',
     'Petersen',
     '0821234503',
@@ -113,7 +113,7 @@ VALUES
 (
     '86fde77e-acf2-4540-af20-394d0bf4527f',
     'owner@techhub.co.za',
-    '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy',
+    '$2b$10$50L6r6Me6eRZD5DMcnlKEeCQfL3iT7Jn.zLb8N9JrJUM4lXhklWPC',
     'Liam',
     'van der Merwe',
     '0821234504',
@@ -126,7 +126,7 @@ VALUES
 (
     '076960fb-1650-49a9-8e81-3faf7c33389c',
     'thandi.customer@example.com',
-    '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy',
+    '$2b$10$50L6r6Me6eRZD5DMcnlKEeCQfL3iT7Jn.zLb8N9JrJUM4lXhklWPC',
     'Thandi',
     'Nkosi',
     '0731234505',
@@ -139,7 +139,7 @@ VALUES
 (
     'c2082ccf-a259-49e6-97ce-11e36d986aaa',
     'jordan.customer@example.com',
-    '$2a$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B83lhWy',
+    '$2b$10$50L6r6Me6eRZD5DMcnlKEeCQfL3iT7Jn.zLb8N9JrJUM4lXhklWPC',
     'Jordan',
     'Adams',
     '0731234506',

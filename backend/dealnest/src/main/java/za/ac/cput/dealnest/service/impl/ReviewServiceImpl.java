@@ -6,6 +6,7 @@ import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.repository.IReviewRepository;
 import za.ac.cput.dealnest.service.IReviewService;
 import za.ac.cput.dealnest.service.IStoreService;
+import za.ac.cput.dealnest.service.IUserService;
 
 import java.util.List;
 
@@ -14,16 +15,21 @@ public class ReviewServiceImpl implements IReviewService {
 
     private final IReviewRepository repository;
     private final IStoreService storeService;
+    private final IUserService userService;
 
-    public ReviewServiceImpl(IReviewRepository repository, IStoreService storeService) {
+    public ReviewServiceImpl(IReviewRepository repository, IStoreService storeService, IUserService userService) {
         this.repository = repository;
         this.storeService = storeService;
+        this.userService = userService;
     }
 
     @Override
     public Review create(Review review) {
         Review saved = repository.save(review);
         recalculateStoreRating(saved.getStore());
+        if (saved.getUser() != null && saved.getUser().getUserID() != null) {
+            userService.addPoints(saved.getUser().getUserID(), 5);
+        }
         return saved;
     }
 

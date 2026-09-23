@@ -1,10 +1,13 @@
 package za.ac.cput.dealnest.service.impl;
 
 import org.springframework.stereotype.Service;
+import za.ac.cput.dealnest.domain.AnalyticsEventType;
 import za.ac.cput.dealnest.domain.Redemption;
 import za.ac.cput.dealnest.factory.RedemptionFactory;
 import za.ac.cput.dealnest.repository.IRedemptionRepository;
+import za.ac.cput.dealnest.service.IAnalyticsService;
 import za.ac.cput.dealnest.service.IRedemptionService;
+import za.ac.cput.dealnest.service.IUserService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,9 +16,15 @@ import java.util.List;
 public class RedemptionServiceImpl implements IRedemptionService {
 
     private final IRedemptionRepository repository;
+    private final IAnalyticsService analyticsService;
+    private final IUserService userService;
 
-    public RedemptionServiceImpl(IRedemptionRepository repository) {
+    public RedemptionServiceImpl(IRedemptionRepository repository,
+                                 IAnalyticsService analyticsService,
+                                 IUserService userService) {
         this.repository = repository;
+        this.analyticsService = analyticsService;
+        this.userService = userService;
     }
 
     @Override
@@ -30,7 +39,15 @@ public class RedemptionServiceImpl implements IRedemptionService {
         }
         redemption.setCode(code);
         redemption.setRedeemed(false);
-        return repository.save(redemption);
+        Redemption saved = repository.save(redemption);
+
+        String userId = saved.getUser() != null ? saved.getUser().getUserID() : null;
+        String promotionId = saved.getPromotion() != null ? saved.getPromotion().getPromotionID() : null;
+        analyticsService.recordEvent(AnalyticsEventType.DEAL_CLAIMED, userId, null, promotionId);
+        if (userId != null) {
+            userService.addPoints(userId, 10);
+        }
+        return saved;
     }
 
     @Override
@@ -47,7 +64,15 @@ public class RedemptionServiceImpl implements IRedemptionService {
         }
         redemption.setRedeemed(true);
         redemption.setRedeemedAt(LocalDateTime.now());
-        return repository.save(redemption);
+        Redemption saved = repository.save(redemption);
+
+        String userId = saved.getUser() != null ? saved.getUser().getUserID() : null;
+        String promotionId = saved.getPromotion() != null ? saved.getPromotion().getPromotionID() : null;
+        analyticsService.recordEvent(AnalyticsEventType.DEAL_REDEEMED, userId, storeId, promotionId);
+        if (userId != null) {
+            userService.addPoints(userId, 15);
+        }
+        return saved;
     }
 
     @Override

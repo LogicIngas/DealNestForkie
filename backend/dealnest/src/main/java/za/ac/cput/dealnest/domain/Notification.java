@@ -14,6 +14,7 @@ public class Notification {
     private String title;
     private String message;
     private Boolean isRead;
+    private Boolean priority;
     private LocalDateTime createdAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -28,6 +29,7 @@ public class Notification {
         this.title = builder.title;
         this.message = builder.message;
         this.isRead = builder.isRead;
+        this.priority = builder.priority;
         this.createdAt = builder.createdAt;
         this.user = builder.user;
     }
@@ -39,6 +41,9 @@ public class Notification {
         }
         if (isRead == null) {
             isRead = false;
+        }
+        if (priority == null) {
+            priority = false;
         }
     }
 
@@ -60,6 +65,10 @@ public class Notification {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public Boolean getPriority() {
+        return priority;
     }
 
     public User getUser() {
@@ -84,6 +93,10 @@ public class Notification {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public void setPriority(Boolean priority) {
+        this.priority = priority;
     }
 
     public void setUser(User user) {
@@ -118,6 +131,7 @@ public class Notification {
                 "notificationID='" + notificationID + '\'' +
                 ", title='" + title + '\'' +
                 ", isRead=" + isRead +
+                ", priority=" + priority +
                 ", createdAt=" + createdAt +
                 '}';
     }
@@ -127,6 +141,7 @@ public class Notification {
         private String title;
         private String message;
         private Boolean isRead;
+        private Boolean priority;
         private LocalDateTime createdAt;
         private User user;
 
@@ -157,6 +172,11 @@ public class Notification {
 
         public Builder setUser(User user) {
             this.user = user;
+            return this;
+        }
+
+        public Builder setPriority(Boolean priority) {
+            this.priority = priority;
             return this;
         }
 

@@ -70,6 +70,12 @@ export default function HomePage({ user }) {
       storeService.getRecommended(user.userID)
         .then(data => setRecommendedStores(data))
         .catch(() => setRecommendedStores(null));
+
+      if (user.planTier === 'PLUS') {
+        storeService.getPersonalized(user.userID)
+          .then(data => data && setRecommendedStores(data))
+          .catch(() => setRecommendedStores(null));
+      }
     }
   }, [user?.userID]);
 
@@ -233,6 +239,11 @@ export default function HomePage({ user }) {
                         <Star size={9} fill="currentColor" /> Featured
                       </span>
                     )}
+                    {promo.promoted && (
+                      <span className="flex items-center gap-0.5 bg-teal-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">
+                        <Flame size={9} /> Promoted
+                      </span>
+                    )}
                   </h4>
                   <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{promo.store?.storeName || 'DealNest Store'}</p>
                   <div className="flex items-baseline gap-2 mt-3">
@@ -259,6 +270,11 @@ export default function HomePage({ user }) {
       {!loading && displayRecommended.length > 0 && (
         <div className="mb-8">
           <SectionHeader title="Recommended for You" icon={TrendingUp} iconClassName="text-amber-500" />
+          {user?.planTier !== 'PLUS' && (
+            <p className="text-xs text-gray-400 -mt-2 mb-3">
+              Based on ratings and your saved stores. Upgrade to DealNest Plus for fully personalized picks.
+            </p>
+          )}
           <div className="flex gap-4 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory">
             {displayRecommended.map(store => (
               <Link

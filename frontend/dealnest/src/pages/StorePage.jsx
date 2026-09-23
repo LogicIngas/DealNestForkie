@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { storeService, promotionService, favoriteService, savedPromotionService, reviewService, redemptionService, dealReportService, priceHistoryService } from '../services/api';
+import { storeService, promotionService, favoriteService, savedPromotionService, reviewService, redemptionService, dealReportService, priceHistoryService, analyticsService } from '../services/api';
 import { ArrowLeft, MapPin, Star, Tag, Clock, Phone, Mail, Heart, Bookmark, Store as StoreIcon, BadgeCheck, MessageSquare, Pencil, Trash2, Ticket, Flag, Share2, Check } from 'lucide-react';
 import { CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
 import ConfirmModal from '../components/ConfirmModal';
@@ -55,6 +55,9 @@ export default function StorePage({ user }) {
   const [highlightedPromoId, setHighlightedPromoId] = useState(null);
 
   const handleShare = async (shareData, copyKey) => {
+    if (user?.userID && copyKey !== 'store') {
+      analyticsService.track(null, 'DEAL_SHARED', user.userID, copyKey);
+    }
     if (navigator.share) {
       try {
         await navigator.share(shareData);
@@ -219,6 +222,7 @@ export default function StorePage({ user }) {
   const handleClaimPromo = async (promotionId) => {
     if (!user?.userID || claimingId) return;
     setClaimingId(promotionId);
+    analyticsService.track(null, 'PROMOTION_VIEW', user.userID, promotionId);
     try {
       const redemption = await redemptionService.claim(user.userID, promotionId);
       setClaimedCode(redemption.code);

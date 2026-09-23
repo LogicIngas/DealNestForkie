@@ -6,6 +6,7 @@ import za.ac.cput.dealnest.domain.User;
 import za.ac.cput.dealnest.repository.IUserRepository;
 import za.ac.cput.dealnest.service.IUserService;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -56,7 +57,42 @@ public class UserServiceImpl implements IUserService {
     @Override
     public Optional<User> login(String email, String password) {
         return repository.findByEmail(email)
-                .filter(user -> passwordEncoder.matches(password, user.getPassword()));
+                .filter(user -> passwordEncoder.matches(password, user.getPassword()))
+                .map(this::registerDailyCheckIn);
+    }
+
+    @Override
+    public User addPoints(String userId, int points) {
+        User user = repository.findById(userId).orElse(null);
+        if (user == null) return null;
+        int current = user.getPoints() == null ? 0 : user.getPoints();
+        user.setPoints(current + Math.max(0, points));
+        return repository.save(user);
+    }
+
+    // Advances the daily check-in streak when the user logs in on a new day.
+    private User registerDailyCheckIn(User user) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime last = user.getLastActivityDate();
+        int current = user.getCurrentStreak();
+
+        if (last == null) {
+            user.setCurrentStreak(1);
+            user.setPoints((user.getPoints() == null ? 0 : user.getPoints()) + 2);
+        } else if (last.toLocalDate().equals(now.toLocalDate())) {
+            // Already checked in today: streak and points stay as they are.
+        } else if (last.toLocalDate().plusDays(1).equals(now.toLocalDate())) {
+            user.setCurrentStreak(current + 1);
+            user.setPoints((user.getPoints() == null ? 0 : user.getPoints()) + 2);
+        } else {
+            // Streak broken: restart.
+            user.setCurrentStreak(1);
+            user.setPoints((user.getPoints() == null ? 0 : user.getPoints()) + 2);
+        }
+
+        user.setLongestStreak(Math.max(user.getLongestStreak(), user.getCurrentStreak()));
+        user.setLastActivityDate(now);
+        return repository.save(user);
     }
 
     @Override

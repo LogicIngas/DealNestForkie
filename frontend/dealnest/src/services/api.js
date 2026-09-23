@@ -146,6 +146,14 @@ export const storeService = {
     if (!response.ok) return [];
     return handleResponse(response);
   },
+
+  getPersonalized: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/stores/personalized/${userId}`, {
+      headers: authHeaders(),
+    });
+    if (!response.ok) return null;
+    return handleResponse(response);
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -270,6 +278,15 @@ export const promotionService = {
       headers: authHeaders(),
     });
     return response.ok;
+  },
+
+  bulkCreate: async (storeId, promotions) => {
+    const response = await fetch(`${API_BASE_URL}/promotion/bulk`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ storeId, promotions }),
+    });
+    return handleResponse(response);
   },
 };
 
@@ -444,5 +461,80 @@ export const priceHistoryService = {
     const response = await fetch(`${API_BASE_URL}/priceHistory/findByPromotionId/${promotionId}`);
     if (!response.ok) return [];
     return handleResponse(response);
+  },
+};
+
+// ---------------------------------------------------------------------------
+// 11. ANALYTICS CONTROLLER (Pro stores)
+// ---------------------------------------------------------------------------
+export const analyticsService = {
+  track: async (storeId, eventType, userId = null, promotionId = null) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/analytics/track`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ eventType, userId, storeId, promotionId }),
+      });
+      return handleResponse(response);
+    } catch {
+      // Tracking must never break the user flow.
+      return null;
+    }
+  },
+
+  getStoreAnalytics: async (storeId) => {
+    const response = await fetch(`${API_BASE_URL}/analytics/store/${storeId}`, {
+      headers: authHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  getCustomerInsights: async (storeId) => {
+    const response = await fetch(`${API_BASE_URL}/analytics/store/${storeId}/insights`, {
+      headers: authHeaders(),
+    });
+    return handleResponse(response);
+  },
+};
+
+// ---------------------------------------------------------------------------
+// 12. DEAL ALERT CONTROLLER (DealNest Plus)
+// ---------------------------------------------------------------------------
+export const dealAlertService = {
+  create: async (dealAlert) => {
+    const response = await fetch(`${API_BASE_URL}/dealAlert/create`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(dealAlert),
+    });
+    if (response.status === 402) {
+      throw new Error('UPGRADE_REQUIRED');
+    }
+    return handleResponse(response);
+  },
+
+  getByUser: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/dealAlert/findByUserId/${userId}`, {
+      headers: authHeaders(),
+    });
+    if (!response.ok) return [];
+    return handleResponse(response);
+  },
+
+  update: async (dealAlert) => {
+    const response = await fetch(`${API_BASE_URL}/dealAlert/update/${dealAlert.alertID}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(dealAlert),
+    });
+    return handleResponse(response);
+  },
+
+  remove: async (alertId) => {
+    const response = await fetch(`${API_BASE_URL}/dealAlert/delete/${alertId}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    return response.ok;
   },
 };

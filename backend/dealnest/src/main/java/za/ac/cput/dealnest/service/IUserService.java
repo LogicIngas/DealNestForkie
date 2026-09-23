@@ -13,4 +13,6 @@ public interface IUserService extends IService<User, String> {
     Optional<User> login(String email, String password);
 
     List<User> getAll();
+
+    User addPoints(String userId, int points);
 }

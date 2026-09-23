@@ -1,10 +1,12 @@
 package za.ac.cput.dealnest.service.impl;
 
 import org.springframework.stereotype.Service;
+import za.ac.cput.dealnest.domain.AnalyticsEventType;
 import za.ac.cput.dealnest.domain.SavedPromotion;
 import za.ac.cput.dealnest.domain.User;
 import za.ac.cput.dealnest.domain.UserPlanTier;
 import za.ac.cput.dealnest.repository.ISavedPromotionRepository;
+import za.ac.cput.dealnest.service.IAnalyticsService;
 import za.ac.cput.dealnest.service.ISavedPromotionService;
 import za.ac.cput.dealnest.service.IUserService;
 
@@ -18,10 +20,12 @@ public class SavedPromotionServiceImpl implements ISavedPromotionService {
 
     private final ISavedPromotionRepository repository;
     private final IUserService userService;
+    private final IAnalyticsService analyticsService;
 
-    public SavedPromotionServiceImpl(ISavedPromotionRepository repository, IUserService userService) {
+    public SavedPromotionServiceImpl(ISavedPromotionRepository repository, IUserService userService, IAnalyticsService analyticsService) {
         this.repository = repository;
         this.userService = userService;
+        this.analyticsService = analyticsService;
     }
 
     @Override
@@ -33,7 +37,17 @@ public class SavedPromotionServiceImpl implements ISavedPromotionService {
                 return null;
             }
         }
-        return repository.save(savedPromotion);
+        SavedPromotion saved = repository.save(savedPromotion);
+        if (saved.getPromotion() != null) {
+            analyticsService.recordEvent(AnalyticsEventType.DEAL_SAVED,
+                    saved.getUser() != null ? saved.getUser().getUserID() : null,
+                    null,
+                    saved.getPromotion().getPromotionID());
+            if (saved.getUser() != null) {
+                userService.addPoints(saved.getUser().getUserID(), 5);
+            }
+        }
+        return saved;
     }
 
     @Override

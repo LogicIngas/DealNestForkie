@@ -34,6 +34,11 @@ public class User {
 
     private LocalDateTime planRenewsAt;
 
+    private int currentStreak;
+    private int longestStreak;
+    private LocalDateTime lastActivityDate;
+    private Integer points;
+
     @JsonIgnore
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Store> stores = new ArrayList<>();
@@ -81,12 +86,19 @@ public class User {
         this.notifications = builder.notifications;
         this.planTier = builder.planTier;
         this.planRenewsAt = builder.planRenewsAt;
+        this.currentStreak = builder.currentStreak;
+        this.longestStreak = builder.longestStreak;
+        this.lastActivityDate = builder.lastActivityDate;
+        this.points = builder.points;
     }
 
     @PrePersist
     protected void onCreate() {
         if (planTier == null) {
             planTier = UserPlanTier.FREE;
+        }
+        if (points == null) {
+            points = 0;
         }
     }
 
@@ -168,6 +180,22 @@ public class User {
         return planRenewsAt;
     }
 
+    public int getCurrentStreak() {
+        return currentStreak;
+    }
+
+    public int getLongestStreak() {
+        return longestStreak;
+    }
+
+    public LocalDateTime getLastActivityDate() {
+        return lastActivityDate;
+    }
+
+    public Integer getPoints() {
+        return points;
+    }
+
     public void setUserID(String userID) {
         this.userID = userID;
     }
@@ -221,6 +249,22 @@ public class User {
         this.planRenewsAt = planRenewsAt;
     }
 
+    public void setCurrentStreak(int currentStreak) {
+        this.currentStreak = currentStreak;
+    }
+
+    public void setLongestStreak(int longestStreak) {
+        this.longestStreak = longestStreak;
+    }
+
+    public void setLastActivityDate(LocalDateTime lastActivityDate) {
+        this.lastActivityDate = lastActivityDate;
+    }
+
+    public void setPoints(Integer points) {
+        this.points = points;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
@@ -249,6 +293,10 @@ public class User {
                 ", updatedAt=" + updatedAt +
                 ", planTier=" + planTier +
                 ", planRenewsAt=" + planRenewsAt +
+                ", currentStreak=" + currentStreak +
+                ", longestStreak=" + longestStreak +
+                ", lastActivityDate=" + lastActivityDate +
+                ", points=" + points +
                 '}';
     }
 
@@ -272,6 +320,10 @@ public class User {
         private List<Notification> notifications = new ArrayList<>();
         private UserPlanTier planTier;
         private LocalDateTime planRenewsAt;
+        private int currentStreak;
+        private int longestStreak;
+        private LocalDateTime lastActivityDate;
+        private Integer points;
 
         public Builder setUserID(String userID) {
             this.userID = userID;
@@ -368,6 +420,26 @@ public class User {
             return this;
         }
 
+        public Builder setCurrentStreak(int currentStreak) {
+            this.currentStreak = currentStreak;
+            return this;
+        }
+
+        public Builder setLongestStreak(int longestStreak) {
+            this.longestStreak = longestStreak;
+            return this;
+        }
+
+        public Builder setLastActivityDate(LocalDateTime lastActivityDate) {
+            this.lastActivityDate = lastActivityDate;
+            return this;
+        }
+
+        public Builder setPoints(Integer points) {
+            this.points = points;
+            return this;
+        }
+
         public Builder copy(User user) {
             this.userID = user.userID;
             this.email = user.email;
@@ -388,6 +460,10 @@ public class User {
             this.notifications = user.notifications;
             this.planTier = user.planTier;
             this.planRenewsAt = user.planRenewsAt;
+            this.currentStreak = user.currentStreak;
+            this.longestStreak = user.longestStreak;
+            this.lastActivityDate = user.lastActivityDate;
+            this.points = user.points;
             return this;
         }
 
