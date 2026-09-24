@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import za.ac.cput.dealnest.domain.Promotion;
 import za.ac.cput.dealnest.domain.Store;
+import za.ac.cput.dealnest.domain.StoreCategory;
 import za.ac.cput.dealnest.domain.StorePlanTier;
 import za.ac.cput.dealnest.security.SecurityUtil;
 import za.ac.cput.dealnest.service.IPromotionService;
@@ -115,6 +116,13 @@ public class PromotionController {
     @GetMapping("/findByIsActiveTrue")
     public List<Promotion> findByIsActiveTrue() {
         return promotionService.findByIsActiveTrue();
+    }
+
+    @GetMapping("/search")
+    public List<Promotion> search(@RequestParam(required = false) String q,
+                                  @RequestParam(required = false) Double maxPrice,
+                                  @RequestParam(required = false) StoreCategory category) {
+        return promotionService.searchActive(q, maxPrice, category);
     }
 
     @GetMapping("/getAll")

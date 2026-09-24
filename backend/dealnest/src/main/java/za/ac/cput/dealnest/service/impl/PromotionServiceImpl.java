@@ -6,6 +6,7 @@ import za.ac.cput.dealnest.domain.FavoriteStore;
 import za.ac.cput.dealnest.domain.Notification;
 import za.ac.cput.dealnest.domain.Promotion;
 import za.ac.cput.dealnest.domain.Store;
+import za.ac.cput.dealnest.domain.StoreCategory;
 import za.ac.cput.dealnest.domain.StorePlanTier;
 import za.ac.cput.dealnest.factory.NotificationFactory;
 import za.ac.cput.dealnest.repository.IPromotionRepository;
@@ -18,6 +19,7 @@ import za.ac.cput.dealnest.service.IStoreService;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class PromotionServiceImpl implements IPromotionService {
@@ -81,6 +83,37 @@ public class PromotionServiceImpl implements IPromotionService {
         }
     }
 
+    // Notifies Plus subscribers watching this product/store when a watched deal's
+    // discount price actually drops. Reuses the same alert-matching rules as new
+    // deals, but frames the notification as a price drop instead of a new listing.
+    private void notifyPriceDrop(Double oldPrice, Promotion promotion) {
+        if (promotion == null || promotion.getStore() == null) return;
+        Double newPrice = promotion.getDiscountPrice();
+        if (oldPrice == null || newPrice == null || newPrice >= oldPrice) return;
+
+        Store store = storeService.read(promotion.getStore().getStoreId());
+        if (store == null) return;
+
+        String fromPrice = String.format("R%,.2f", oldPrice);
+        String toPrice = String.format("R%,.2f", newPrice);
+
+        for (DealAlert alert : dealAlertService.findActive()) {
+            if (!alert.matches(promotion)) continue;
+            String subject = alert.getKeyword() != null && !alert.getKeyword().isBlank()
+                    ? alert.getKeyword()
+                    : alert.getCategory() != null ? alert.getCategory().name() : store.getStoreName();
+            Notification notification = NotificationFactory.createPriorityNotification(
+                    "Price drop",
+                    subject + " dropped from " + fromPrice + " to " + toPrice + " — "
+                            + promotion.getTitle() + " now fits your budget.",
+                    alert.getUser()
+            );
+            if (notification != null) {
+                notificationService.create(notification);
+            }
+        }
+    }
+
     // Notifies DealNest Plus subscribers whose deal alerts match this promotion.
     // Every matching alert produces a priority notification (gold in the bell).
     private void notifyDealAlerts(Promotion promotion) {
@@ -91,10 +124,14 @@ public class PromotionServiceImpl implements IPromotionService {
         List<DealAlert> alerts = dealAlertService.findActive();
         for (DealAlert alert : alerts) {
             if (!alert.matches(promotion)) continue;
+            // Prefer the alert's keyword when the watch is product-based, so the
+            // message reads e.g. "air fryer deal matches your alert: Philips air fryer."
+            String subject = alert.getKeyword() != null && !alert.getKeyword().isBlank()
+                    ? alert.getKeyword()
+                    : alert.getCategory() != null ? alert.getCategory().name() : store.getStoreName();
             Notification notification = NotificationFactory.createPriorityNotification(
                     "Deal alert match",
-                    alert.getCategory() != null ? alert.getCategory().name() : store.getStoreName()
-                            + " deal matches your alert: " + promotion.getTitle() + ".",
+                    subject + " deal matches your alert: " + promotion.getTitle() + ".",
                     alert.getUser()
             );
             if (notification != null) {
@@ -132,8 +169,13 @@ public class PromotionServiceImpl implements IPromotionService {
     public Promotion update(Promotion promotion) {
         enforcePremiumRules(promotion);
         Promotion previous = repository.findById(promotion.getPromotionID()).orElse(null);
+        // Capture the price BEFORE save: save() merges onto the already-loaded
+        // entity, so "previous" would alias the saved record and any comparison
+        // against it afterwards would falsely report "nothing changed".
+        Double oldPrice = previous == null ? null : previous.getDiscountPrice();
         Promotion saved = repository.save(promotion);
-        priceTrackingService.recordIfChanged(previous, saved);
+        priceTrackingService.recordIfChanged(oldPrice, saved);
+        notifyPriceDrop(oldPrice, saved);
         return saved;
     }
 
@@ -156,7 +198,33 @@ public class PromotionServiceImpl implements IPromotionService {
                         .comparing((Promotion p) -> !Boolean.TRUE.equals(p.getPromoted()))
                         .thenComparing(p -> !Boolean.TRUE.equals(p.getFeatured()))
                         .thenComparing(p -> p.getCreatedAt() == null ? java.time.LocalDateTime.MIN : p.getCreatedAt(), Comparator.reverseOrder()))
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
+    }
+
+    // Product-level search used by the "find a product within budget" flow.
+    // Free for everyone: a less-strict keyword match over title / description /
+    // store name, with an optional top budget (discountPrice) and category filter.
+    private boolean matchesKeyword(Promotion promotion, String term) {
+        if (term.isEmpty()) return true;
+        if (containsIgnoreCase(promotion.getTitle(), term)) return true;
+        if (containsIgnoreCase(promotion.getDescription(), term)) return true;
+        return promotion.getStore() != null
+                && containsIgnoreCase(promotion.getStore().getStoreName(), term);
+    }
+
+    private boolean containsIgnoreCase(String value, String term) {
+        return value != null && value.toLowerCase().contains(term);
+    }
+
+    @Override
+    public List<Promotion> searchActive(String keyword, Double maxPrice, StoreCategory category) {
+        String term = keyword == null ? "" : keyword.trim().toLowerCase();
+        return findByIsActiveTrue().stream()
+                .filter(p -> matchesKeyword(p, term))
+                .filter(p -> maxPrice == null
+                        || (p.getDiscountPrice() != null && p.getDiscountPrice() <= maxPrice))
+                .filter(p -> category == null || (p.getStore() != null && category.equals(p.getStore().getCategory())))
+                .collect(Collectors.toList());
     }
 
     @Override

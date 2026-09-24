@@ -122,8 +122,8 @@ export default function HomePage({ user }) {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchTerm.trim()) navigate(`/explore?category=${encodeURIComponent(searchTerm.trim())}`);
-    else navigate('/explore');
+    if (searchTerm.trim()) navigate(`/deals?q=${encodeURIComponent(searchTerm.trim())}`);
+    else navigate('/deals');
   };
 
   const topRatedStores = [...stores]
@@ -141,7 +141,7 @@ export default function HomePage({ user }) {
         <p className="text-teal-50 text-sm mt-1 opacity-90">Discover the best deals near you today.</p>
 
         <form onSubmit={handleSearch} className="relative mt-4">
-          <label htmlFor="home-search" className="sr-only">Search stores, cities, or categories</label>
+          <label htmlFor="home-search" className="sr-only">Search products or stores</label>
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-teal-100" size={18} aria-hidden="true" />
           <input
             id="home-search"
@@ -150,7 +150,7 @@ export default function HomePage({ user }) {
             autoComplete="off"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search stores, cities, or categories…"
+            placeholder="Search for a product and set your budget…"
             className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/15 placeholder-teal-100 text-white text-sm border border-white/20 focus:outline-none focus:bg-white/25 focus:border-white/40 transition"
           />
         </form>

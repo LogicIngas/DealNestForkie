@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
-import { LogOut, Home, Search, Heart, UserCircle } from 'lucide-react';
+import { LogOut, Home, Search, Heart, UserCircle, Ticket } from 'lucide-react';
 import logo from './assets/logo.png';
 import NotificationBell from './components/NotificationBell';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
 import ExplorePage from './pages/ExplorePage';
+import DealsPage from './pages/DealsPage';
 import StorePage from './pages/StorePage';
 import FavoritesPage from './pages/FavoritesPage';
 import ProfilePage from './pages/ProfilePage';
@@ -90,6 +91,7 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
+    { path: '/deals', label: 'Deals', icon: Ticket },
     { path: '/explore', label: 'Explore', icon: Search },
     { path: '/favorites', label: 'Saved', icon: Heart },
     { path: '/profile', label: 'Account', icon: UserCircle },
@@ -112,6 +114,7 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
         <Routes>
           <Route path="/" element={<HomePage user={user} />} />
           <Route path="/explore" element={<ExplorePage user={user} />} />
+          <Route path="/deals" element={<DealsPage user={user} />} />
           <Route path="/store/:storeId" element={<StorePage user={user} />} />
           <Route path="/favorites" element={<FavoritesPage user={user} />} />
           <Route path="/profile" element={<ProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />} />

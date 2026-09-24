@@ -6,6 +6,6 @@ import za.ac.cput.dealnest.domain.Promotion;
 import java.util.List;
 
 public interface IPriceTrackingService {
-    void recordIfChanged(Promotion previous, Promotion updated);
+    void recordIfChanged(Double previousPrice, Promotion updated);
     List<PricePoint> findByPromotionId(String promotionId);
 }

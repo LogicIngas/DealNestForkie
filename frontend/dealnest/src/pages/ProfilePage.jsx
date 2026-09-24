@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { userService, favoriteService, savedPromotionService, notificationService, dealAlertService, subscriptionService, submitPayFastForm } from '../services/api';
+import { userService, favoriteService, savedPromotionService, notificationService, dealAlertService, redemptionService, subscriptionService, submitPayFastForm } from '../services/api';
 import {
   Mail, Phone, Pencil, LogOut, Check, X, User as UserIcon, Bell, Heart, Bookmark,
   ChevronRight, Lock, Trash2, Sparkles, BellPlus, Gem, Flame, Target, Award, Crown, CalendarCheck2
@@ -23,7 +23,7 @@ function streakBadge(days) {
   return null;
 }
 
-const emptyAlert = { category: '', maxPrice: '', minDiscountPercentage: '' };
+const emptyAlert = { keyword: '', category: '', maxPrice: '', minDiscountPercentage: '' };
 
 export default function ProfilePage({ user, onLogout, onUpdateUser }) {
   const [editing, setEditing] = useState(false);
@@ -45,6 +45,7 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
   const [favorites, setFavorites] = useState([]);
   const [savedDeals, setSavedDeals] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [redemptions, setRedemptions] = useState([]);
   const [loadingExtras, setLoadingExtras] = useState(true);
 
   const [deleting, setDeleting] = useState(false);
@@ -70,11 +71,13 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
       savedPromotionService.getByUser(user.userID),
       notificationService.getByUser(user.userID).catch(() => []),
       dealAlertService.getByUser(user.userID).catch(() => []),
-    ]).then(([favs, deals, notifs, dealAlerts]) => {
+      redemptionService.getByUser(user.userID).catch(() => []),
+    ]).then(([favs, deals, notifs, dealAlerts, reds]) => {
       setFavorites(favs);
       setSavedDeals(deals);
       setNotifications(notifs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
       setAlerts(dealAlerts);
+      setRedemptions(reds);
     }).finally(() => setLoadingExtras(false));
   }, [user?.userID]);
 
@@ -228,6 +231,7 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
     try {
       const created = await dealAlertService.create({
         user: { userID: user.userID },
+        keyword: alertForm.keyword || null,
         category: alertForm.category,
         maxPrice: alertForm.maxPrice ? parseFloat(alertForm.maxPrice) : null,
         minDiscountPercentage: alertForm.minDiscountPercentage ? parseFloat(alertForm.minDiscountPercentage) : null,
@@ -290,6 +294,13 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
   const points = user?.points ?? 0;
   const currentStreak = user?.currentStreak ?? 0;
   const longestStreak = user?.longestStreak ?? 0;
+  const totalSaved = redemptions.reduce((sum, r) => {
+    const orig = r.promotion?.originalPrice;
+    const disc = r.promotion?.discountPrice;
+    if (orig == null || disc == null) return sum;
+    const saved = orig - disc;
+    return saved > 0 ? sum + saved : sum;
+  }, 0);
   const activeBadge = badgeFor(points);
   const sBadge = streakBadge(currentStreak);
   const categoryLabel = (c) => CATEGORIES.find(cat => cat.value === c)?.label || c || 'Any category';
@@ -372,6 +383,12 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
         <Link to="/favorites" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center hover:shadow-md transition">
           <div className="text-2xl font-bold text-gray-800">{savedDeals.length}</div>
           <div className="text-xs text-gray-500 mt-1">Saved Deals</div>
+        </Link>
+        <Link to="/favorites" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center hover:shadow-md transition">
+          <div className="text-2xl font-bold text-green-600">
+            {totalSaved > 0 ? `R${totalSaved.toFixed(2)}` : 'R0.00'}
+          </div>
+          <div className="text-xs text-gray-500 mt-1">Total saved on deals</div>
         </Link>
       </div>
 
@@ -478,6 +495,19 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
             {showAlertForm && (
               <form onSubmit={handleCreateAlert} className="space-y-3">
                 <div>
+                  <label htmlFor="alert-keyword" className="text-xs text-gray-500 mb-1 block">Product or store</label>
+                  <input
+                    id="alert-keyword"
+                    name="keyword"
+                    type="text"
+                    autoComplete="off"
+                    placeholder="e.g. air fryer"
+                    value={alertForm.keyword}
+                    onChange={handleAlertChange}
+                    className="input-field"
+                  />
+                </div>
+                <div>
                   <label htmlFor="alert-category" className="text-xs text-gray-500 mb-1 block">Category</label>
                   <select id="alert-category" name="category" value={alertForm.category} onChange={handleAlertChange} className="input-field">
                     <option value="">Any category</option>
@@ -525,8 +555,11 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
                         <CatIcon size={14} className={catStyles?.color || 'text-gray-500'} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 truncate">{categoryLabel(alert.category)}</p>
+                        <p className="text-sm font-semibold text-gray-800 truncate">
+                          {alert.keyword ? `“${alert.keyword}”` : categoryLabel(alert.category)}
+                        </p>
                         <p className="text-xs text-gray-500">
+                          {alert.keyword && alert.category ? `${categoryLabel(alert.category)} · ` : ''}
                           {alert.maxPrice ? `Under R${alert.maxPrice}` : 'Any price'}
                           {alert.minDiscountPercentage ? ` · ${alert.minDiscountPercentage}%+ off` : ''}
                         </p>

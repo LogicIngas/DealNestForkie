@@ -16,6 +16,8 @@ public class DealAlert {
     @Enumerated(EnumType.STRING)
     private StoreCategory category;
 
+    private String keyword;
+
     private Double minDiscountPercentage;
 
     private Double maxPrice;
@@ -38,6 +40,7 @@ public class DealAlert {
     public DealAlert(Builder builder) {
         this.alertID = builder.alertID;
         this.category = builder.category;
+        this.keyword = builder.keyword;
         this.minDiscountPercentage = builder.minDiscountPercentage;
         this.maxPrice = builder.maxPrice;
         this.active = builder.active;
@@ -62,6 +65,10 @@ public class DealAlert {
 
     public StoreCategory getCategory() {
         return category;
+    }
+
+    public String getKeyword() {
+        return keyword;
     }
 
     public Double getMinDiscountPercentage() {
@@ -96,6 +103,10 @@ public class DealAlert {
         this.category = category;
     }
 
+    public void setKeyword(String keyword) {
+        this.keyword = keyword;
+    }
+
     public void setMinDiscountPercentage(Double minDiscountPercentage) {
         this.minDiscountPercentage = minDiscountPercentage;
     }
@@ -128,6 +139,13 @@ public class DealAlert {
         if (minDiscountPercentage != null && (promotion.getDiscountPercentage() == null || promotion.getDiscountPercentage() < minDiscountPercentage)) {
             return false;
         }
+        if (keyword != null && !keyword.isBlank()) {
+            String term = keyword.trim().toLowerCase();
+            boolean titleMatch = promotion.getTitle() != null && promotion.getTitle().toLowerCase().contains(term);
+            boolean storeMatch = promotion.getStore().getStoreName() != null
+                    && promotion.getStore().getStoreName().toLowerCase().contains(term);
+            if (!titleMatch && !storeMatch) return false;
+        }
         return true;
     }
 
@@ -150,6 +168,7 @@ public class DealAlert {
         return "DealAlert{" +
                 "alertID='" + alertID + '\'' +
                 ", category=" + category +
+                ", keyword='" + keyword + '\'' +
                 ", minDiscountPercentage=" + minDiscountPercentage +
                 ", maxPrice=" + maxPrice +
                 ", active=" + active +
@@ -159,6 +178,7 @@ public class DealAlert {
     public static class Builder {
         private String alertID;
         private StoreCategory category;
+        private String keyword;
         private Double minDiscountPercentage;
         private Double maxPrice;
         private Boolean active;
@@ -173,6 +193,11 @@ public class DealAlert {
 
         public Builder setCategory(StoreCategory category) {
             this.category = category;
+            return this;
+        }
+
+        public Builder setKeyword(String keyword) {
+            this.keyword = keyword;
             return this;
         }
 
@@ -209,6 +234,7 @@ public class DealAlert {
         public Builder copy(DealAlert dealAlert) {
             this.alertID = dealAlert.alertID;
             this.category = dealAlert.category;
+            this.keyword = dealAlert.keyword;
             this.minDiscountPercentage = dealAlert.minDiscountPercentage;
             this.maxPrice = dealAlert.maxPrice;
             this.active = dealAlert.active;

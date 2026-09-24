@@ -68,7 +68,10 @@ INSERT INTO users (
     longitude,
     is_active,
     created_at,
-    updated_at
+    updated_at,
+    current_streak,
+    longest_streak,
+    points
 )
 VALUES
 (
@@ -82,7 +85,10 @@ VALUES
     18.6292,
     TRUE,
     NOW(),
-    NOW()
+    NOW(),
+    0,
+    0,
+    0
 ),
 (
     '7efbbced-729a-4a8e-b949-85773783ac8e',
@@ -95,7 +101,10 @@ VALUES
     18.4708,
     TRUE,
     NOW(),
-    NOW()
+    NOW(),
+    0,
+    0,
+    0
 ),
 (
     'b3d4fb6d-2671-4d8c-9b94-64c225d16d1d',
@@ -108,7 +117,10 @@ VALUES
     18.4667,
     TRUE,
     NOW(),
-    NOW()
+    NOW(),
+    0,
+    0,
+    0
 ),
 (
     '86fde77e-acf2-4540-af20-394d0bf4527f',
@@ -121,7 +133,10 @@ VALUES
     18.4241,
     TRUE,
     NOW(),
-    NOW()
+    NOW(),
+    0,
+    0,
+    0
 ),
 (
     '076960fb-1650-49a9-8e81-3faf7c33389c',
@@ -134,7 +149,10 @@ VALUES
     18.4241,
     TRUE,
     NOW(),
-    NOW()
+    NOW(),
+    0,
+    0,
+    0
 ),
 (
     'c2082ccf-a259-49e6-97ce-11e36d986aaa',
@@ -147,7 +165,10 @@ VALUES
     18.4241,
     TRUE,
     NOW(),
-    NOW()
+    NOW(),
+    0,
+    0,
+    0
 )
 ON CONFLICT DO NOTHING;
 

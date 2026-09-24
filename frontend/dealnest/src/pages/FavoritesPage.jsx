@@ -84,6 +84,14 @@ export default function FavoritesPage({ user }) {
     .map(sp => sp.promotion)
     .filter(promo => promo && compareIds.has(promo.promotionID));
 
+  const totalSaved = redemptions.reduce((sum, r) => {
+    const orig = r.promotion?.originalPrice;
+    const disc = r.promotion?.discountPrice;
+    if (orig == null || disc == null) return sum;
+    const saved = orig - disc;
+    return saved > 0 ? sum + saved : sum;
+  }, 0);
+
   return (
     <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-4">My Favorites</h2>
@@ -237,7 +245,16 @@ export default function FavoritesPage({ user }) {
         </>
         )
       ) : tab === 'codes' ? (
-        redemptions.length === 0 ? (
+        <>
+          {totalSaved > 0 && (
+            <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-2xl p-4 mb-4">
+              <div className="flex items-center gap-2 text-green-700 text-sm font-bold">
+                <Tag size={16} /> Total saved on claimed deals
+              </div>
+              <span className="text-green-700 font-extrabold text-lg">R{totalSaved.toFixed(2)}</span>
+            </div>
+          )}
+          {redemptions.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
             <Ticket className="mx-auto text-gray-300" size={48} />
             <h3 className="text-xl font-bold text-gray-800 mt-4">No claimed deals yet</h3>
@@ -260,7 +277,8 @@ export default function FavoritesPage({ user }) {
               </div>
             ))}
           </div>
-        )
+          )}
+        </>
       ) : null}
 
       <CompareDealsModal

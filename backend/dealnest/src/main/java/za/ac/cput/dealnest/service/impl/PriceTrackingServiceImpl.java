@@ -19,9 +19,13 @@ public class PriceTrackingServiceImpl implements IPriceTrackingService {
     }
 
     @Override
-    public void recordIfChanged(Promotion previous, Promotion updated) {
+    public void recordIfChanged(Double previousPrice, Promotion updated) {
         if (updated == null || updated.getDiscountPrice() == null) return;
-        boolean changed = previous == null || !Objects.equals(previous.getDiscountPrice(), updated.getDiscountPrice());
+        // Compare raw values instead of the previous Promotion: repository.save()
+        // on an id-bearing entity merges onto the instance already loaded into the
+        // persistence context, so a "previous" Promotion would alias the updated
+        // one and always look unchanged.
+        boolean changed = previousPrice == null || !Objects.equals(previousPrice, updated.getDiscountPrice());
         if (!changed) return;
 
         PricePoint point = new PricePoint.Builder()

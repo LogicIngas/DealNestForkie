@@ -76,6 +76,7 @@ public class SecurityConfig {
 
                 // Promotions: anyone can browse active deals and price history
                 .requestMatchers(HttpMethod.GET, "/api/promotion/findByIsActiveTrue").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/promotion/search").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/promotion/read/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/promotion/findByStoreId/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/priceHistory/findByPromotionId/**").permitAll()

@@ -291,6 +291,17 @@ export const promotionService = {
     return handleResponse(response);
   },
 
+  // Product-level search — free keyword + optional budget (max discount price)
+  // and category filter, e.g. search('air fryer', 1500, 'ELECTRONICS').
+  search: async ({ keyword, maxPrice, category } = {}) => {
+    const params = new URLSearchParams();
+    if (keyword) params.set('q', keyword);
+    if (maxPrice) params.set('maxPrice', maxPrice);
+    if (category) params.set('category', category);
+    const response = await fetch(`${API_BASE_URL}/promotion/search?${params.toString()}`);
+    return handleResponse(response);
+  },
+
   getByStore: async (storeId) => {
     const response = await fetch(`${API_BASE_URL}/promotion/findByStoreId/${storeId}`);
     if (!response.ok) return [];
@@ -501,9 +512,44 @@ export const dealReportService = {
 // ---------------------------------------------------------------------------
 export const priceHistoryService = {
   getByPromotion: async (promotionId) => {
-    const response = await fetch(`${API_BASE_URL}/priceHistory/findByPromotionId/${promotionId}`);
+    const response = await fetch(`${API_BASE_URL}/priceHistory/findByPromotionId/${promotionId}`, {
+      headers: authHeaders(),
+    });
+    // 402 = DealNest Plus perk → let the caller show a gated hint.
+    if (response.status === 402) throw new Error('UPGRADE_REQUIRED');
     if (!response.ok) return [];
     return handleResponse(response);
+  },
+};
+
+// ---------------------------------------------------------------------------
+// 10b. SEARCH HISTORY CONTROLLER
+// ---------------------------------------------------------------------------
+export const searchHistoryService = {
+  create: async (userId, searchQuery) => {
+    const payload = { searchQuery, user: { userID: userId } };
+    const response = await fetch(`${API_BASE_URL}/searchHistory/create`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(response);
+  },
+
+  getByUser: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/searchHistory/findByUserId/${userId}`, {
+      headers: authHeaders(),
+    });
+    if (!response.ok) return [];
+    return handleResponse(response);
+  },
+
+  remove: async (searchHistoryId) => {
+    const response = await fetch(`${API_BASE_URL}/searchHistory/delete/${searchHistoryId}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    return response.ok;
   },
 };
 

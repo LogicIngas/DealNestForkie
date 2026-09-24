@@ -55,6 +55,7 @@ public class DealAlertServiceImpl implements IDealAlertService {
 
     @Override
     public List<DealAlert> findActive() {
-        return repository.findByActiveTrue();
+        // Only currently-active Plus subscribers get their alerts fired.
+        return repository.findByActiveTrueAndUser_PlanTier(UserPlanTier.PLUS);
     }
 }

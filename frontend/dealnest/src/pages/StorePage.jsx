@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { storeService, promotionService, favoriteService, savedPromotionService, reviewService, redemptionService, dealReportService, priceHistoryService, analyticsService } from '../services/api';
-import { ArrowLeft, MapPin, Star, Tag, Clock, Phone, Mail, Heart, Bookmark, Store as StoreIcon, BadgeCheck, MessageSquare, Pencil, Trash2, Ticket, Flag, Share2, Check } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Tag, Clock, Phone, Mail, Heart, Bookmark, Store as StoreIcon, BadgeCheck, MessageSquare, Pencil, Trash2, Ticket, Flag, Share2, Check, Lock, Sparkles } from 'lucide-react';
 import { CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
 import ConfirmModal from '../components/ConfirmModal';
 import ReportDealModal from '../components/ReportDealModal';
@@ -99,7 +99,13 @@ export default function StorePage({ user }) {
         storePromos.forEach(promo => {
           priceHistoryService.getByPromotion(promo.promotionID)
             .then(points => setPriceHistories(prev => ({ ...prev, [promo.promotionID]: points })))
-            .catch(() => {});
+            .catch((err) => {
+              // 402 → price history is Plus-gated; mark it so the card shows a
+              // lock hint instead of silently swallowing the error.
+              if (err.message === 'UPGRADE_REQUIRED') {
+                setPriceHistories(prev => ({ ...prev, [promo.promotionID]: 'gated' }));
+              }
+            });
         });
       })
       .catch(() => {});
@@ -450,7 +456,17 @@ export default function StorePage({ user }) {
                     </span>
                   )}
                 </div>
-                {priceHistories[promo.promotionID]?.length > 1 && (
+                {priceHistories[promo.promotionID] === 'gated' ? (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 rounded-lg px-2.5 py-2">
+                      <Lock size={11} className="flex-shrink-0" /> Price history is a
+                      <span className="flex items-center gap-0.5 text-amber-700 font-bold uppercase tracking-wider">
+                        <Sparkles size={9} /> Plus
+                      </span>
+                      perk
+                    </div>
+                  </div>
+                ) : priceHistories[promo.promotionID]?.length > 1 && (
                   <div className="mt-3 pt-3 border-t border-gray-100">
                     <PriceSparkline points={priceHistories[promo.promotionID]} />
                   </div>
@@ -554,8 +570,13 @@ export default function StorePage({ user }) {
                       )}
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1 font-medium">
+                  <p className="text-xs text-gray-500 mt-1 font-medium flex items-center gap-1.5">
                     {isOwn ? 'You' : review.user?.firstName ? `${review.user.firstName} ${review.user.lastName?.[0] || ''}.` : 'Anonymous'}
+                    {review.user?.planTier === 'PLUS' && (
+                      <span className="flex items-center gap-0.5 bg-amber-50 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                        <Sparkles size={9} /> Plus
+                      </span>
+                    )}
                   </p>
                   {review.comment && <p className="text-sm text-gray-600 mt-1.5">{review.comment}</p>}
                 </div>
