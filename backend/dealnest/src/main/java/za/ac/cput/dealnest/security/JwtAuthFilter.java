@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -16,8 +15,14 @@ import java.util.List;
 /**
  * Reads Authorization: Bearer <token> on every request.
  * If valid, populates the SecurityContext so hasRole() checks work.
+ *
+ * NOTE: deliberately NOT a Spring @Component/@Bean. A Filter bean is
+ * auto-registered by Spring Boot as a servlet-level filter, which runs the
+ * instance an extra time BEFORE the Spring Security chain and gets the
+ * in-chain copy skipped via OncePerRequestFilter, leaving the request
+ * anonymous. It must only live inside the security chain, where
+ * SecurityConfig wires it.
  */
-@Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
