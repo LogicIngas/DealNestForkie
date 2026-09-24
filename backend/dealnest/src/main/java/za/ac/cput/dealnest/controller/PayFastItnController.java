@@ -1,10 +1,12 @@
 package za.ac.cput.dealnest.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import za.ac.cput.dealnest.service.SubscriptionService;
 
-import java.util.Map;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Receives PayFast ITNs (instant transaction notifications / webhooks) at
@@ -26,7 +28,11 @@ public class PayFastItnController {
     }
 
     @PostMapping("/itn")
-    public ResponseEntity<String> handleItn(@RequestParam Map<String, String> params) {
-        return ResponseEntity.ok(subscriptionService.handleItn(params));
+    public ResponseEntity<String> handleItn(HttpServletRequest request) throws IOException {
+        // The raw, order-preserving url-encoded body is required because PayFast
+        // signs md5<exact posted key=value pairs> + passphrase. A decoded Java
+        // Map would scramble order and re-encode values, failing the check.
+        String rawBody = new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        return ResponseEntity.ok(subscriptionService.handleItn(rawBody));
     }
 }

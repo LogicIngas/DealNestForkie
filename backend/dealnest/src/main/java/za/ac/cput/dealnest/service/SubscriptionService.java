@@ -161,18 +161,18 @@ public class SubscriptionService {
      * Validates and reacts to a PayFast ITN. Returns "OK" when processed so
      * PayFast stops retrying; anything else and PayFast will retry.
      */
-    public String handleItn(Map<String, String> params) {
-        boolean validSignature = PayFastUtil.validSignature(params, passphrase);
-        if (!validSignature) {
+    public String handleItn(String rawBody) {
+        if (!PayFastUtil.validItnSignature(rawBody, passphrase)) {
             log.warn("PayFast ITN failed signature check");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid signature");
         }
 
-        if (!PayFastUtil.validServerConfirmation(params, sandbox)) {
+        if (!PayFastUtil.validServerConfirmation(rawBody, sandbox)) {
             log.warn("PayFast ITN failed server-to-server validation");
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Validation failed");
         }
 
+        Map<String, String> params = parseFormBody(rawBody);
         String paymentStatus = params.getOrDefault("payment_status", "");
         String token = params.get("token");
         String pfPaymentId = params.get("pf_payment_id");
@@ -411,5 +411,19 @@ public class SubscriptionService {
     private String safeUrl(String configured, String fallback) {
         if (configured != null && !configured.isBlank()) return configured;
         return fallback;
+    }
+
+    /** Parses an x-www-form-urlencoded body into a name→value map (for field lookups only). */
+    private static Map<String, String> parseFormBody(String rawBody) {
+        Map<String, String> params = new LinkedHashMap<>();
+        if (rawBody == null || rawBody.isEmpty()) return params;
+        for (String pair : rawBody.split("&")) {
+            int eq = pair.indexOf('=');
+            String key = eq >= 0 ? pair.substring(0, eq) : pair;
+            String value = eq >= 0 ? pair.substring(eq + 1) : "";
+            params.putIfAbsent(java.net.URLDecoder.decode(key.replace("+", " "), java.nio.charset.StandardCharsets.UTF_8),
+                    java.net.URLDecoder.decode(value.replace("+", " "), java.nio.charset.StandardCharsets.UTF_8));
+        }
+        return params;
     }
 }

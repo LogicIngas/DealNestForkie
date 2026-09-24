@@ -1,6 +1,7 @@
 package za.ac.cput.dealnest.util;
 
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -50,17 +51,24 @@ public final class PayFastUtil {
         return md5Hex(paramString(fields, true, passphrase));
     }
 
-    /** True when the ITN's posted signature matches the canonical signature. */
-    public static boolean validSignature(Map<String, String> params, String passphrase) {
-        String expected = params.get("signature");
+    /**
+     * True when the ITN's posted signature matches PayFast's signature, computed
+     * over the RAW posted body. PayFast signs {@code md5(<exact url-encoded
+     * key=value pairs in posted order, EXCLUDING signature> + &passphrase=...)}.
+     * Rebuilding from a decoded Map would scramble that order and change the
+     * encoding of values, so we must validate against the raw body verbatim.
+     */
+    public static boolean validItnSignature(String rawBody, String passphrase) {
+        String expected = extractPostedValue(rawBody, "signature");
         if (expected == null || expected.isBlank()) return false;
-        return expected.equalsIgnoreCase(signature(params, passphrase));
+        return expected.equalsIgnoreCase(md5Hex(signedString(rawBody, passphrase)));
     }
 
     /** True when PayFast's /eng/query/validate confirms the ITN is genuine. */
-    public static boolean validServerConfirmation(Map<String, String> params, boolean sandbox) {
+    public static boolean validServerConfirmation(String rawBody, boolean sandbox) {
         String host = sandbox ? "https://sandbox.payfast.co.za" : "https://www.payfast.co.za";
-        String body = paramString(params, true, null);
+        String body = stripSignature(rawBody);
+        if (body.isBlank()) return false;
         try {
             HttpClient client = HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(10))
@@ -75,6 +83,48 @@ public final class PayFastUtil {
         } catch (Exception ex) {
             return false;
         }
+    }
+
+    /** The exact signed string PayFast produced: raw pairs in posted order, minus signature, plus passphrase. */
+    private static String signedString(String rawBody, String passphrase) {
+        StringBuilder sb = new StringBuilder(stripSignature(rawBody));
+        if (passphrase != null && !passphrase.isBlank()) {
+            sb.append("&passphrase=").append(encode(passphrase));
+        }
+        return sb.toString();
+    }
+
+    /** Raw {@code key=value&...} pairs from the posted body, minus the signature pair. */
+    static String stripSignature(String rawBody) {
+        StringBuilder sb = new StringBuilder();
+        if (rawBody == null) return "";
+        for (String pair : rawBody.split("&")) {
+            if (pair.isBlank()) continue;
+            String key = pair;
+            int eq = pair.indexOf('=');
+            if (eq >= 0) key = pair.substring(0, eq);
+            if ("signature".equalsIgnoreCase(key)) continue;
+            if (sb.length() > 0) sb.append('&');
+            sb.append(pair);
+        }
+        return sb.toString();
+    }
+
+    /** URL-decoded value of a field from the raw posted body, or null when absent. */
+    private static String extractPostedValue(String rawBody, String wantedKey) {
+        if (rawBody == null) return null;
+        for (String pair : rawBody.split("&")) {
+            int eq = pair.indexOf('=');
+            if (eq <= 0) continue;
+            String key = pair.substring(0, eq);
+            if (!wantedKey.equalsIgnoreCase(key)) continue;
+            try {
+                return URLDecoder.decode(pair.substring(eq + 1), StandardCharsets.UTF_8);
+            } catch (Exception ex) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private static String encode(String value) {
