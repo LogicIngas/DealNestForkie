@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { userService, favoriteService, savedPromotionService, notificationService, dealAlertService } from '../services/api';
+import { userService, favoriteService, savedPromotionService, notificationService, dealAlertService, subscriptionService, submitPayFastForm } from '../services/api';
 import {
   Mail, Phone, Pencil, LogOut, Check, X, User as UserIcon, Bell, Heart, Bookmark,
   ChevronRight, Lock, Trash2, Sparkles, BellPlus, Gem, Flame, Target, Award, Crown, CalendarCheck2
@@ -52,6 +52,8 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
 
   const [subscribing, setSubscribing] = useState(false);
   const [confirmCancelPlan, setConfirmCancelPlan] = useState(false);
+  const [payfastStatus, setPayfastStatus] = useState(null);
+  const [payfastNotice, setPayfastNotice] = useState(null);
 
   const [alerts, setAlerts] = useState([]);
   const [showAlertForm, setShowAlertForm] = useState(false);
@@ -75,6 +77,49 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
       setAlerts(dealAlerts);
     }).finally(() => setLoadingExtras(false));
   }, [user?.userID]);
+
+  // Handles a redirect back from PayFast's hosted page. Clean the query param
+  // first (so a refresh never re-runs this), then poll the backend until the
+  // ITN has activated the plan, and finally refresh the app's user state.
+  useEffect(() => {
+    const search = new URLSearchParams(window.location.search);
+    const result = search.get('payfast');
+    if (!result) return;
+
+    search.delete('payfast');
+    const query = search.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+
+    if (result === 'cancelled') {
+      setPayfastNotice({ tone: 'info', text: "Payment cancelled — your plan hasn't changed." });
+      return;
+    }
+    if (result !== 'success') return;
+
+    setPayfastStatus('activating');
+    let attempts = 0;
+    const poll = async () => {
+      attempts += 1;
+      try {
+        const data = await subscriptionService.status('USER');
+        if (data.planTier === 'PLUS' && data.status === 'ACTIVE') {
+          setPayfastStatus(null);
+          setPayfastNotice({ tone: 'info', text: 'DealNest Plus is now active — welcome aboard!' });
+          if (data.account) onUpdateUser(data.account);
+          return;
+        }
+      } catch {
+        // Transient errors — keep polling.
+      }
+      if (attempts < 10) {
+        setTimeout(poll, 3000);
+      } else {
+        setPayfastStatus(null);
+        setPayfastNotice({ tone: 'info', text: 'Payment received — your plan will activate momentarily once PayFast confirms it.' });
+      }
+    };
+    setTimeout(poll, 2500);
+  }, [user?.userID, onUpdateUser]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -143,13 +188,14 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
 
   const handleUpgradeToPlus = async () => {
     setSubscribing(true);
+    setPayfastNotice(null);
     try {
-      const renewsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      const updated = await userService.update(user.userID, { ...user, planTier: 'PLUS', planRenewsAt: renewsAt });
-      onUpdateUser(updated);
+      // Backend returns a signed PayFast form; submitting it sends the customer
+      // to PayFast's hosted page where they authorise the recurring agreement.
+      const checkout = await subscriptionService.checkout('USER');
+      submitPayFastForm(checkout);
     } catch (err) {
-      alert(err.message || 'Failed to upgrade to Plus.');
-    } finally {
+      setPayfastNotice({ tone: 'error', text: err.message || 'Failed to start checkout.' });
       setSubscribing(false);
     }
   };
@@ -158,10 +204,15 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
     setConfirmCancelPlan(false);
     setSubscribing(true);
     try {
-      const updated = await userService.update(user.userID, { ...user, planTier: 'FREE', planRenewsAt: null });
-      onUpdateUser(updated);
+      const result = await subscriptionService.cancel('USER');
+      setPayfastNotice({
+        tone: 'info',
+        text: result.activeUntil
+          ? `Subscription cancelled — Plus stays active until ${new Date(result.activeUntil).toLocaleDateString()}.`
+          : 'Subscription cancelled.',
+      });
     } catch (err) {
-      alert(err.message || 'Failed to cancel subscription.');
+      setPayfastNotice({ tone: 'error', text: err.message || 'Failed to cancel subscription.' });
     } finally {
       setSubscribing(false);
     }
@@ -273,6 +324,16 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
             {isPlus ? 'Active' : 'Free plan'}
           </span>
         </div>
+        {payfastStatus === 'activating' && (
+          <div role="status" className="bg-amber-50 border border-amber-200 text-amber-700 text-xs p-3 rounded-xl mt-3">
+            Confirming your payment…
+          </div>
+        )}
+{payfastNotice && (
+          <div role="status" className={`${payfastNotice.tone === 'error' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-teal-50 border-teal-200 text-teal-700'} border text-xs p-3 rounded-xl mt-3`}>
+            {payfastNotice.text}
+          </div>
+        )}
         {isPlus ? (
           <>
             {renewsOn && <p className="text-xs text-gray-500 mt-2">Renews on {renewsOn}</p>}
@@ -752,7 +813,7 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
       <ConfirmModal
         open={confirmCancelPlan}
         title="Cancel DealNest Plus?"
-        message="You'll immediately lose unlimited saved deals and the Plus badge."
+        message="You'll keep Plus perks until the end of the current month, then your account returns to the free plan."
         confirmLabel="Cancel subscription"
         onConfirm={handleCancelPlus}
         onCancel={() => setConfirmCancelPlan(false)}

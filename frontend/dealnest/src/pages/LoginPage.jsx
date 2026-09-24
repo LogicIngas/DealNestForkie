@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { userService, storeService } from '../services/api';
@@ -9,8 +9,13 @@ export default function LoginPage({ onLogin }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [notice] = useState(() => sessionStorage.getItem('dealnest_session_message') || '');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    sessionStorage.removeItem('dealnest_session_message');
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,6 +43,11 @@ export default function LoginPage({ onLogin }) {
           </div>
           <div className="p-8">
             <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Welcome Back</h2>
+            {notice && (
+              <div role="alert" aria-live="polite" className="bg-amber-50 border border-amber-200 text-amber-700 p-3 rounded-xl text-sm mb-4 text-center">
+                {notice}
+              </div>
+            )}
             {error && (
               <div role="alert" aria-live="polite" className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl text-sm mb-4 text-center">
                 {error}

@@ -6,7 +6,7 @@ import {
   MessageSquare, ImagePlus, Ticket, Sparkles, Crown,
   BarChart3, TrendingUp, UploadCloud, CalendarClock, Eye, Bookmark, CheckCircle2, Flame
 } from 'lucide-react';
-import { promotionService, storeService, favoriteService, reviewService, redemptionService, analyticsService } from '../services/api';
+import { promotionService, storeService, favoriteService, reviewService, redemptionService, analyticsService, subscriptionService, submitPayFastForm } from '../services/api';
 import { CATEGORIES } from '../constants/categories';
 import { storageService } from '../services/storageService';
 import ConfirmModal from '../components/ConfirmModal';
@@ -76,6 +76,8 @@ export default function StoreDashboard({ user, onLogout }) {
 
   const [subscribingStore, setSubscribingStore] = useState(false);
   const [confirmCancelStorePlan, setConfirmCancelStorePlan] = useState(false);
+  const [payfastStatus, setPayfastStatus] = useState(null);
+  const [payfastNotice, setPayfastNotice] = useState(null);
   const [featuringId, setFeaturingId] = useState(null);
   const [promotingId, setPromotingId] = useState(null);
 
@@ -108,6 +110,49 @@ export default function StoreDashboard({ user, onLogout }) {
       .then(data => setReviews(data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))))
       .catch(() => {})
       .finally(() => setLoadingReviews(false));
+  }, [userStore?.storeId]);
+
+  // Handles a redirect back from PayFast's hosted page. Clean the query param
+  // first (so a refresh never re-runs this), then poll the backend until the
+  // ITN has activated the Pro plan, and finally refresh the store state.
+  useEffect(() => {
+    const search = new URLSearchParams(window.location.search);
+    const result = search.get('payfast');
+    if (!result) return;
+
+    search.delete('payfast');
+    const query = search.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+
+    if (result === 'cancelled') {
+      setPayfastNotice({ tone: 'info', text: "Payment cancelled — your plan hasn't changed." });
+      return;
+    }
+    if (result !== 'success') return;
+
+    setPayfastStatus('activating');
+    let attempts = 0;
+    const poll = async () => {
+      attempts += 1;
+      try {
+        const data = await subscriptionService.status('STORE');
+        if (data.planTier === 'PRO' && data.status === 'ACTIVE') {
+          setPayfastStatus(null);
+          setPayfastNotice({ tone: 'info', text: 'Pro is now active — welcome aboard!' });
+          if (data.account) setUserStore(data.account);
+          return;
+        }
+      } catch {
+        // Transient errors — keep polling.
+      }
+      if (attempts < 10) {
+        setTimeout(poll, 3000);
+      } else {
+        setPayfastStatus(null);
+        setPayfastNotice({ tone: 'info', text: 'Payment received — your plan will activate momentarily once PayFast confirms it.' });
+      }
+    };
+    setTimeout(poll, 2500);
   }, [userStore?.storeId]);
 
   useEffect(() => {
@@ -298,13 +343,14 @@ export default function StoreDashboard({ user, onLogout }) {
 
   const handleUpgradeToPro = async () => {
     setSubscribingStore(true);
+    setPayfastNotice(null);
     try {
-      const renewsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      const updated = await storeService.update(userStore.storeId, { ...userStore, planTier: 'PRO', planRenewsAt: renewsAt });
-      setUserStore(updated);
+      // Backend returns a signed PayFast form; submitting it sends the customer
+      // to PayFast's hosted page where they authorise the recurring agreement.
+      const checkout = await subscriptionService.checkout('STORE');
+      submitPayFastForm(checkout);
     } catch (error) {
-      alert(error.message || 'Failed to upgrade to Pro.');
-    } finally {
+      setPayfastNotice({ tone: 'error', text: error.message || 'Failed to start checkout.' });
       setSubscribingStore(false);
     }
   };
@@ -313,10 +359,15 @@ export default function StoreDashboard({ user, onLogout }) {
     setConfirmCancelStorePlan(false);
     setSubscribingStore(true);
     try {
-      const updated = await storeService.update(userStore.storeId, { ...userStore, planTier: 'FREE', planRenewsAt: null });
-      setUserStore(updated);
+      const result = await subscriptionService.cancel('STORE');
+      setPayfastNotice({
+        tone: 'info',
+        text: result.activeUntil
+          ? `Subscription cancelled — Pro stays active until ${new Date(result.activeUntil).toLocaleDateString()}.`
+          : 'Subscription cancelled.',
+      });
     } catch (error) {
-      alert(error.message || 'Failed to cancel subscription.');
+      setPayfastNotice({ tone: 'error', text: error.message || 'Failed to cancel subscription.' });
     } finally {
       setSubscribingStore(false);
     }
@@ -538,6 +589,16 @@ export default function StoreDashboard({ user, onLogout }) {
                   {isPro ? 'Pro' : 'Free plan'}
                 </span>
               </div>
+              {payfastStatus === 'activating' && (
+                <div role="status" className="bg-amber-50 border border-amber-200 text-amber-700 text-xs p-3 rounded-xl mt-3">
+                  Confirming your payment…
+                </div>
+              )}
+              {payfastNotice && (
+                <div role="status" className={`${payfastNotice.tone === 'error' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-teal-50 border-teal-200 text-teal-700'} border text-xs p-3 rounded-xl mt-3`}>
+                  {payfastNotice.text}
+                </div>
+              )}
               {isPro ? (
                 <>
                   {storeRenewsOn && <p className="text-xs text-gray-500 mt-2">Renews on {storeRenewsOn}</p>}
@@ -1032,7 +1093,7 @@ export default function StoreDashboard({ user, onLogout }) {
       <ConfirmModal
         open={confirmCancelStorePlan}
         title="Cancel your Pro plan?"
-        message="You'll immediately lose the ability to feature a deal and the Pro badge."
+        message="You'll keep Pro perks (featured deals, analytics) until the end of the current month, then your store returns to the free plan."
         confirmLabel="Cancel subscription"
         onConfirm={handleCancelProPlan}
         onCancel={() => setConfirmCancelStorePlan(false)}

@@ -14,6 +14,7 @@ import StoreDashboard from './pages/StoreDashboard';
 import StoreSignupPage from './pages/StoreSignupPage'; // New file we will create next
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminDashboard from './pages/AdminDashboard';
+import { hasValidToken } from './services/api';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -21,7 +22,8 @@ function App() {
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [role, setRole] = useState(() => localStorage.getItem('dealnest_role') || 'customer');
-  const isAuthenticated = user !== null;
+  // A saved user alone isn't a valid session — the JWT must exist and be unexpired.
+  const isAuthenticated = user !== null && hasValidToken('user');
 
   const [admin, setAdmin] = useState(() => {
     const savedAdmin = localStorage.getItem('dealnest_admin');
@@ -64,7 +66,7 @@ function App() {
       <Routes>
         <Route path="/login" element={!isAuthenticated ? <LoginPage onLogin={login} /> : <Navigate to="/" replace />} />
         <Route path="/signup" element={!isAuthenticated ? <SignupPage /> : <Navigate to="/" replace />} />
-        <Route path="/store-signup" element={!isAuthenticated ? <StoreSignupPage /> : <Navigate to="/" replace />} />
+        <Route path="/store-signup" element={!isAuthenticated ? <StoreSignupPage onLogin={login} /> : <Navigate to="/" replace />} />
 
         <Route path="/admin/login" element={!isAdminAuthenticated ? <AdminLoginPage onLogin={adminLogin} /> : <Navigate to="/admin" replace />} />
         <Route path="/admin" element={isAdminAuthenticated ? <AdminDashboard admin={admin} onLogout={adminLogout} /> : <Navigate to="/admin/login" replace />} />

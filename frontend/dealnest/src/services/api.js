@@ -6,6 +6,38 @@
 const getToken = () => localStorage.getItem('dealnest_token');
 const getAdminToken = () => localStorage.getItem('dealnest_admin_token');
 
+// Drop every saved session detail (used when the backend rejects our token).
+const clearSession = () => {
+  localStorage.removeItem('dealnest_user');
+  localStorage.removeItem('dealnest_role');
+  localStorage.removeItem('dealnest_token');
+  localStorage.removeItem('dealnest_admin');
+  localStorage.removeItem('dealnest_admin_token');
+};
+
+const decodeJwtPayload = (token) => {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return null;
+    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+};
+
+// Returns true when a non-expired token exists for the given type
+// ('user' => the customer/store token, 'admin' => the admin token).
+export const hasValidToken = (type = 'user') => {
+  const token = type === 'admin' ? getAdminToken() : getToken();
+  if (!token) return false;
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload.exp !== 'number') return true;
+  return payload.exp * 1000 > Date.now();
+};
+
+const isLoginCall = (url = '') => /\/user\/login$|\/admin\/login$/.test(url);
+
 /**
  * Returns headers for an authenticated user request.
  * Falls back to admin token when no user token is present (admin dashboard calls).
@@ -25,15 +57,26 @@ const authHeaders = (extra = {}) => {
 const handleResponse = async (response) => {
   if (!response.ok) {
     const text = await response.text();
+    let message = text || 'Something went wrong';
     try {
       const parsed = JSON.parse(text);
-      throw new Error(parsed.message || parsed.error || text);
-    } catch (parseErr) {
-      if (parseErr instanceof SyntaxError) {
-        throw new Error(text || 'Something went wrong');
-      }
-      throw parseErr;
+      message = parsed.message || parsed.error || text || 'Something went wrong';
+    } catch {
+      // Keep the raw text as the message.
     }
+
+    // A protected endpoint returned 401 → token is missing, expired, or invalid.
+    // Log the stale session out and ask for a fresh sign-in.
+    if (response.status === 401 && !isLoginCall(response.url)) {
+      clearSession();
+      sessionStorage.setItem('dealnest_session_message', message);
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
+      throw new Error('Session expired. Please sign in again.');
+    }
+
+    throw new Error(message);
   }
   const contentType = response.headers.get('content-type');
   if (contentType && contentType.includes('application/json')) {
@@ -537,4 +580,58 @@ export const dealAlertService = {
     });
     return response.ok;
   },
+};
+
+// ---------------------------------------------------------------------------
+// 13. SUBSCRIPTION CONTROLLER (PayFast)
+// ---------------------------------------------------------------------------
+export const subscriptionService = {
+  // Returns { action, fields } for the signed PayFast hosted-page form.
+  checkout: async (accountType) => {
+    const response = await fetch(`${API_BASE_URL}/subscription/checkout`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ accountType }),
+    });
+    return handleResponse(response);
+  },
+
+  // Current plan state — polled after a PayFast return to detect activation.
+  status: async (accountType) => {
+    const response = await fetch(`${API_BASE_URL}/subscription/status?accountType=${accountType}`, {
+      headers: authHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Cancels the recurring agreement at the end of the current month.
+  cancel: async (accountType) => {
+    const response = await fetch(`${API_BASE_URL}/subscription/cancel`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ accountType }),
+    });
+    return handleResponse(response);
+  },
+};
+
+/**
+ * Submits a hidden HTML form to PayFast's hosted page so the customer can
+ * authorise the recurring billing agreement and pay. Navigation is a native
+ * browser POST, so debugging tools show the exact fields PayFast receives.
+ */
+export const submitPayFastForm = ({ action, fields }) => {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = action;
+  form.acceptCharset = 'UTF-8';
+  Object.entries(fields).forEach(([key, value]) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = key;
+    input.value = value;
+    form.appendChild(input);
+  });
+  document.body.appendChild(form);
+  form.submit();
 };

@@ -1,8 +1,10 @@
 package za.ac.cput.dealnest.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -37,14 +39,34 @@ public class SecurityConfig {
         // Wire JWT filter to run before Spring's default auth filter
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
+        // Distinguish "you are not signed in" (401) from "you lack the role" (403)
+        // so the frontend can tell a stale/expired session apart from a genuine denial.
+        http.exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write(
+                            "{\"message\":\"Authentication required. Please sign in again.\"}");
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.getWriter().write(
+                            "{\"message\":\"You don't have permission to perform this action.\"}");
+                }));
+
         http.authorizeHttpRequests(authorize -> authorize
 
                 // ----------------------------------------------------------------
                 // PUBLIC endpoints — no login required
                 // ----------------------------------------------------------------
 
-                // Health check
-                .requestMatchers("/api/health/**").permitAll()
+                // Health check — plain /health is what the keep-alive cron and Render probe hit
+                .requestMatchers("/api/health/**", "/health").permitAll()
+
+                // PayFast sends ITNs (webhooks) with its own signature + server-side
+                // VALID check (no JWT). Must stay public so PayFast can reach it.
+                .requestMatchers(HttpMethod.POST, "/api/payfast/itn").permitAll()
 
                 // Auth: registration & login for both user types
                 .requestMatchers(HttpMethod.POST, "/api/user/create").permitAll()
@@ -78,9 +100,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/user/delete/**").hasRole("ADMIN")
 
                 // Admin: full promotion management (create, update, delete, view all)
-                .requestMatchers(HttpMethod.POST, "/api/promotion/create").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/promotion/update/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/promotion/delete/**").hasRole("ADMIN")
+                // Create/update/delete also accept store owners, who are authorization-checked
+                // in PromotionController against ownership of the promotion's store.
+                .requestMatchers(HttpMethod.POST, "/api/promotion/create").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/promotion/update/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/promotion/delete/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/promotion/getAll").hasRole("ADMIN")
 
                 // Admin: manage store locations
@@ -104,9 +128,11 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/notification/getAll").hasRole("ADMIN")
 
                 // Admin: create/update/delete stores
-                .requestMatchers(HttpMethod.POST, "/api/stores").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/stores/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/stores/**").hasRole("ADMIN")
+                // Create/update/delete also accept store owners, who are authorization-checked
+                // in StoreController against ownership of the store.
+                .requestMatchers(HttpMethod.POST, "/api/stores").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/stores/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/stores/**").authenticated()
 
                 // Admin: view all search history
                 .requestMatchers(HttpMethod.GET, "/api/searchHistory/getAll").hasRole("ADMIN")

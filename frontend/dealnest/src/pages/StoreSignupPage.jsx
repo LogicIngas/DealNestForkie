@@ -4,7 +4,7 @@ import { MapPin } from 'lucide-react';
 import { storeService, userService } from '../services/api';
 import { CATEGORIES } from '../constants/categories';
 
-export default function StoreSignupPage() {
+export default function StoreSignupPage({ onLogin }) {
   const [formData, setFormData] = useState({
     storeName: '',
     ownerFirstName: '',
@@ -57,7 +57,7 @@ export default function StoreSignupPage() {
     setIsLoading(true);
     try {
       // A store owner needs a real login account first, then the store is linked to it.
-      const newUser = await userService.register({
+      await userService.register({
         email: formData.email,
         password: formData.password,
         firstName: formData.ownerFirstName,
@@ -67,6 +67,9 @@ export default function StoreSignupPage() {
         longitude: formData.longitude,
         isActive: true,
       });
+
+      // Sign straight in so the store creation below carries a valid session.
+      const newUser = await userService.login(formData.email, formData.password);
 
       await storeService.create({
         storeName: formData.storeName,
@@ -81,8 +84,8 @@ export default function StoreSignupPage() {
         user: { userID: newUser.userID },
       });
 
-      alert('Store registered successfully! Please log in.');
-      navigate('/login');
+      onLogin(newUser, 'store');
+      navigate('/');
     } catch (err) {
       setError(err.message || 'Failed to register store.');
     } finally {
