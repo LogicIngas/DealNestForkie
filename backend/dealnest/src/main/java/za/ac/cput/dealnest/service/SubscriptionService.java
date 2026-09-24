@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -125,19 +126,22 @@ public class SubscriptionService {
         local.setStatus(SubscriptionStatus.PENDING);
         local = subscriptionRepository.save(local);
 
-        TreeMap<String, String> fields = new TreeMap<>();
+        // Field order matters: PayFast hosted-page signatures use the order the
+        // attributes appear in the docs table, NOT alphabetical (the API format).
+        // Keep insertion order (LinkedHashMap) matching PayFast's reference SDK.
+        Map<String, String> fields = new LinkedHashMap<>();
         fields.put("merchant_id", merchantId);
         fields.put("merchant_key", merchantKey);
-        fields.put("amount", plan.amount());
-        fields.put("item_name", "DealNest " + plan.planName() + " subscription");
-        fields.put("item_description", "Monthly " + plan.planName() + " plan for " + plan.accountLabel());
-        fields.put("m_payment_id", local.getSubscriptionID());
-        fields.put("custom_str1", plan.accountType().name());
-        fields.put("custom_str2", plan.accountId());
-        fields.put("custom_str3", plan.planName());
         fields.put("return_url", safeUrl(returnUrl, "/profile?payfast=success"));
         fields.put("cancel_url", safeUrl(cancelUrl, "/profile?payfast=cancelled"));
         fields.put("notify_url", safeUrl(notifyUrl, "/api/payfast/itn"));
+        fields.put("m_payment_id", local.getSubscriptionID());
+        fields.put("amount", plan.amount());
+        fields.put("item_name", "DealNest " + plan.planName() + " subscription");
+        fields.put("item_description", "Monthly " + plan.planName() + " plan for " + plan.accountLabel());
+        fields.put("custom_str1", plan.accountType().name());
+        fields.put("custom_str2", plan.accountId());
+        fields.put("custom_str3", plan.planName());
         fields.put("subscription_type", "1");
         fields.put("recurring_amount", plan.amount());
         fields.put("frequency", "3"); // monthly

@@ -8,12 +8,14 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.TreeMap;
 
 /**
  * PayFast signature + ITN verification helpers. Mirrors the official PHP
- * reference implementation: params are sorted by key, empty values skipped,
+ * reference implementation: params keep their insertion order (the hosted-page
+ * signature requires the order the attributes appear in the docs table — NOT
+ * alphabetical, which is only for the API signature), empty values skipped,
  * values url-encoded with spaces as '+', an optional
  * {@code &passphrase=<urlencoded>} appended for signature verification, then
  * MD5 hashed (lowercase hex). ITNs are additionally confirmed server-to-server
@@ -26,12 +28,12 @@ public final class PayFastUtil {
 
     /** Canonical query string used for signatures and validate calls. */
     public static String paramString(Map<String, String> data, boolean excludeSignature, String passphrase) {
-        TreeMap<String, String> sorted = new TreeMap<>(data);
+        LinkedHashMap<String, String> ordered = new LinkedHashMap<>(data);
         if (excludeSignature) {
-            sorted.remove("signature");
+            ordered.remove("signature");
         }
         StringBuilder sb = new StringBuilder();
-        for (Map.Entry<String, String> entry : sorted.entrySet()) {
+        for (Map.Entry<String, String> entry : ordered.entrySet()) {
             if (entry.getValue() == null) continue;
             String value = entry.getValue().trim();
             if (value.isEmpty()) continue;
