@@ -26,5 +26,7 @@ services:
         value: "postgres.qgrnvjvrcdtrxastqzfp"
       - key: DB_PASSWORD
         sync: false
+      - key: JWT_SECRET
+        sync: false
       - key: CORS_ALLOWED_ORIGIN
         value: "https://react-frontend-eplq.onrender.com"

@@ -35,7 +35,38 @@ public class UserServiceImpl implements IUserService {
 
     @Override
     public User update(User user) {
-        return repository.save(user);
+        String userId = user.getUserID();
+        if (userId == null) {
+            throw new IllegalArgumentException("User id is required for update.");
+        }
+        User existing = repository.findById(userId).orElse(null);
+        if (existing == null) {
+            throw new IllegalArgumentException("User not found for id: " + userId);
+        }
+
+        if (user.getEmail() != null && !user.getEmail().isBlank()) {
+            existing.setEmail(user.getEmail());
+        }
+        existing.setFirstName(user.getFirstName());
+        existing.setLastName(user.getLastName());
+        existing.setPhoneNumber(user.getPhoneNumber());
+        existing.setLatitude(user.getLatitude());
+        existing.setLongitude(user.getLongitude());
+        existing.setActive(user.isActive());
+        existing.setPlanTier(user.getPlanTier());
+        existing.setPlanRenewsAt(user.getPlanRenewsAt());
+        existing.setUpdatedAt(LocalDateTime.now());
+
+        String password = user.getPassword();
+        if (password != null && !password.isBlank() && !isBcryptHash(password)) {
+            existing.setPassword(passwordEncoder.encode(password));
+        }
+
+        return repository.save(existing);
+    }
+
+    private boolean isBcryptHash(String value) {
+        return value.startsWith("$2a$") || value.startsWith("$2b$") || value.startsWith("$2y$");
     }
 
     @Override

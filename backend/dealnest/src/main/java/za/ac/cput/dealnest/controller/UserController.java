@@ -50,6 +50,7 @@ public class UserController {
 
     @PutMapping("/update/{userId}")
     public User update(@PathVariable String userId, @RequestBody User user) {
+        user.setUserID(userId);
         return userService.update(user);
     }
 
