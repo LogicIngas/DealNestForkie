@@ -292,7 +292,7 @@ export default function HomePage({ user }) {
                 <h4 className="font-bold text-gray-800 text-sm mt-2.5 line-clamp-1">{store.storeName}</h4>
                 <div className="flex items-center justify-center gap-1 mt-1 text-amber-500">
                   <Star size={12} fill="currentColor" />
-                  <span className="text-xs font-bold">{store.averageRating.toFixed(1)}</span>
+                  <span className="text-xs font-bold">{store.averageRating?.toFixed(1) || 'New'}</span>
                 </div>
               </Link>
             ))}
