@@ -4,6 +4,7 @@ bencium-claude-code-design-skill/
 
 # Markdown docs
 *.md
+!frontend/dealnest/README.md
 
 # Environment variables
 .env
