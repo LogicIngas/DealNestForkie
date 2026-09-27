@@ -229,6 +229,6 @@ public class PromotionServiceImpl implements IPromotionService {
 
     @Override
     public List<Promotion> getAll() {
-        return repository.findAll();
+        return repository.findAllWithStore();
     }
 }

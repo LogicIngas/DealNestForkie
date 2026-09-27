@@ -54,7 +54,7 @@ public class StoreServiceImpl implements IStoreService {
     public List<Store> findByCategory(StoreCategory category) {
         List<Store> result = new ArrayList<>();
 
-        for (Store store : repository.findAll()){
+        for (Store store : repository.findAllWithOwner()){
             if (store.getCategory() != null && store.getCategory().equals(category)){
                 result.add(store);
             }
@@ -66,7 +66,7 @@ public class StoreServiceImpl implements IStoreService {
     public List<Store> findByCity(String city) {
         List<Store> result = new ArrayList<>();
 
-        for (Store store : repository.findAll()){
+        for (Store store : repository.findAllWithOwner()){
             if (store.getCity() != null &&
                     store.getCity().equalsIgnoreCase(city)){
                 result.add(store);
@@ -84,7 +84,7 @@ public class StoreServiceImpl implements IStoreService {
     public List<Store> findByStoreNameContainingIgnoreCase(String storeName) {
         List<Store> result = new ArrayList<>();
 
-        for (Store store : repository.findAll()){
+        for (Store store : repository.findAllWithOwner()){
             if (store.getStoreName() != null &&
                     store.getStoreName().toLowerCase().contains(storeName.toLowerCase())){
                 result.add(store);
@@ -100,6 +100,6 @@ public class StoreServiceImpl implements IStoreService {
 
     @Override
     public List<Store> getAll() {
-        return repository.findAll();
+        return repository.findAllWithOwner();
     }
 }
