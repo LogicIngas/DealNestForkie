@@ -23,6 +23,7 @@ import za.ac.cput.dealnest.security.SecurityUtil;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -121,7 +122,7 @@ public class SubscriptionService {
             renewsAt = store != null ? store.getPlanRenewsAt() : null;
         }
 
-        Map<String, Object> result = new HashMap<>();
+        Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", local != null ? local.getStatus().name() : "FREE");
         result.put("planTier", planTier);
         result.put("paymentMethod", local != null && local.getPaymentMethod() != null
