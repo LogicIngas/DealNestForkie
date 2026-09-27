@@ -157,8 +157,16 @@ export default function CardCheckoutForm({ accountType, amountCents, onPaid, onC
         } catch {
           setError(caught.message);
         }
+      } else if (caught.status === 404) {
+        // The card path is switched off on deployed environments. Saying so is
+        // more use than whatever the server put in the body.
+        setError('Card checkout is not enabled on this instance.');
       } else {
-        setError(caught.message || 'Could not complete the payment.');
+        // The server's own wording is deliberately not shown. A gateway or proxy
+        // that echoes a request body back will hand us the card number and CVV in
+        // this string, and rendering it would put a full card on the page. The
+        // status is enough to act on.
+        setError(`The payment could not be completed (error ${caught.status ?? 'unknown'}).`);
       }
     } finally {
       setBusy(false);
