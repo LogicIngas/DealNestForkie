@@ -4,9 +4,10 @@ import {
   MapPin, Star, Pencil, Trash2, Tag, Users,
   BadgeCheck, Clock, Phone, Mail, AlertTriangle,
   MessageSquare, ImagePlus, Ticket, Sparkles, Crown,
-  BarChart3, TrendingUp, UploadCloud, CalendarClock, Eye, Bookmark, CheckCircle2, Flame, Landmark
+  BarChart3, TrendingUp, UploadCloud, CalendarClock, Eye, Bookmark, CheckCircle2, Flame
 } from 'lucide-react';
-import { promotionService, storeService, favoriteService, reviewService, redemptionService, analyticsService, subscriptionService, submitPayFastForm } from '../services/api';
+import { promotionService, storeService, favoriteService, reviewService, redemptionService, analyticsService, subscriptionService } from '../services/api';
+import CardCheckoutForm from '../components/CardCheckoutForm';
 import { CATEGORIES } from '../constants/categories';
 import { storageService } from '../services/storageService';
 import ConfirmModal from '../components/ConfirmModal';
@@ -75,11 +76,9 @@ export default function StoreDashboard({ user, onLogout }) {
   const [redeemResult, setRedeemResult] = useState(null);
 
   const [subscribingStore, setSubscribingStore] = useState(false);
-  const [subscribingStoreWith, setSubscribingStoreWith] = useState(null);
-  const [confirmCancelStorePlan, setConfirmCancelStorePlan] = useState(false);
-  const [payfastStatus, setPayfastStatus] = useState(null);
-  const [payfastNotice, setPayfastNotice] = useState(null);
-  const [storePaymentMethod, setStorePaymentMethod] = useState(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [planPrice, setPlanPrice] = useState(null);
+  const [planNotice, setPlanNotice] = useState(null);
   const [featuringId, setFeaturingId] = useState(null);
   const [promotingId, setPromotingId] = useState(null);
 
@@ -114,48 +113,15 @@ export default function StoreDashboard({ user, onLogout }) {
       .finally(() => setLoadingReviews(false));
   }, [userStore?.storeId]);
 
-  // Handles a redirect back from PayFast's hosted page. Clean the query param
-  // first (so a refresh never re-runs this), then poll the backend until the
-  // ITN has activated the Pro plan, and finally refresh the store state.
+  // Loads what the store's plan costs. The price is resolved by the server and
+  // fetched before the form opens, so the amount on the button is the amount that
+  // will be authorised.
   useEffect(() => {
-    const search = new URLSearchParams(window.location.search);
-    const result = search.get('payfast');
-    if (!result) return;
-
-    search.delete('payfast');
-    const query = search.toString();
-    window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
-
-    if (result === 'cancelled') {
-      setPayfastNotice({ tone: 'info', text: "Payment cancelled — your plan hasn't changed." });
-      return;
-    }
-    if (result !== 'success') return;
-
-    setPayfastStatus('activating');
-    let attempts = 0;
-    const poll = async () => {
-      attempts += 1;
-      try {
-        const data = await subscriptionService.status('STORE');
-        if (data.planTier === 'PRO' && data.status === 'ACTIVE') {
-          setStorePaymentMethod(data.paymentMethod || null);
-          setPayfastStatus(null);
-          setPayfastNotice({ tone: 'info', text: 'Pro is now active — welcome aboard!' });
-          if (data.account) setUserStore(data.account);
-          return;
-        }
-      } catch {
-        // Transient errors — keep polling.
-      }
-      if (attempts < 10) {
-        setTimeout(poll, 3000);
-      } else {
-        setPayfastStatus(null);
-        setPayfastNotice({ tone: 'info', text: 'Payment received — your plan will activate momentarily once PayFast confirms it.' });
-      }
-    };
-    setTimeout(poll, 2500);
+    if (!userStore?.storeId) return;
+    subscriptionService
+      .price('STORE')
+      .then((price) => setPlanPrice(price))
+      .catch(() => setPlanPrice(null));
   }, [userStore?.storeId]);
 
   useEffect(() => {
@@ -344,39 +310,35 @@ export default function StoreDashboard({ user, onLogout }) {
     }
   };
 
-  const handleUpgradeToPro = async (paymentMethod = 'CARD') => {
+  const handleUpgradeToPro = async () => {
     setSubscribingStore(true);
-    setSubscribingStoreWith(paymentMethod);
-    setPayfastNotice(null);
+    setPlanNotice(null);
     try {
-      // Backend returns a signed PayFast form; submitting it sends the customer
-      // to PayFast's hosted page where they authorise the recurring agreement
-      // (card) or enter their bank details (Instant EFT).
-      const checkout = await subscriptionService.checkout('STORE', paymentMethod);
-      submitPayFastForm(checkout);
+      const price = await subscriptionService.price('STORE');
+      setPlanPrice(price);
+      setCheckoutOpen(true);
     } catch (error) {
-      setPayfastNotice({ tone: 'error', text: error.message || 'Failed to start checkout.' });
+      setPlanNotice({ tone: 'error', text: error.message || 'Could not load the plan price.' });
+    } finally {
       setSubscribingStore(false);
-      setSubscribingStoreWith(null);
     }
   };
 
-  const handleCancelProPlan = async () => {
-    setConfirmCancelStorePlan(false);
-    setSubscribingStore(true);
+  // Runs only on an approval. Pro is already active by the time this is called —
+  // the server activates it in the same request — so this is about refreshing the
+  // store header, which is what gates the Pro-only panels below.
+  const handleCardPaid = async () => {
+    setCheckoutOpen(false);
+    setPlanNotice({
+      tone: 'info',
+      text: 'Store Pro is now active — welcome aboard! Nothing was charged.',
+    });
     try {
-      const result = await subscriptionService.cancel('STORE');
-      setPayfastNotice({
-        tone: 'info',
-        text: result.activeUntil
-          ? `Subscription cancelled — Pro stays active until ${new Date(result.activeUntil).toLocaleDateString()}.`
-          : 'Subscription cancelled.',
-      });
-    } catch (error) {
-      setPayfastNotice({ tone: 'error', text: error.message || 'Failed to cancel subscription.' });
-    } finally {
-      setSubscribingStore(false);
-      setSubscribingStoreWith(null);
+      const data = await subscriptionService.status('STORE');
+      if (data.account) setUserStore(data.account);
+    } catch {
+      // The banner already says the plan is active; the panel may lag until the
+      // next reload.
     }
   };
 
@@ -596,34 +558,28 @@ export default function StoreDashboard({ user, onLogout }) {
                   {isPro ? 'Pro' : 'Free plan'}
                 </span>
               </div>
-              {payfastStatus === 'activating' && (
-                <div role="status" className="bg-amber-50 border border-amber-200 text-amber-700 text-xs p-3 rounded-xl mt-3">
-                  Confirming your payment…
+              {checkoutOpen && (
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                  <CardCheckoutForm
+                    accountType="STORE"
+                    amountCents={planPrice?.amountCents ?? 0}
+                    onPaid={handleCardPaid}
+                    onCancel={() => setCheckoutOpen(false)}
+                  />
                 </div>
               )}
-              {payfastNotice && (
-                <div role="status" className={`${payfastNotice.tone === 'error' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-teal-50 border-teal-200 text-teal-700'} border text-xs p-3 rounded-xl mt-3`}>
-                  {payfastNotice.text}
+              {planNotice && (
+                <div role="status" className={`${planNotice.tone === 'error' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-teal-50 border-teal-200 text-teal-700'} border text-xs p-3 rounded-xl mt-3`}>
+                  {planNotice.text}
                 </div>
               )}
               {isPro ? (
                 <>
                   {storeRenewsOn && (
                     <p className="text-xs text-gray-500 mt-2">
-                      {storePaymentMethod === 'EFT'
-                        ? `Access until ${storeRenewsOn} — pay again to extend`
-                        : `Renews on ${storeRenewsOn}`}
+                      Access until {storeRenewsOn} — it does not renew, and there is nothing to
+                      cancel
                     </p>
-                  )}
-                  {storePaymentMethod !== 'EFT' && (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmCancelStorePlan(true)}
-                      disabled={subscribingStore}
-                      className="text-xs font-semibold text-gray-500 hover:text-red-500 mt-3 disabled:opacity-60"
-                    >
-                      Cancel subscription
-                    </button>
                   )}
                 </>
               ) : (
@@ -631,29 +587,19 @@ export default function StoreDashboard({ user, onLogout }) {
                   <ul className="text-xs text-gray-500 mt-2 space-y-1 list-disc list-inside">
                     {PRO_PERKS.map(perk => <li key={perk}>{perk}</li>)}
                   </ul>
-                  <div className="grid grid-cols-2 gap-2 mt-3">
-                    <button
-                      type="button"
-                      onClick={() => handleUpgradeToPro('CARD')}
-                      disabled={subscribingStore}
-                      className="w-full flex items-center justify-center gap-1.5 bg-amber-500 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-600 transition disabled:opacity-60"
-                    >
-                      <Sparkles size={14} />
-                      {subscribingStore && subscribingStoreWith === 'CARD' ? 'Upgrading…' : 'Card — R199/mo'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleUpgradeToPro('EFT')}
-                      disabled={subscribingStore}
-                      className="w-full flex items-center justify-center gap-1.5 bg-white border border-amber-200 text-amber-700 font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-50 transition disabled:opacity-60"
-                    >
-                      <Landmark size={14} />
-                      {subscribingStore && subscribingStoreWith === 'EFT' ? 'Upgrading…' : 'Bank — R199/mo'}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleUpgradeToPro}
+                    disabled={subscribingStore || checkoutOpen}
+                    className="w-full flex items-center justify-center gap-1.5 bg-amber-500 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-600 transition mt-3 disabled:opacity-60"
+                  >
+                    <Sparkles size={14} />
+                    {subscribingStore ? 'Loading…' : `Upgrade — R${planPrice ? (planPrice.amountCents / 100).toFixed(2) : '199.00'} for 30 days`}
+                  </button>
                   <p className="text-[11px] text-gray-400 mt-2">
-                    Card renews automatically every month. Bank (Instant EFT) buys 30 days once — PayFast asks
-                    for your bank, account type, account number and branch code on the next screen.
+                    30 days of Pro, ending on its own — nothing renews and nothing is charged. The
+                    checkout validates the card you enter and shows you exactly what it checked; it
+                    does not take money.
                   </p>
                 </>
               )}
@@ -1119,15 +1065,6 @@ export default function StoreDashboard({ user, onLogout }) {
         confirmLabel="Delete"
         onConfirm={handleDeletePromo}
         onCancel={() => setPromoToDelete(null)}
-      />
-
-      <ConfirmModal
-        open={confirmCancelStorePlan}
-        title="Cancel your Pro plan?"
-        message="You'll keep Pro perks (featured deals, analytics) until the end of the current month, then your store returns to the free plan."
-        confirmLabel="Cancel subscription"
-        onConfirm={handleCancelProPlan}
-        onCancel={() => setConfirmCancelStorePlan(false)}
       />
     </div>
   );

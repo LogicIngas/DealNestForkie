@@ -6,11 +6,15 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 /**
- * Local mirror of a PayFast recurring-billing subscription. The plan tier still
- * lives on the User/Store rows (that's what the plus/pro feature gates read),
- * while this record keeps the PayFast token + last payment id, the agreed
- * amount, and the subscription lifecycle so the scheduler can downgrade the
- * plan when a subscription lapses or is cancelled.
+ * A plan subscription paid for through DealNest's own card path. The plan tier still
+ * lives on the User/Store rows (that's what the plus/pro feature gates read), while
+ * this record keeps the agreed amount, enough of the card to identify it on a
+ * receipt, and the lifecycle so the scheduler can downgrade the plan when a
+ * subscription lapses or is cancelled.
+ *
+ * <p>There is deliberately no field for a card number. Only the scheme and the last
+ * four digits are kept, because that is all a receipt needs; the number itself is
+ * never written down anywhere.
  */
 @Entity
 @Table(name = "subscriptions")
@@ -29,7 +33,7 @@ public class Subscription {
     /** Plan granted while active: PLUS for users, PRO for stores. */
     private String planKey;
 
-    /** CARD = PayFast auto-renewing subscription, EFT = one-off 30-day payment. */
+    /** CARD = paid by card, EFT = one-off 30-day payment. */
     @Enumerated(EnumType.STRING)
     private SubscriptionPaymentMethod paymentMethod;
 
@@ -38,11 +42,14 @@ public class Subscription {
 
     private String currency;
 
-    /** PayFast recurring-billing token (captured from the ITN; sandbox doesn't show it). */
-    private String payfastToken;
+    /** Scheme the card was issued by, for the receipt. Never the number. */
+    private String cardBrand;
 
-    /** Last pf_payment_id received from PayFast. */
-    private String payfastPaymentId;
+    /** Final four digits of the card, for the receipt. Never the number. */
+    private String cardLast4;
+
+    /** Authorisation reference for the payment that started this subscription. */
+    private String paymentReference;
 
     @Enumerated(EnumType.STRING)
     private SubscriptionStatus status;
@@ -64,8 +71,9 @@ public class Subscription {
         this.paymentMethod = builder.paymentMethod;
         this.amountCents = builder.amountCents;
         this.currency = builder.currency;
-        this.payfastToken = builder.payfastToken;
-        this.payfastPaymentId = builder.payfastPaymentId;
+        this.cardBrand = builder.cardBrand;
+        this.cardLast4 = builder.cardLast4;
+        this.paymentReference = builder.paymentReference;
         this.status = builder.status;
         this.createdAt = builder.createdAt;
         this.startsAt = builder.startsAt;
@@ -117,12 +125,16 @@ public class Subscription {
         return currency;
     }
 
-    public String getPayfastToken() {
-        return payfastToken;
+    public String getCardBrand() {
+        return cardBrand;
     }
 
-    public String getPayfastPaymentId() {
-        return payfastPaymentId;
+    public String getCardLast4() {
+        return cardLast4;
+    }
+
+    public String getPaymentReference() {
+        return paymentReference;
     }
 
     public SubscriptionStatus getStatus() {
@@ -177,12 +189,16 @@ public class Subscription {
         this.currency = currency;
     }
 
-    public void setPayfastToken(String payfastToken) {
-        this.payfastToken = payfastToken;
+    public void setCardBrand(String cardBrand) {
+        this.cardBrand = cardBrand;
     }
 
-    public void setPayfastPaymentId(String payfastPaymentId) {
-        this.payfastPaymentId = payfastPaymentId;
+    public void setCardLast4(String cardLast4) {
+        this.cardLast4 = cardLast4;
+    }
+
+    public void setPaymentReference(String paymentReference) {
+        this.paymentReference = paymentReference;
     }
 
     public void setStatus(SubscriptionStatus status) {
@@ -242,8 +258,9 @@ public class Subscription {
         private SubscriptionPaymentMethod paymentMethod;
         private long amountCents;
         private String currency;
-        private String payfastToken;
-        private String payfastPaymentId;
+        private String cardBrand;
+        private String cardLast4;
+        private String paymentReference;
         private SubscriptionStatus status;
         private LocalDateTime createdAt;
         private LocalDateTime startsAt;
@@ -286,13 +303,18 @@ public class Subscription {
             return this;
         }
 
-        public Builder setPayfastToken(String payfastToken) {
-            this.payfastToken = payfastToken;
+        public Builder setCardBrand(String cardBrand) {
+            this.cardBrand = cardBrand;
             return this;
         }
 
-        public Builder setPayfastPaymentId(String payfastPaymentId) {
-            this.payfastPaymentId = payfastPaymentId;
+        public Builder setCardLast4(String cardLast4) {
+            this.cardLast4 = cardLast4;
+            return this;
+        }
+
+        public Builder setPaymentReference(String paymentReference) {
+            this.paymentReference = paymentReference;
             return this;
         }
 
@@ -333,8 +355,9 @@ public class Subscription {
             this.planKey = subscription.planKey;
             this.amountCents = subscription.amountCents;
             this.currency = subscription.currency;
-            this.payfastToken = subscription.payfastToken;
-            this.payfastPaymentId = subscription.payfastPaymentId;
+            this.cardBrand = subscription.cardBrand;
+            this.cardLast4 = subscription.cardLast4;
+            this.paymentReference = subscription.paymentReference;
             this.status = subscription.status;
             this.createdAt = subscription.createdAt;
             this.startsAt = subscription.startsAt;

@@ -76,7 +76,13 @@ const handleResponse = async (response) => {
       throw new Error('Session expired. Please sign in again.');
     }
 
-    throw new Error(message);
+    // The status is attached so callers that care *why* a request failed can react
+    // differently — a 400 means the input was wrong and the form should show which
+    // field, which is a different thing to show than a 500. Existing callers that
+    // only read .message are unaffected.
+    const failure = new Error(message);
+    failure.status = response.status;
+    throw failure;
   }
   const contentType = response.headers.get('content-type');
   if (contentType && contentType.includes('application/json')) {
@@ -639,22 +645,19 @@ export const dealAlertService = {
 };
 
 // ---------------------------------------------------------------------------
-// 13. SUBSCRIPTION CONTROLLER (PayFast)
+// 13. PLAN SUBSCRIPTION
 // ---------------------------------------------------------------------------
 export const subscriptionService = {
-  // Returns { action, fields } for the signed PayFast hosted-page form.
-  // paymentMethod: 'CARD' (default) auto-renews monthly; 'EFT' is a one-off
-  // Instant EFT payment where PayFast asks for the bank account details.
-  checkout: async (accountType, paymentMethod = 'CARD') => {
-    const response = await fetch(`${API_BASE_URL}/subscription/checkout`, {
-      method: 'POST',
+  // What the account owes, resolved server-side. The checkout shows this before a
+  // card is entered, and it is never taken from anything the user can edit.
+  price: async (accountType) => {
+    const response = await fetch(`${API_BASE_URL}/subscription/price?accountType=${accountType}`, {
       headers: authHeaders(),
-      body: JSON.stringify({ accountType, paymentMethod }),
     });
     return handleResponse(response);
   },
 
-  // Current plan state — polled after a PayFast return to detect activation.
+  // Current plan state.
   status: async (accountType) => {
     const response = await fetch(`${API_BASE_URL}/subscription/status?accountType=${accountType}`, {
       headers: authHeaders(),
@@ -662,7 +665,7 @@ export const subscriptionService = {
     return handleResponse(response);
   },
 
-  // Cancels the recurring agreement at the end of the current month.
+  // Cancels at the end of the period already paid for.
   cancel: async (accountType) => {
     const response = await fetch(`${API_BASE_URL}/subscription/cancel`, {
       method: 'POST',
@@ -673,23 +676,33 @@ export const subscriptionService = {
   },
 };
 
-/**
- * Submits a hidden HTML form to PayFast's hosted page so the customer can
- * authorise the recurring billing agreement and pay. Navigation is a native
- * browser POST, so debugging tools show the exact fields PayFast receives.
- */
-export const submitPayFastForm = ({ action, fields }) => {
-  const form = document.createElement('form');
-  form.method = 'POST';
-  form.action = action;
-  form.acceptCharset = 'UTF-8';
-  Object.entries(fields).forEach(([key, value]) => {
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = key;
-    input.value = value;
-    form.appendChild(input);
-  });
-  document.body.appendChild(form);
-  form.submit();
+// ---------------------------------------------------------------------------
+// 14. CARD PAYMENT (DealNest's own checkout)
+//
+// This validates the card that was typed in and then stands in for the step a
+// card network performs. It takes no money and cannot — nothing here contacts a
+// network. The server is the authority on every check; the browser-side Luhn in
+// CardCheckoutForm is only there to give an answer without a round trip.
+// ---------------------------------------------------------------------------
+export const paymentService = {
+  // Runs every structural check and returns them all, passed or not.
+  check: async ({ cardNumber, expiry, cvv, holderName }) => {
+    const response = await fetch(`${API_BASE_URL}/payment/check`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ cardNumber, expiry, cvv, holderName }),
+    });
+    return handleResponse(response);
+  },
+
+  // Checks, authorises, and on approval activates the plan.
+  // Returns { checks, authorisation, subscription? }.
+  pay: async ({ cardNumber, expiry, cvv, holderName, accountType, paymentMethod = 'CARD' }) => {
+    const response = await fetch(`${API_BASE_URL}/payment/pay`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ cardNumber, expiry, cvv, holderName, accountType, paymentMethod }),
+    });
+    return handleResponse(response);
+  },
 };

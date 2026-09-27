@@ -7,12 +7,14 @@ import org.springframework.stereotype.Component;
 import za.ac.cput.dealnest.service.SubscriptionService;
 
 /**
- * Keeps paid plans honest without depending on webhook uptime:
- * every 30 minutes it re-syncs ACTIVE/CANCELED subscriptions whose renewal date
- * has passed — downgrading the account back to FREE (plus dropping Pro
- * featured/promoted perks) when the plan lapsed or was cancelled at period end.
- * PayFast's recurring billing sends an ITN each month which rolls renewsAt
- * forward before the scheduler ever cuts the plan off.
+ * Keeps paid plans honest: every 30 minutes it re-syncs ACTIVE/CANCELED
+ * subscriptions whose renewal date has passed, downgrading the account back to
+ * FREE (plus dropping Pro featured/promoted perks) when the plan lapsed or was
+ * cancelled at period end.
+ *
+ * <p>This is the only thing that extends a subscription. Nothing re-charges a card,
+ * because a charge needs a payment network and there isn't one — so a plan really
+ * does end when its renewal date arrives.
  */
 @Component
 public class SubscriptionScheduler {

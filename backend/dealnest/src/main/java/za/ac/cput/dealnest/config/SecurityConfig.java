@@ -65,10 +65,6 @@ public class SecurityConfig {
                 // Health check — plain /health is what the keep-alive cron and Render probe hit
                 .requestMatchers("/api/health/**", "/health").permitAll()
 
-                // PayFast sends ITNs (webhooks) with its own signature + server-side
-                // VALID check (no JWT). Must stay public so PayFast can reach it.
-                .requestMatchers(HttpMethod.POST, "/api/payfast/itn").permitAll()
-
                 // Auth: registration & login for both user types
                 .requestMatchers(HttpMethod.POST, "/api/user/create").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/user/login").permitAll()

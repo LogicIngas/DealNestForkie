@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { userService, favoriteService, savedPromotionService, notificationService, dealAlertService, redemptionService, subscriptionService, submitPayFastForm } from '../services/api';
+import { userService, favoriteService, savedPromotionService, notificationService, dealAlertService, redemptionService, subscriptionService } from '../services/api';
+import CardCheckoutForm from '../components/CardCheckoutForm';
 import {
   Mail, Phone, Pencil, LogOut, Check, X, User as UserIcon, Bell, Heart, Bookmark,
-  ChevronRight, Lock, Trash2, Sparkles, BellPlus, Gem, Flame, Target, Award, Crown, CalendarCheck2, Landmark
+  ChevronRight, Lock, Trash2, Sparkles, BellPlus, Gem, Flame, Target, Award, Crown, CalendarCheck2
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import { CATEGORIES } from '../constants/categories';
@@ -52,11 +53,9 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
 
   const [subscribing, setSubscribing] = useState(false);
-  const [subscribingWith, setSubscribingWith] = useState(null);
-  const [confirmCancelPlan, setConfirmCancelPlan] = useState(false);
-  const [payfastStatus, setPayfastStatus] = useState(null);
-  const [payfastNotice, setPayfastNotice] = useState(null);
-  const [planPaymentMethod, setPlanPaymentMethod] = useState(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [planPrice, setPlanPrice] = useState(null);
+  const [planNotice, setPlanNotice] = useState(null);
 
   const [alerts, setAlerts] = useState([]);
   const [showAlertForm, setShowAlertForm] = useState(false);
@@ -83,49 +82,17 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
     }).finally(() => setLoadingExtras(false));
   }, [user?.userID]);
 
-  // Handles a redirect back from PayFast's hosted page. Clean the query param
-  // first (so a refresh never re-runs this), then poll the backend until the
-  // ITN has activated the plan, and finally refresh the app's user state.
+  // Loads the plan's current state and what it costs. This used to be a poll that
+  // only ran after a redirect back from a payment provider, which meant the renewal
+  // wording below was only ever correct on the visit where the payment happened —
+  // every reload fell back to the wrong sentence.
   useEffect(() => {
-    const search = new URLSearchParams(window.location.search);
-    const result = search.get('payfast');
-    if (!result) return;
-
-    search.delete('payfast');
-    const query = search.toString();
-    window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
-
-    if (result === 'cancelled') {
-      setPayfastNotice({ tone: 'info', text: "Payment cancelled — your plan hasn't changed." });
-      return;
-    }
-    if (result !== 'success') return;
-
-    setPayfastStatus('activating');
-    let attempts = 0;
-    const poll = async () => {
-      attempts += 1;
-      try {
-        const data = await subscriptionService.status('USER');
-        if (data.planTier === 'PLUS' && data.status === 'ACTIVE') {
-          setPlanPaymentMethod(data.paymentMethod || null);
-          setPayfastStatus(null);
-          setPayfastNotice({ tone: 'info', text: 'DealNest Plus is now active — welcome aboard!' });
-          if (data.account) onUpdateUser(data.account);
-          return;
-        }
-      } catch {
-        // Transient errors — keep polling.
-      }
-      if (attempts < 10) {
-        setTimeout(poll, 3000);
-      } else {
-        setPayfastStatus(null);
-        setPayfastNotice({ tone: 'info', text: 'Payment received — your plan will activate momentarily once PayFast confirms it.' });
-      }
-    };
-    setTimeout(poll, 2500);
-  }, [user?.userID, onUpdateUser]);
+    if (!user?.userID) return;
+    subscriptionService
+      .price('USER')
+      .then((price) => setPlanPrice(price))
+      .catch(() => setPlanPrice(null));
+  }, [user?.userID]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -192,39 +159,38 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
     }
   };
 
-  const handleUpgradeToPlus = async (paymentMethod = 'CARD') => {
+  // The price is resolved by the server and fetched before the form opens, so the
+  // amount on the button is the amount that will be authorised.
+  const handleUpgradeToPlus = async () => {
     setSubscribing(true);
-    setSubscribingWith(paymentMethod);
-    setPayfastNotice(null);
+    setPlanNotice(null);
     try {
-      // Backend returns a signed PayFast form; submitting it sends the customer
-      // to PayFast's hosted page where they authorise the recurring agreement
-      // (card) or enter their bank details (Instant EFT).
-      const checkout = await subscriptionService.checkout('USER', paymentMethod);
-      submitPayFastForm(checkout);
+      const price = await subscriptionService.price('USER');
+      setPlanPrice(price);
+      setCheckoutOpen(true);
     } catch (err) {
-      setPayfastNotice({ tone: 'error', text: err.message || 'Failed to start checkout.' });
+      setPlanNotice({ tone: 'error', text: err.message || 'Could not load the plan price.' });
+    } finally {
       setSubscribing(false);
-      setSubscribingWith(null);
     }
   };
 
-  const handleCancelPlus = async () => {
-    setConfirmCancelPlan(false);
-    setSubscribing(true);
+  // Runs only on an approval. The plan is already active by the time this is
+  // called — the server activates it as part of the same request — so this is
+  // about refreshing what the rest of the page believes.
+  const handleCardPaid = async () => {
+    setCheckoutOpen(false);
+    setPlanNotice({
+      tone: 'info',
+      text: 'DealNest Plus is now active — welcome aboard! Nothing was charged.',
+    });
     try {
-      const result = await subscriptionService.cancel('USER');
-      setPayfastNotice({
-        tone: 'info',
-        text: result.activeUntil
-          ? `Subscription cancelled — Plus stays active until ${new Date(result.activeUntil).toLocaleDateString()}.`
-          : 'Subscription cancelled.',
-      });
-    } catch (err) {
-      setPayfastNotice({ tone: 'error', text: err.message || 'Failed to cancel subscription.' });
-    } finally {
-      setSubscribing(false);
-      setSubscribingWith(null);
+      const data = await subscriptionService.status('USER');
+      if (data.account) onUpdateUser(data.account);
+      else if (data.planTier) onUpdateUser({ ...user, planTier: data.planTier });
+    } catch {
+      // The banner already says the plan is active; the header badge may lag
+      // until the next reload.
     }
   };
 
@@ -342,32 +308,27 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
             {isPlus ? 'Active' : 'Free plan'}
           </span>
         </div>
-        {payfastStatus === 'activating' && (
-          <div role="status" className="bg-amber-50 border border-amber-200 text-amber-700 text-xs p-3 rounded-xl mt-3">
-            Confirming your payment…
+        {checkoutOpen && (
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <CardCheckoutForm
+              accountType="USER"
+              amountCents={planPrice?.amountCents ?? 0}
+              onPaid={handleCardPaid}
+              onCancel={() => setCheckoutOpen(false)}
+            />
           </div>
         )}
-{payfastNotice && (
-          <div role="status" className={`${payfastNotice.tone === 'error' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-teal-50 border-teal-200 text-teal-700'} border text-xs p-3 rounded-xl mt-3`}>
-            {payfastNotice.text}
+        {planNotice && (
+          <div role="status" className={`${planNotice.tone === 'error' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-teal-50 border-teal-200 text-teal-700'} border text-xs p-3 rounded-xl mt-3`}>
+            {planNotice.text}
           </div>
         )}
         {isPlus ? (
           <>
             {renewsOn && (
               <p className="text-xs text-gray-500 mt-2">
-                {planPaymentMethod === 'EFT' ? `Access until ${renewsOn} — pay again to extend` : `Renews on ${renewsOn}`}
+                Access until {renewsOn} — it does not renew, and there is nothing to cancel
               </p>
-            )}
-            {planPaymentMethod !== 'EFT' && (
-              <button
-                type="button"
-                onClick={() => setConfirmCancelPlan(true)}
-                disabled={subscribing}
-                className="text-xs font-semibold text-gray-500 hover:text-red-500 mt-3 disabled:opacity-60"
-              >
-                Cancel subscription
-              </button>
             )}
           </>
         ) : (
@@ -375,29 +336,19 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
             <ul className="text-xs text-gray-500 mt-2 space-y-1 list-disc list-inside">
               {PLUS_PERKS.map(perk => <li key={perk}>{perk}</li>)}
             </ul>
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              <button
-                type="button"
-                onClick={() => handleUpgradeToPlus('CARD')}
-                disabled={subscribing}
-                className="w-full flex items-center justify-center gap-1.5 bg-amber-500 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-600 transition disabled:opacity-60"
-              >
-                <Sparkles size={14} />
-                {subscribing && subscribingWith === 'CARD' ? 'Upgrading…' : 'Card — R49/mo'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleUpgradeToPlus('EFT')}
-                disabled={subscribing}
-                className="w-full flex items-center justify-center gap-1.5 bg-white border border-amber-200 text-amber-700 font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-50 transition disabled:opacity-60"
-              >
-                <Landmark size={14} />
-                {subscribing && subscribingWith === 'EFT' ? 'Upgrading…' : 'Bank — R49/mo'}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleUpgradeToPlus}
+              disabled={subscribing || checkoutOpen}
+              className="w-full flex items-center justify-center gap-1.5 bg-amber-500 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-600 transition disabled:opacity-60"
+            >
+              <Sparkles size={14} />
+              {subscribing ? 'Loading…' : `Upgrade — R${planPrice ? (planPrice.amountCents / 100).toFixed(2) : '49.00'} for 30 days`}
+            </button>
             <p className="text-[11px] text-gray-400 mt-2">
-              Card renews automatically every month. Bank (Instant EFT) buys 30 days once — PayFast asks
-              for your bank, account type, account number and branch code on the next screen.
+              30 days of Plus, ending on its own — nothing renews and nothing is charged. The
+              checkout validates the card you enter and shows you exactly what it checked; it does
+              not take money.
             </p>
           </>
         )}
@@ -617,7 +568,7 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
         ) : (
           <p className="text-xs text-gray-500">
             Create alerts for your favourite categories and budget, and get pinged the moment a matching deal goes live.{' '}
-            <button type="button" onClick={() => setConfirmCancelPlan(false)} className="text-teal-600 font-semibold hover:underline">
+            <button type="button" onClick={handleUpgradeToPlus} disabled={subscribing} className="text-teal-600 font-semibold hover:underline disabled:opacity-60">
               Upgrade to Plus
             </button>{' '}
             to unlock alerts. (Upgrade above.)
@@ -870,15 +821,6 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
         confirmLabel="Delete account"
         onConfirm={handleDeleteAccount}
         onCancel={() => setConfirmDeleteAccount(false)}
-      />
-
-      <ConfirmModal
-        open={confirmCancelPlan}
-        title="Cancel DealNest Plus?"
-        message="You'll keep Plus perks until the end of the current month, then your account returns to the free plan."
-        confirmLabel="Cancel subscription"
-        onConfirm={handleCancelPlus}
-        onCancel={() => setConfirmCancelPlan(false)}
       />
     </div>
   );

@@ -30,6 +30,12 @@ services:
         sync: false
       - key: CORS_ALLOWED_ORIGIN
         value: "https://react-frontend-eplq.onrender.com"
+      # The card checkout is a simulation and takes no money. It is switched OFF here
+      # deliberately: a live instance must not accept a real card number, because
+      # nothing would ever be charged and the customer would be left believing
+      # otherwise. Set to "true" only on a demo deployment, never on this one.
+      - key: PAYMENT_CARD_SIMULATOR_ENABLED
+        value: "false"
       - key: VOUCHER_NOTIFICATIONS_ENABLED
         value: "true"
       - key: VOUCHER_EMAIL_COOLDOWN_MINUTES

@@ -131,10 +131,14 @@ Everything below works today and is reachable from the app's bottom navigation:
   redeem, +5 review), with badges that grow as you play: *Deal Starter*, *Deal Hunter*,
   *Bargain Master*, *Deal Legend*, plus weekly/monthly streak badges. *Profile tab.*
 
-### DealNest Plus — customers (R49/month)
+### DealNest Plus — customers (R49 for 30 days)
 
-Upgrade on the Profile tab — checkout runs through PayFast's hosted page (recurring
-agreement), and the plan activates automatically when payment is confirmed.
+Upgrade on the Profile tab. Checkout is DealNest's own: it validates the card you type
+in and reports each rule it applied (Luhn, scheme, length, expiry, CVV, name), then
+decides an outcome locally to stand in for a card network. **Nothing is charged and
+the card number is never stored or logged** — the plan activates immediately on an
+approval, runs for 30 days, and then expires on its own. Nothing renews. The path is
+disabled on the deployed site.
 
 - **Unlimited saved deals** (free plan caps at 10).
 - **Deal & price-drop alerts** — create an alert for a category, max price and/or minimum
@@ -152,10 +156,13 @@ agreement), and the plan activates automatically when payment is confirmed.
 - **Manage or cancel** your subscription any time (stays active to the end of the month).
   *Profile tab → DealNest Plus.*
 
-### Pro — stores (R199/month)
+### Pro — stores (R199 for 30 days)
 
-Upgrade from the Store Dashboard. Caveat: paid-tier perks are enforced server-side, so a
-non-Pro store's promoted/featured flags are silently dropped.
+Upgrade from the Store Dashboard using the same DealNest card checkout as Plus: the
+card you type in is validated and an outcome is decided locally, so nothing is
+charged. Pro activates on approval, lasts 30 days, and then expires on its own.
+Caveat: paid-tier perks are enforced server-side, so a non-Pro store's
+promoted/featured flags are silently dropped.
 
 - **Store dashboard** — publish, edit, deactivate and delete promotions, manage your store
   profile, and **redeem claimed voucher codes** in-store.
@@ -217,7 +224,21 @@ POST /api/promotion/bulk                              (402 unless Pro)
 POST /api/analytics/track                             (Pro)
 GET  /api/analytics/store/{storeId}                   (Pro/owner)
 GET  /api/analytics/store/{storeId}/insights          (Pro/owner)
+
+GET  /api/subscription/price?accountType=             plan price, server-resolved
+GET  /api/subscription/status?accountType=            current plan
+POST /api/subscription/cancel                         stop a recurring agreement
+
+POST /api/payment/check                               validate a card, no charge
+POST /api/payment/authorise                           simulated authorisation
+POST /api/payment/pay                                 validate, authorise, activate
 ```
+
+The `/api/payment` endpoints stand in for a card network and never take money. They
+sit behind `payment.card-simulator.enabled`, which is off on the deployed site, and
+return only the scheme, last four and a reference — the card number is never logged
+or stored. `pay` takes no amount: the price comes from the plan the account is on, so
+it cannot be edited by the caller.
 
 ## Scripts
 

@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ISubscriptionRepository extends JpaRepository<Subscription, String> {
-    Optional<Subscription> findTopByPayfastToken(String payfastToken);
 
     /**
      * The most recent subscription for an account (used to keep the pending record
@@ -18,6 +17,9 @@ public interface ISubscriptionRepository extends JpaRepository<Subscription, Str
      */
     Optional<Subscription> findTopByAccountIdAndAccountTypeOrderByCreatedAtDesc(
             String accountId, SubscriptionAccountType accountType);
+
+    /** Looks a payment up by the reference the authorisation returned. */
+    Optional<Subscription> findTopByPaymentReference(String paymentReference);
 
     List<Subscription> findByStatusInAndRenewsAtBefore(
             List<SubscriptionStatus> statuses, LocalDateTime renewsAt);
