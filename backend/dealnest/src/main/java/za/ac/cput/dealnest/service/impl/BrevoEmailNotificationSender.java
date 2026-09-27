@@ -50,6 +50,18 @@ public class BrevoEmailNotificationSender implements EmailNotificationSender {
 
     @Override
     public void send(String recipient, String subject, String message, String idempotencyKey) {
+        send(recipient, subject, message, null, idempotencyKey);
+    }
+
+    /**
+     * Brevo takes both body types on the same send: {@code textContent} is the
+     * fallback for clients that will not render HTML, and {@code htmlContent} is
+     * what everyone else sees. Sending only the text part is why the voucher code
+     * arrived as an unremarkable line in a wall of plain text.
+     */
+    @Override
+    public void send(String recipient, String subject, String textBody, String htmlBody,
+                     String idempotencyKey) {
         Map<String, Object> sender = new LinkedHashMap<>();
         sender.put("name", hasText(fromName) ? fromName : "DealNest");
         sender.put("email", from);
@@ -58,7 +70,10 @@ public class BrevoEmailNotificationSender implements EmailNotificationSender {
         payload.put("sender", sender);
         payload.put("to", List.of(Map.of("email", recipient)));
         payload.put("subject", subject);
-        payload.put("textContent", message);
+        payload.put("textContent", textBody);
+        if (hasText(htmlBody)) {
+            payload.put("htmlContent", htmlBody);
+        }
         payload.put("tags", List.of("voucher-claim"));
 
         client.post()

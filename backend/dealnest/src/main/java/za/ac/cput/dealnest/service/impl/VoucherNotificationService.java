@@ -113,6 +113,7 @@ public class VoucherNotificationService {
 
         try {
             emailSender.send(user.getEmail().trim(), subject, message,
+                    buildEmailHtml(redemption, user, promotion, store),
                     "voucher-claim:" + redemptionId + ":email");
         } catch (Exception ex) {
             log.warn("Voucher email delivery failed for redemption {}", redemptionId, ex);
@@ -158,6 +159,88 @@ public class VoucherNotificationService {
         lines.add("");
         lines.add("Show this code at the store to claim the discount.");
         return String.join("\n", lines);
+    }
+
+    /**
+     * HTML twin of {@link #buildEmailMessage}, with the code as the visual subject of
+     * the email. Sent as the HTML part with the plain text kept alongside it, so
+     * clients that do not render HTML still get a readable voucher.
+     *
+     * <p>Every interpolated value is escaped. Deal titles and store details are
+     * editable by store owners, so unescaped they would let an owner inject their
+     * own markup into a DealNest-branded email.
+     */
+    private String buildEmailHtml(Redemption redemption, User user, Promotion promotion, Store store) {
+        String hours = storeHours(store);
+        StringBuilder html = new StringBuilder();
+
+        html.append("<!DOCTYPE html><html><body style=\"margin:0;padding:0;background:#f4f5f7;\">")
+                .append("<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
+                .append("style=\"background:#f4f5f7;padding:24px 12px;\"><tr><td align=\"center\">")
+                .append("<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
+                .append("style=\"max-width:560px;background:#ffffff;border-radius:10px;")
+                .append("font-family:Arial,Helvetica,sans-serif;color:#1f2933;\">");
+
+        html.append("<tr><td style=\"padding:28px 32px 8px;\">")
+                .append("<p style=\"margin:0;font-size:15px;\">Hi ")
+                .append(escapeHtml(display(user.getFirstName(), "there")))
+                .append(",</p>")
+                .append("<h1 style=\"margin:12px 0 0;font-size:22px;line-height:1.3;\">")
+                .append(escapeHtml(display(promotion.getTitle(), "Untitled deal")))
+                .append("</h1>")
+                .append("</td></tr>");
+
+        html.append("<tr><td style=\"padding:20px 32px 0;\">")
+                .append("<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
+                .append("style=\"background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;\">")
+                .append("<tr><td align=\"center\" style=\"padding:20px 16px;\">")
+                .append("<p style=\"margin:0 0 8px;font-size:12px;letter-spacing:1.5px;")
+                .append("text-transform:uppercase;color:#15803d;\">Your voucher code</p>")
+                .append("<p style=\"margin:0;font-family:'Courier New',Courier,monospace;")
+                .append("font-size:30px;font-weight:bold;letter-spacing:3px;color:#14532d;\">")
+                .append(escapeHtml(display(redemption.getCode(), "Unavailable")))
+                .append("</p></td></tr></table></td></tr>");
+
+        html.append("<tr><td style=\"padding:24px 32px 0;font-size:15px;line-height:1.6;\">")
+                .append(detailRow("Store", display(store.getStoreName(), "DealNest store")))
+                .append(detailRow("Address", storeAddress(store)))
+                .append(detailRow("Phone", display(store.getPhoneNumber(), "Not provided")))
+                .append(detailRow("Email", display(store.getEmail(), "Not provided")));
+        if (hours != null) {
+            html.append(detailRow("Hours", hours));
+        }
+        if (promotion.getEndDate() != null) {
+            html.append(detailRow("Valid until", DATE_FORMAT.format(promotion.getEndDate())));
+        }
+        html.append("</td></tr>");
+
+        html.append("<tr><td style=\"padding:22px 32px 30px;\">")
+                .append("<p style=\"margin:0;font-size:15px;\">Show this code at the store ")
+                .append("to claim the discount.</p>")
+                .append("</td></tr>");
+
+        return html.append("</table></td></tr></table></body></html>").toString();
+    }
+
+    private String detailRow(String label, String value) {
+        return "<p style=\"margin:0 0 6px;\"><span style=\"color:#616e7c;\">"
+                + escapeHtml(label) + ":</span> " + escapeHtml(value) + "</p>";
+    }
+
+    /**
+     * Escapes the five characters that can break out of HTML text or attribute
+     * context. Without this, a store owner could put markup in their store name and
+     * have it rendered inside a DealNest email.
+     */
+    private String escapeHtml(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
     }
 
     /**

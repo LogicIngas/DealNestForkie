@@ -58,6 +58,39 @@ class VoucherNotificationServiceTest {
     }
 
     @Test
+    void putsTheVoucherCodeInTheHtmlBodySoItIsNotJustAnotherLineOfText() {
+        when(repository.findDetailedById("redemption-1")).thenReturn(Optional.of(redemption("redemption-1", "user-1", "thandi@example.com")));
+        when(emailSender.isConfigured()).thenReturn(true);
+
+        service.sendVoucherEmail("redemption-1");
+
+        var htmlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailSender).send(anyString(), anyString(), anyString(), htmlCaptor.capture(), anyString());
+
+        String html = htmlCaptor.getValue();
+        assertTrue(html.contains("DN-ABC123XYZ"), "the html body must carry the code");
+        assertTrue(html.contains("Cape Coffee Co"), "the html body must carry the store name");
+    }
+
+    @Test
+    void escapesStoreSuppliedTextSoAnOwnerCannotInjectMarkupIntoTheEmail() {
+        Store store = storeBuilder().setStoreName("Evil <script>alert(1)</script> & Co").build();
+        Redemption redemption = redemption("redemption-1", "user-1", "thandi@example.com");
+        redemption.getPromotion().setStore(store);
+        when(repository.findDetailedById("redemption-1")).thenReturn(Optional.of(redemption));
+        when(emailSender.isConfigured()).thenReturn(true);
+
+        service.sendVoucherEmail("redemption-1");
+
+        var htmlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailSender).send(anyString(), anyString(), anyString(), htmlCaptor.capture(), anyString());
+
+        String html = htmlCaptor.getValue();
+        assertFalse(html.contains("<script>"), "a store name must never be able to inject a script tag");
+        assertTrue(html.contains("&lt;script&gt;"), "the angle brackets should arrive escaped");
+    }
+
+    @Test
     void emailsTheVoucherToItsOwnerOnRequest() {
         when(repository.findDetailedById("redemption-1")).thenReturn(Optional.of(redemption("redemption-1", "user-1", "thandi@example.com")));
         when(emailSender.isConfigured()).thenReturn(true);
@@ -67,7 +100,7 @@ class VoucherNotificationServiceTest {
         assertEquals(VoucherNotificationService.Status.SENT, outcome.status());
         var messageCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
         verify(emailSender).send(eq("thandi@example.com"), anyString(), messageCaptor.capture(),
-                eq("voucher-claim:redemption-1:email"));
+                anyString(), eq("voucher-claim:redemption-1:email"));
     }
 
     @Test
@@ -78,7 +111,7 @@ class VoucherNotificationServiceTest {
         service.sendVoucherEmail("redemption-1");
 
         var messageCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(emailSender).send(anyString(), anyString(), messageCaptor.capture(), anyString());
+        verify(emailSender).send(anyString(), anyString(), messageCaptor.capture(), anyString(), anyString());
 
         String email = messageCaptor.getValue();
         assertTrue(email.contains("DN-ABC123XYZ"), "should contain the code");
@@ -100,7 +133,7 @@ class VoucherNotificationServiceTest {
         service.sendVoucherEmail("redemption-1");
 
         var messageCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(emailSender).send(anyString(), anyString(), messageCaptor.capture(), anyString());
+        verify(emailSender).send(anyString(), anyString(), messageCaptor.capture(), anyString(), anyString());
         assertFalse(messageCaptor.getValue().contains("Hours:"));
     }
 
@@ -122,7 +155,7 @@ class VoucherNotificationServiceTest {
         when(repository.findDetailedById("redemption-1")).thenReturn(Optional.of(r));
         when(emailSender.isConfigured()).thenReturn(true);
         doThrow(new IllegalStateException("brevo down")).when(emailSender)
-                .send(anyString(), anyString(), anyString(), anyString());
+                .send(anyString(), anyString(), anyString(), anyString(), anyString());
 
         VoucherNotificationService.Outcome outcome = service.sendVoucherEmail("redemption-1");
 
@@ -138,7 +171,7 @@ class VoucherNotificationServiceTest {
         VoucherNotificationService.Outcome outcome = service.sendVoucherEmail("redemption-1");
 
         assertEquals(VoucherNotificationService.Status.NOT_FOUND, outcome.status());
-        verify(emailSender, never()).send(anyString(), anyString(), anyString(), anyString());
+        verify(emailSender, never()).send(anyString(), anyString(), anyString(), anyString(), anyString());
     }
 
     @Test
@@ -164,7 +197,7 @@ class VoucherNotificationServiceTest {
         VoucherNotificationService.Outcome outcome = service.sendVoucherEmail("redemption-1");
 
         assertEquals(VoucherNotificationService.Status.NOT_FOUND, outcome.status());
-        verify(emailSender, never()).send(anyString(), anyString(), anyString(), anyString());
+        verify(emailSender, never()).send(anyString(), anyString(), anyString(), anyString(), anyString());
     }
 
     @Test
@@ -178,7 +211,7 @@ class VoucherNotificationServiceTest {
 
         assertEquals(VoucherNotificationService.Status.RATE_LIMITED, outcome.status());
         assertEquals(50, outcome.retryAfterMinutes(), "60 minute cooldown, 10 minutes elapsed");
-        verify(emailSender, never()).send(anyString(), anyString(), anyString(), anyString());
+        verify(emailSender, never()).send(anyString(), anyString(), anyString(), anyString(), anyString());
     }
 
     @Test
@@ -234,7 +267,7 @@ class VoucherNotificationServiceTest {
         VoucherNotificationService.Outcome outcome = service.sendVoucherEmail("redemption-1");
 
         assertEquals(VoucherNotificationService.Status.NO_EMAIL_ADDRESS, outcome.status());
-        verify(emailSender, never()).send(anyString(), anyString(), anyString(), anyString());
+        verify(emailSender, never()).send(anyString(), anyString(), anyString(), anyString(), anyString());
     }
 
     @Test

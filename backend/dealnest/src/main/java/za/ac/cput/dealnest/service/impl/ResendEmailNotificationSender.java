@@ -40,11 +40,20 @@ public class ResendEmailNotificationSender implements EmailNotificationSender {
 
     @Override
     public void send(String recipient, String subject, String message, String idempotencyKey) {
+        send(recipient, subject, message, null, idempotencyKey);
+    }
+
+    @Override
+    public void send(String recipient, String subject, String textBody, String htmlBody,
+                     String idempotencyKey) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("from", from);
         payload.put("to", List.of(recipient));
         payload.put("subject", subject);
-        payload.put("text", message);
+        payload.put("text", textBody);
+        if (hasText(htmlBody)) {
+            payload.put("html", htmlBody);
+        }
 
         client.post()
                 .uri("/emails")

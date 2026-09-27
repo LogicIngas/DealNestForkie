@@ -121,7 +121,7 @@ class BrevoEmailNotificationSenderTest {
     }
 
     @Test
-    void sendsTextOnlyBecauseBrevoAcceptsJustOneBodyType() {
+    void sendsTextOnlyWhenNoHtmlBodyIsSupplied() {
         configureSender();
 
         server.expect(requestTo("https://api.brevo.com/v3/smtp/email"))
@@ -131,6 +131,20 @@ class BrevoEmailNotificationSenderTest {
                 .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
 
         sender.send("claimer@example.com", "Subject", "Plain body", CLAIM_77);
+
+        server.verify();
+    }
+
+    @Test
+    void sendsBothBodiesSoHtmlClientsGetTheStyledVoucher() {
+        configureSender();
+
+        server.expect(requestTo("https://api.brevo.com/v3/smtp/email"))
+                .andExpect(jsonPath("$.textContent").value("Plain body"))
+                .andExpect(jsonPath("$.htmlContent").value("<p>Styled</p>"))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        sender.send("claimer@example.com", "Subject", "Plain body", "<p>Styled</p>", CLAIM_77);
 
         server.verify();
     }
