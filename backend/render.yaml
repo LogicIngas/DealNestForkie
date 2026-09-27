@@ -30,3 +30,19 @@ services:
         sync: false
       - key: CORS_ALLOWED_ORIGIN
         value: "https://react-frontend-eplq.onrender.com"
+      - key: VOUCHER_NOTIFICATIONS_ENABLED
+        value: "true"
+      - key: VOUCHER_EMAIL_COOLDOWN_MINUTES
+        value: "60"
+      - key: NOTIFICATIONS_EMAIL_PROVIDER
+        value: "brevo"
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_FROM_EMAIL
+        sync: false
+      - key: BREVO_FROM_NAME
+        value: "DealNest"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false

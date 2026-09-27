@@ -462,6 +462,16 @@ export const redemptionService = {
     if (!response.ok) return [];
     return handleResponse(response);
   },
+
+  // Asks the server to email one of the caller's own vouchers. No recipient is sent
+  // from here: the server always uses the address on the user's own record.
+  sendCodeToEmail: async (redemptionId) => {
+    const response = await fetch(`${API_BASE_URL}/redemption/${redemptionId}/email`, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+    return handleResponse(response);
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -633,11 +643,13 @@ export const dealAlertService = {
 // ---------------------------------------------------------------------------
 export const subscriptionService = {
   // Returns { action, fields } for the signed PayFast hosted-page form.
-  checkout: async (accountType) => {
+  // paymentMethod: 'CARD' (default) auto-renews monthly; 'EFT' is a one-off
+  // Instant EFT payment where PayFast asks for the bank account details.
+  checkout: async (accountType, paymentMethod = 'CARD') => {
     const response = await fetch(`${API_BASE_URL}/subscription/checkout`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ accountType }),
+      body: JSON.stringify({ accountType, paymentMethod }),
     });
     return handleResponse(response);
   },

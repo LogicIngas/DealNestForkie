@@ -29,6 +29,10 @@ public class Subscription {
     /** Plan granted while active: PLUS for users, PRO for stores. */
     private String planKey;
 
+    /** CARD = PayFast auto-renewing subscription, EFT = one-off 30-day payment. */
+    @Enumerated(EnumType.STRING)
+    private SubscriptionPaymentMethod paymentMethod;
+
     /** Agreed monthly amount in ZAR cents (4900 = R49.00, 19900 = R199.00). */
     private long amountCents;
 
@@ -57,6 +61,7 @@ public class Subscription {
         this.accountId = builder.accountId;
         this.accountType = builder.accountType;
         this.planKey = builder.planKey;
+        this.paymentMethod = builder.paymentMethod;
         this.amountCents = builder.amountCents;
         this.currency = builder.currency;
         this.payfastToken = builder.payfastToken;
@@ -98,6 +103,10 @@ public class Subscription {
 
     public String getPlanKey() {
         return planKey;
+    }
+
+    public SubscriptionPaymentMethod getPaymentMethod() {
+        return paymentMethod;
     }
 
     public long getAmountCents() {
@@ -154,6 +163,10 @@ public class Subscription {
 
     public void setPlanKey(String planKey) {
         this.planKey = planKey;
+    }
+
+    public void setPaymentMethod(SubscriptionPaymentMethod paymentMethod) {
+        this.paymentMethod = paymentMethod;
     }
 
     public void setAmountCents(long amountCents) {
@@ -226,6 +239,7 @@ public class Subscription {
         private String accountId;
         private SubscriptionAccountType accountType;
         private String planKey;
+        private SubscriptionPaymentMethod paymentMethod;
         private long amountCents;
         private String currency;
         private String payfastToken;
@@ -254,6 +268,11 @@ public class Subscription {
 
         public Builder setPlanKey(String planKey) {
             this.planKey = planKey;
+            return this;
+        }
+
+        public Builder setPaymentMethod(SubscriptionPaymentMethod paymentMethod) {
+            this.paymentMethod = paymentMethod;
             return this;
         }
 

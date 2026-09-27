@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { userService, favoriteService, savedPromotionService, notificationService, dealAlertService, redemptionService, subscriptionService, submitPayFastForm } from '../services/api';
 import {
   Mail, Phone, Pencil, LogOut, Check, X, User as UserIcon, Bell, Heart, Bookmark,
-  ChevronRight, Lock, Trash2, Sparkles, BellPlus, Gem, Flame, Target, Award, Crown, CalendarCheck2
+  ChevronRight, Lock, Trash2, Sparkles, BellPlus, Gem, Flame, Target, Award, Crown, CalendarCheck2, Landmark
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import { CATEGORIES } from '../constants/categories';
@@ -52,9 +52,11 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
 
   const [subscribing, setSubscribing] = useState(false);
+  const [subscribingWith, setSubscribingWith] = useState(null);
   const [confirmCancelPlan, setConfirmCancelPlan] = useState(false);
   const [payfastStatus, setPayfastStatus] = useState(null);
   const [payfastNotice, setPayfastNotice] = useState(null);
+  const [planPaymentMethod, setPlanPaymentMethod] = useState(null);
 
   const [alerts, setAlerts] = useState([]);
   const [showAlertForm, setShowAlertForm] = useState(false);
@@ -106,6 +108,7 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
       try {
         const data = await subscriptionService.status('USER');
         if (data.planTier === 'PLUS' && data.status === 'ACTIVE') {
+          setPlanPaymentMethod(data.paymentMethod || null);
           setPayfastStatus(null);
           setPayfastNotice({ tone: 'info', text: 'DealNest Plus is now active — welcome aboard!' });
           if (data.account) onUpdateUser(data.account);
@@ -189,17 +192,20 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
     }
   };
 
-  const handleUpgradeToPlus = async () => {
+  const handleUpgradeToPlus = async (paymentMethod = 'CARD') => {
     setSubscribing(true);
+    setSubscribingWith(paymentMethod);
     setPayfastNotice(null);
     try {
       // Backend returns a signed PayFast form; submitting it sends the customer
-      // to PayFast's hosted page where they authorise the recurring agreement.
-      const checkout = await subscriptionService.checkout('USER');
+      // to PayFast's hosted page where they authorise the recurring agreement
+      // (card) or enter their bank details (Instant EFT).
+      const checkout = await subscriptionService.checkout('USER', paymentMethod);
       submitPayFastForm(checkout);
     } catch (err) {
       setPayfastNotice({ tone: 'error', text: err.message || 'Failed to start checkout.' });
       setSubscribing(false);
+      setSubscribingWith(null);
     }
   };
 
@@ -218,6 +224,7 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
       setPayfastNotice({ tone: 'error', text: err.message || 'Failed to cancel subscription.' });
     } finally {
       setSubscribing(false);
+      setSubscribingWith(null);
     }
   };
 
@@ -347,29 +354,51 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
         )}
         {isPlus ? (
           <>
-            {renewsOn && <p className="text-xs text-gray-500 mt-2">Renews on {renewsOn}</p>}
-            <button
-              type="button"
-              onClick={() => setConfirmCancelPlan(true)}
-              disabled={subscribing}
-              className="text-xs font-semibold text-gray-500 hover:text-red-500 mt-3 disabled:opacity-60"
-            >
-              Cancel subscription
-            </button>
+            {renewsOn && (
+              <p className="text-xs text-gray-500 mt-2">
+                {planPaymentMethod === 'EFT' ? `Access until ${renewsOn} — pay again to extend` : `Renews on ${renewsOn}`}
+              </p>
+            )}
+            {planPaymentMethod !== 'EFT' && (
+              <button
+                type="button"
+                onClick={() => setConfirmCancelPlan(true)}
+                disabled={subscribing}
+                className="text-xs font-semibold text-gray-500 hover:text-red-500 mt-3 disabled:opacity-60"
+              >
+                Cancel subscription
+              </button>
+            )}
           </>
         ) : (
           <>
             <ul className="text-xs text-gray-500 mt-2 space-y-1 list-disc list-inside">
               {PLUS_PERKS.map(perk => <li key={perk}>{perk}</li>)}
             </ul>
-            <button
-              type="button"
-              onClick={handleUpgradeToPlus}
-              disabled={subscribing}
-              className="w-full flex items-center justify-center gap-1.5 bg-amber-500 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-600 transition disabled:opacity-60 mt-3"
-            >
-              <Sparkles size={14} /> {subscribing ? 'Upgrading…' : 'Upgrade to Plus — R49/month'}
-            </button>
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => handleUpgradeToPlus('CARD')}
+                disabled={subscribing}
+                className="w-full flex items-center justify-center gap-1.5 bg-amber-500 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-600 transition disabled:opacity-60"
+              >
+                <Sparkles size={14} />
+                {subscribing && subscribingWith === 'CARD' ? 'Upgrading…' : 'Card — R49/mo'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpgradeToPlus('EFT')}
+                disabled={subscribing}
+                className="w-full flex items-center justify-center gap-1.5 bg-white border border-amber-200 text-amber-700 font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-50 transition disabled:opacity-60"
+              >
+                <Landmark size={14} />
+                {subscribing && subscribingWith === 'EFT' ? 'Upgrading…' : 'Bank — R49/mo'}
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-2">
+              Card renews automatically every month. Bank (Instant EFT) buys 30 days once — PayFast asks
+              for your bank, account type, account number and branch code on the next screen.
+            </p>
           </>
         )}
       </div>

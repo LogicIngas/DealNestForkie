@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import ClaimSuccessModal from '../components/ClaimSuccessModal';
 import { storeService, promotionService, favoriteService, savedPromotionService, redemptionService } from '../services/api';
 import { MapPin, Star, Tag, Clock, ArrowRight, Store as StoreIcon, Heart, Bookmark, Flame, Search, TrendingUp, Ticket } from 'lucide-react';
 import { CATEGORIES, CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
@@ -112,7 +113,7 @@ export default function HomePage({ user }) {
     setClaimingId(promotionId);
     try {
       const redemption = await redemptionService.claim(user.userID, promotionId);
-      setClaimedCode(redemption.code);
+      setClaimedCode(redemption);
     } catch (error) {
       alert(error.message || 'Failed to claim this deal.');
     } finally {
@@ -359,17 +360,7 @@ export default function HomePage({ user }) {
         </div>
       )}
 
-      {claimedCode && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setClaimedCode(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center" onClick={(e) => e.stopPropagation()}>
-            <Ticket className="mx-auto text-teal-600 w-10 h-10" aria-hidden="true" />
-            <h3 className="text-lg font-bold text-gray-800 mt-3">Deal claimed!</h3>
-            <p className="text-sm text-gray-500 mt-1">Show this code in-store to redeem it.</p>
-            <p className="font-mono text-2xl font-bold tracking-widest text-teal-600 bg-teal-50 rounded-xl py-4 mt-4">{claimedCode}</p>
-            <button type="button" onClick={() => setClaimedCode(null)} className="btn-primary mt-4">Got it</button>
-          </div>
-        </div>
-      )}
+      <ClaimSuccessModal redemption={claimedCode} onClose={() => setClaimedCode(null)} />
     </div>
   );
 }

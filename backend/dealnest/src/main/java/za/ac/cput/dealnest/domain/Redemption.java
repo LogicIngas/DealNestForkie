@@ -17,6 +17,8 @@ public class Redemption {
     private Boolean redeemed;
     private LocalDateTime claimedAt;
     private LocalDateTime redeemedAt;
+    /** Last time this voucher was emailed on the user's request, for the resend cooldown. */
+    private LocalDateTime emailedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "promotion_id", nullable = false)
@@ -35,6 +37,7 @@ public class Redemption {
         this.redeemed = builder.redeemed;
         this.claimedAt = builder.claimedAt;
         this.redeemedAt = builder.redeemedAt;
+        this.emailedAt = builder.emailedAt;
         this.promotion = builder.promotion;
         this.user = builder.user;
     }
@@ -69,6 +72,10 @@ public class Redemption {
         return redeemedAt;
     }
 
+    public LocalDateTime getEmailedAt() {
+        return emailedAt;
+    }
+
     public Promotion getPromotion() {
         return promotion;
     }
@@ -95,6 +102,10 @@ public class Redemption {
 
     public void setRedeemedAt(LocalDateTime redeemedAt) {
         this.redeemedAt = redeemedAt;
+    }
+
+    public void setEmailedAt(LocalDateTime emailedAt) {
+        this.emailedAt = emailedAt;
     }
 
     public void setPromotion(Promotion promotion) {
@@ -137,6 +148,7 @@ public class Redemption {
         private Boolean redeemed;
         private LocalDateTime claimedAt;
         private LocalDateTime redeemedAt;
+        private LocalDateTime emailedAt;
         private Promotion promotion;
         private User user;
 
@@ -165,6 +177,11 @@ public class Redemption {
             return this;
         }
 
+        public Builder setEmailedAt(LocalDateTime emailedAt) {
+            this.emailedAt = emailedAt;
+            return this;
+        }
+
         public Builder setPromotion(Promotion promotion) {
             this.promotion = promotion;
             return this;
@@ -181,6 +198,7 @@ public class Redemption {
             this.redeemed = redemption.redeemed;
             this.claimedAt = redemption.claimedAt;
             this.redeemedAt = redemption.redeemedAt;
+            this.emailedAt = redemption.emailedAt;
             this.promotion = redemption.promotion;
             this.user = redemption.user;
             return this;

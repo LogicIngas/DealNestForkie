@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { favoriteService, savedPromotionService, redemptionService } from '../services/api';
 import { MapPin, Trash2, Tag, Clock, HeartCrack, Bookmark, Store as StoreIcon, Ticket, Scale, X } from 'lucide-react';
 import { CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
-import CompareDealsModal from '../components/CompareDealsModal';
+  import CompareDealsModal from '../components/CompareDealsModal';
+  import EmailVoucherButton from '../components/EmailVoucherButton';
 
 const MAX_COMPARE = 3;
 
@@ -274,6 +275,11 @@ export default function FavoritesPage({ user }) {
                   </span>
                 </div>
                 <p className="font-mono text-lg font-bold tracking-widest text-teal-600 bg-teal-50 rounded-xl text-center py-3 mt-3">{r.code}</p>
+                <EmailVoucherButton
+                  redemptionId={r.redemptionID}
+                  variant="pill"
+                  className="mt-3 flex justify-center"
+                />
               </div>
             ))}
           </div>

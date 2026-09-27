@@ -10,6 +10,7 @@ import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.domain.StorePlanTier;
 import za.ac.cput.dealnest.domain.Subscription;
 import za.ac.cput.dealnest.domain.SubscriptionAccountType;
+import za.ac.cput.dealnest.domain.SubscriptionPaymentMethod;
 import za.ac.cput.dealnest.domain.SubscriptionStatus;
 import za.ac.cput.dealnest.domain.User;
 import za.ac.cput.dealnest.domain.UserPlanTier;
@@ -111,8 +112,27 @@ public class SubscriptionService {
      * @return {@code { action, fields }} — the hosted page URL and the hidden form fields.
      */
     public Map<String, Object> checkout(SubscriptionAccountType accountType) {
+        return checkout(accountType, SubscriptionPaymentMethod.CARD);
+    }
+
+    /**
+     * Builds the signed PayFast form for the signed-in account. Ownership is
+     * resolved from the JWT: USER subscriptions apply to the current user, STORE
+     * subscriptions to the store that user owns.
+     *
+     * <p>PayFast only allows recurring billing on a card, so an EFT payment is a
+     * one-off: it grants the same 30 days of access but does not renew itself.
+     * Either way the bank/card details are collected on PayFast's hosted page —
+     * DealNest only ever sends the payer's name, email and cell number.</p>
+     *
+     * @return {@code { action, fields }} — the hosted page URL and the hidden form fields.
+     */
+    public Map<String, Object> checkout(SubscriptionAccountType accountType,
+                                        SubscriptionPaymentMethod paymentMethod) {
         Plan plan = resolvePlan(accountType);
         ensureConfigured();
+        SubscriptionPaymentMethod method = paymentMethod == null ? SubscriptionPaymentMethod.CARD : paymentMethod;
+        boolean recurring = method == SubscriptionPaymentMethod.CARD;
 
         Subscription local = subscriptionRepository
                 .findTopByAccountIdAndAccountTypeOrderByCreatedAtDesc(plan.accountId(), plan.accountType())
@@ -121,6 +141,7 @@ public class SubscriptionService {
         local.setAccountId(plan.accountId());
         local.setAccountType(plan.accountType());
         local.setPlanKey(plan.planName());
+        local.setPaymentMethod(method);
         local.setAmountCents(toCents(plan.amount()));
         local.setCurrency("ZAR");
         local.setStatus(SubscriptionStatus.PENDING);
@@ -135,17 +156,29 @@ public class SubscriptionService {
         fields.put("return_url", safeUrl(returnUrl, "/profile?payfast=success"));
         fields.put("cancel_url", safeUrl(cancelUrl, "/profile?payfast=cancelled"));
         fields.put("notify_url", safeUrl(notifyUrl, "/api/payfast/itn"));
+        fields.put("name_first", plan.firstName());
+        fields.put("name_last", plan.lastName());
+        fields.put("email_address", plan.email());
+        fields.put("cell_number", plan.cellNumber());
         fields.put("m_payment_id", local.getSubscriptionID());
         fields.put("amount", plan.amount());
-        fields.put("item_name", "DealNest " + plan.planName() + " subscription");
-        fields.put("item_description", "Monthly " + plan.planName() + " plan for " + plan.accountLabel());
+        fields.put("item_name", "DealNest " + plan.planName()
+                + (recurring ? " subscription" : " 30-day access"));
+        fields.put("item_description", (recurring ? "Monthly " : "One-off 30-day ")
+                + plan.planName() + " plan for " + plan.accountLabel());
         fields.put("custom_str1", plan.accountType().name());
         fields.put("custom_str2", plan.accountId());
         fields.put("custom_str3", plan.planName());
-        fields.put("subscription_type", "1");
-        fields.put("recurring_amount", plan.amount());
-        fields.put("frequency", "3"); // monthly
-        fields.put("cycles", "0");    // indefinite
+        fields.put("custom_str4", method.name());
+        fields.put("payment_method", recurring ? "cc" : "ef");
+        if (recurring) {
+            fields.put("subscription_type", "1");
+            fields.put("recurring_amount", plan.amount());
+            fields.put("frequency", "3"); // monthly
+            fields.put("cycles", "0");    // indefinite
+        }
+        fields.put("email_confirmation", "1");
+        fields.put("confirmation_address", plan.email());
         fields.put("signature", PayFastUtil.signature(fields, passphrase));
 
         return Map.of(
@@ -294,6 +327,8 @@ public class SubscriptionService {
         Map<String, Object> result = new HashMap<>();
         result.put("status", local != null ? local.getStatus().name() : "FREE");
         result.put("planTier", planTier);
+        result.put("paymentMethod", local != null && local.getPaymentMethod() != null
+                ? local.getPaymentMethod().name() : null);
         result.put("renewsAt", renewsAt != null ? renewsAt.toString() : null);
         result.put("account", account);
         return result;
@@ -314,7 +349,14 @@ public class SubscriptionService {
             }
             // ACTIVE: a recurring ITN will typically roll renewsAt forward on the
             // billing date; allow a short grace period so a slightly-late ITN at
-            // month end doesn't flap the plan off and on.
+            // month end doesn't flap the plan off and on. A one-off EFT pass gets
+            // no grace — no further ITN is coming, so the paid 30 days is all there is.
+            if (local.getPaymentMethod() == SubscriptionPaymentMethod.EFT) {
+                if (local.getRenewsAt() != null && local.getRenewsAt().isBefore(dueThreshold)) {
+                    downgradeLocal(local);
+                }
+                continue;
+            }
             if (local.getRenewsAt() != null
                     && local.getRenewsAt().plus(Duration.ofDays(2)).isBefore(dueThreshold)) {
                 downgradeLocal(local);
@@ -366,7 +408,8 @@ public class SubscriptionService {
     // ---------------------------------------------------------------------------
 
     private record Plan(SubscriptionAccountType accountType, String accountId, String accountLabel,
-                        String planName, String amount) {
+                        String planName, String amount, String firstName, String lastName,
+                        String email, String cellNumber) {
     }
 
     private Plan resolvePlan(SubscriptionAccountType accountType) {
@@ -378,14 +421,24 @@ public class SubscriptionService {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
             String label = user.getFirstName() != null ? user.getFirstName() : user.getEmail();
-            return new Plan(SubscriptionAccountType.USER, user.getUserID(), label, "PLUS", plusAmount);
+            return new Plan(SubscriptionAccountType.USER, user.getUserID(), label, "PLUS", plusAmount,
+                    orEmpty(user.getFirstName()), orEmpty(user.getLastName()),
+                    orEmpty(user.getEmail()), orEmpty(user.getPhoneNumber()));
         }
         Store store = storeRepository.findByUser_UserID(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "No store is linked to this account, so it can't subscribe to Pro."));
+        User owner = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
         return new Plan(SubscriptionAccountType.STORE, store.getStoreId(),
                 store.getStoreName() != null ? store.getStoreName() : store.getStoreId(),
-                "PRO", proAmount);
+                "PRO", proAmount,
+                orEmpty(owner.getFirstName()), orEmpty(owner.getLastName()),
+                orEmpty(owner.getEmail()), orEmpty(owner.getPhoneNumber()));
+    }
+
+    private static String orEmpty(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private void ensureConfigured() {
@@ -393,6 +446,10 @@ public class SubscriptionService {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Payments are not configured on the server yet "
                             + "(PAYFAST_MERCHANT_ID / PAYFAST_MERCHANT_KEY are missing).");
+        }
+        if (passphrase == null || passphrase.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Payments are not configured (PAYFAST_PASSPHRASE is missing — it is required to sign hosted checkout fields).");
         }
         if (notifyUrl == null || notifyUrl.isBlank()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,

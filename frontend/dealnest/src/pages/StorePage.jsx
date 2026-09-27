@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import ClaimSuccessModal from '../components/ClaimSuccessModal';
 import { storeService, promotionService, favoriteService, savedPromotionService, reviewService, redemptionService, dealReportService, priceHistoryService, analyticsService } from '../services/api';
 import { ArrowLeft, MapPin, Star, Tag, Clock, Phone, Mail, Heart, Bookmark, Store as StoreIcon, BadgeCheck, MessageSquare, Pencil, Trash2, Ticket, Flag, Share2, Check, Lock, Sparkles } from 'lucide-react';
 import { CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
@@ -231,7 +232,7 @@ export default function StorePage({ user }) {
     analyticsService.track(null, 'PROMOTION_VIEW', user.userID, promotionId);
     try {
       const redemption = await redemptionService.claim(user.userID, promotionId);
-      setClaimedCode(redemption.code);
+      setClaimedCode(redemption);
     } catch (error) {
       alert(error.message || 'Failed to claim this deal.');
     } finally {
@@ -603,17 +604,7 @@ export default function StorePage({ user }) {
         onClose={() => setReportingPromo(null)}
       />
 
-      {claimedCode && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setClaimedCode(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center" onClick={(e) => e.stopPropagation()}>
-            <Ticket className="mx-auto text-teal-600 w-10 h-10" aria-hidden="true" />
-            <h3 className="text-lg font-bold text-gray-800 mt-3">Deal claimed!</h3>
-            <p className="text-sm text-gray-500 mt-1">Show this code in-store to redeem it.</p>
-            <p className="font-mono text-2xl font-bold tracking-widest text-teal-600 bg-teal-50 rounded-xl py-4 mt-4">{claimedCode}</p>
-            <button type="button" onClick={() => setClaimedCode(null)} className="btn-primary mt-4">Got it</button>
-          </div>
-        </div>
-      )}
+      <ClaimSuccessModal redemption={claimedCode} onClose={() => setClaimedCode(null)} />
     </div>
   );
 }

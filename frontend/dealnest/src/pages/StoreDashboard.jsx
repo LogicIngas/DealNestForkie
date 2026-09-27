@@ -4,7 +4,7 @@ import {
   MapPin, Star, Pencil, Trash2, Tag, Users,
   BadgeCheck, Clock, Phone, Mail, AlertTriangle,
   MessageSquare, ImagePlus, Ticket, Sparkles, Crown,
-  BarChart3, TrendingUp, UploadCloud, CalendarClock, Eye, Bookmark, CheckCircle2, Flame
+  BarChart3, TrendingUp, UploadCloud, CalendarClock, Eye, Bookmark, CheckCircle2, Flame, Landmark
 } from 'lucide-react';
 import { promotionService, storeService, favoriteService, reviewService, redemptionService, analyticsService, subscriptionService, submitPayFastForm } from '../services/api';
 import { CATEGORIES } from '../constants/categories';
@@ -75,9 +75,11 @@ export default function StoreDashboard({ user, onLogout }) {
   const [redeemResult, setRedeemResult] = useState(null);
 
   const [subscribingStore, setSubscribingStore] = useState(false);
+  const [subscribingStoreWith, setSubscribingStoreWith] = useState(null);
   const [confirmCancelStorePlan, setConfirmCancelStorePlan] = useState(false);
   const [payfastStatus, setPayfastStatus] = useState(null);
   const [payfastNotice, setPayfastNotice] = useState(null);
+  const [storePaymentMethod, setStorePaymentMethod] = useState(null);
   const [featuringId, setFeaturingId] = useState(null);
   const [promotingId, setPromotingId] = useState(null);
 
@@ -137,6 +139,7 @@ export default function StoreDashboard({ user, onLogout }) {
       try {
         const data = await subscriptionService.status('STORE');
         if (data.planTier === 'PRO' && data.status === 'ACTIVE') {
+          setStorePaymentMethod(data.paymentMethod || null);
           setPayfastStatus(null);
           setPayfastNotice({ tone: 'info', text: 'Pro is now active — welcome aboard!' });
           if (data.account) setUserStore(data.account);
@@ -341,17 +344,20 @@ export default function StoreDashboard({ user, onLogout }) {
     }
   };
 
-  const handleUpgradeToPro = async () => {
+  const handleUpgradeToPro = async (paymentMethod = 'CARD') => {
     setSubscribingStore(true);
+    setSubscribingStoreWith(paymentMethod);
     setPayfastNotice(null);
     try {
       // Backend returns a signed PayFast form; submitting it sends the customer
-      // to PayFast's hosted page where they authorise the recurring agreement.
-      const checkout = await subscriptionService.checkout('STORE');
+      // to PayFast's hosted page where they authorise the recurring agreement
+      // (card) or enter their bank details (Instant EFT).
+      const checkout = await subscriptionService.checkout('STORE', paymentMethod);
       submitPayFastForm(checkout);
     } catch (error) {
       setPayfastNotice({ tone: 'error', text: error.message || 'Failed to start checkout.' });
       setSubscribingStore(false);
+      setSubscribingStoreWith(null);
     }
   };
 
@@ -370,6 +376,7 @@ export default function StoreDashboard({ user, onLogout }) {
       setPayfastNotice({ tone: 'error', text: error.message || 'Failed to cancel subscription.' });
     } finally {
       setSubscribingStore(false);
+      setSubscribingStoreWith(null);
     }
   };
 
@@ -601,29 +608,53 @@ export default function StoreDashboard({ user, onLogout }) {
               )}
               {isPro ? (
                 <>
-                  {storeRenewsOn && <p className="text-xs text-gray-500 mt-2">Renews on {storeRenewsOn}</p>}
-                  <button
-                    type="button"
-                    onClick={() => setConfirmCancelStorePlan(true)}
-                    disabled={subscribingStore}
-                    className="text-xs font-semibold text-gray-500 hover:text-red-500 mt-3 disabled:opacity-60"
-                  >
-                    Cancel subscription
-                  </button>
+                  {storeRenewsOn && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      {storePaymentMethod === 'EFT'
+                        ? `Access until ${storeRenewsOn} — pay again to extend`
+                        : `Renews on ${storeRenewsOn}`}
+                    </p>
+                  )}
+                  {storePaymentMethod !== 'EFT' && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmCancelStorePlan(true)}
+                      disabled={subscribingStore}
+                      className="text-xs font-semibold text-gray-500 hover:text-red-500 mt-3 disabled:opacity-60"
+                    >
+                      Cancel subscription
+                    </button>
+                  )}
                 </>
               ) : (
                 <>
                   <ul className="text-xs text-gray-500 mt-2 space-y-1 list-disc list-inside">
                     {PRO_PERKS.map(perk => <li key={perk}>{perk}</li>)}
                   </ul>
-                  <button
-                    type="button"
-                    onClick={handleUpgradeToPro}
-                    disabled={subscribingStore}
-                    className="w-full flex items-center justify-center gap-1.5 bg-amber-500 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-600 transition disabled:opacity-60 mt-3"
-                  >
-                    <Sparkles size={14} /> {subscribingStore ? 'Upgrading…' : 'Upgrade to Pro — R199/month'}
-                  </button>
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => handleUpgradeToPro('CARD')}
+                      disabled={subscribingStore}
+                      className="w-full flex items-center justify-center gap-1.5 bg-amber-500 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-600 transition disabled:opacity-60"
+                    >
+                      <Sparkles size={14} />
+                      {subscribingStore && subscribingStoreWith === 'CARD' ? 'Upgrading…' : 'Card — R199/mo'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUpgradeToPro('EFT')}
+                      disabled={subscribingStore}
+                      className="w-full flex items-center justify-center gap-1.5 bg-white border border-amber-200 text-amber-700 font-semibold text-sm py-2.5 rounded-xl hover:bg-amber-50 transition disabled:opacity-60"
+                    >
+                      <Landmark size={14} />
+                      {subscribingStore && subscribingStoreWith === 'EFT' ? 'Upgrading…' : 'Bank — R199/mo'}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-2">
+                    Card renews automatically every month. Bank (Instant EFT) buys 30 days once — PayFast asks
+                    for your bank, account type, account number and branch code on the next screen.
+                  </p>
                 </>
               )}
             </div>
