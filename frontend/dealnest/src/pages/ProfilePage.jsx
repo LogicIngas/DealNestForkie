@@ -308,16 +308,6 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
             {isPlus ? 'Active' : 'Free plan'}
           </span>
         </div>
-        {checkoutOpen && (
-          <div className="mt-4 border-t border-gray-100 pt-4">
-            <CardCheckoutForm
-              accountType="USER"
-              amountCents={planPrice?.amountCents ?? 0}
-              onPaid={handleCardPaid}
-              onCancel={() => setCheckoutOpen(false)}
-            />
-          </div>
-        )}
         {planNotice && (
           <div role="status" className={`${planNotice.tone === 'error' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-teal-50 border-teal-200 text-teal-700'} border text-xs p-3 rounded-xl mt-3`}>
             {planNotice.text}
@@ -345,10 +335,8 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
               <Sparkles size={14} />
               {subscribing ? 'Loading…' : `Upgrade — R${planPrice ? (planPrice.amountCents / 100).toFixed(2) : '49.00'} for 30 days`}
             </button>
-            <p className="text-[11px] text-gray-400 mt-2">
-              30 days of Plus, ending on its own — nothing renews and nothing is charged. The
-              checkout validates the card you enter and shows you exactly what it checked; it does
-              not take money.
+            <p className="text-[11px] text-gray-400 mt-2 text-center">
+              30 days, ending on its own. Nothing renews, nothing is charged.
             </p>
           </>
         )}
@@ -822,6 +810,18 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
         onConfirm={handleDeleteAccount}
         onCancel={() => setConfirmDeleteAccount(false)}
       />
+
+      {/* Mounted at page level rather than inside the plan card: it is a dialog, so it
+          takes over the screen instead of pushing the card's content around. */}
+      {checkoutOpen && (
+        <CardCheckoutForm
+          accountType="USER"
+          planName="DealNest Plus"
+          amountCents={planPrice?.amountCents ?? 0}
+          onPaid={handleCardPaid}
+          onCancel={() => setCheckoutOpen(false)}
+        />
+      )}
     </div>
   );
 }

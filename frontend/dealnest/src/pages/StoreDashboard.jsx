@@ -558,16 +558,6 @@ export default function StoreDashboard({ user, onLogout }) {
                   {isPro ? 'Pro' : 'Free plan'}
                 </span>
               </div>
-              {checkoutOpen && (
-                <div className="mt-4 border-t border-gray-100 pt-4">
-                  <CardCheckoutForm
-                    accountType="STORE"
-                    amountCents={planPrice?.amountCents ?? 0}
-                    onPaid={handleCardPaid}
-                    onCancel={() => setCheckoutOpen(false)}
-                  />
-                </div>
-              )}
               {planNotice && (
                 <div role="status" className={`${planNotice.tone === 'error' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-teal-50 border-teal-200 text-teal-700'} border text-xs p-3 rounded-xl mt-3`}>
                   {planNotice.text}
@@ -596,10 +586,8 @@ export default function StoreDashboard({ user, onLogout }) {
                     <Sparkles size={14} />
                     {subscribingStore ? 'Loading…' : `Upgrade — R${planPrice ? (planPrice.amountCents / 100).toFixed(2) : '199.00'} for 30 days`}
                   </button>
-                  <p className="text-[11px] text-gray-400 mt-2">
-                    30 days of Pro, ending on its own — nothing renews and nothing is charged. The
-                    checkout validates the card you enter and shows you exactly what it checked; it
-                    does not take money.
+                  <p className="text-[11px] text-gray-400 mt-2 text-center">
+                    30 days, ending on its own. Nothing renews, nothing is charged.
                   </p>
                 </>
               )}
@@ -1066,6 +1054,18 @@ export default function StoreDashboard({ user, onLogout }) {
         onConfirm={handleDeletePromo}
         onCancel={() => setPromoToDelete(null)}
       />
+
+      {/* Mounted at page level rather than inside the plan card: it is a dialog, so it
+          takes over the screen instead of pushing the card's content around. */}
+      {checkoutOpen && (
+        <CardCheckoutForm
+          accountType="STORE"
+          planName="Store Pro"
+          amountCents={planPrice?.amountCents ?? 0}
+          onPaid={handleCardPaid}
+          onCancel={() => setCheckoutOpen(false)}
+        />
+      )}
     </div>
   );
 }
