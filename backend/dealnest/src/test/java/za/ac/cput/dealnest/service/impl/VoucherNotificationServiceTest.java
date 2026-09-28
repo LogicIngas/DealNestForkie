@@ -73,6 +73,76 @@ class VoucherNotificationServiceTest {
     }
 
     @Test
+    void boldsTheCodeInTheHtmlSoItIsTheObviousThingToRead() {
+        when(repository.findDetailedById("redemption-1")).thenReturn(Optional.of(redemption("redemption-1", "user-1", "thandi@example.com")));
+        when(emailSender.isConfigured()).thenReturn(true);
+
+        service.sendVoucherEmail("redemption-1");
+
+        var htmlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailSender).send(anyString(), anyString(), anyString(), htmlCaptor.capture(), anyString());
+
+        String html = htmlCaptor.getValue();
+        assertTrue(html.contains("font-weight:bold"), "the html must set a bold weight somewhere");
+        // The code has to be inside the element that is bolded, not merely somewhere
+        // else in a document that also happens to use bold.
+        int codeAt = html.indexOf("DN-ABC123XYZ");
+        int boldAt = html.lastIndexOf("font-weight:bold", codeAt);
+        assertTrue(boldAt >= 0, "the run of markup before the code must declare a bold weight");
+        assertTrue(codeAt - boldAt < 400, "the code must sit close to the bold run that styles it");
+    }
+
+    @Test
+    void makesThePhoneAndEmailInTheDetailsTappable() {
+        when(repository.findDetailedById("redemption-1")).thenReturn(Optional.of(redemption("redemption-1", "user-1", "thandi@example.com")));
+        when(emailSender.isConfigured()).thenReturn(true);
+
+        service.sendVoucherEmail("redemption-1");
+
+        var htmlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailSender).send(anyString(), anyString(), anyString(), htmlCaptor.capture(), anyString());
+
+        String html = htmlCaptor.getValue();
+        assertTrue(html.contains("href=\"tel:0212345678\""), "the phone number should be a tel link");
+        assertTrue(html.contains("href=\"mailto:hello@capecoffee.co.za\""), "the store email should be a mailto link");
+    }
+
+    @Test
+    void separatesTheCodeInThePlainTextBodyForClientsThatCannotRenderHtml() {
+        when(repository.findDetailedById("redemption-1")).thenReturn(Optional.of(redemption("redemption-1", "user-1", "thandi@example.com")));
+        when(emailSender.isConfigured()).thenReturn(true);
+
+        service.sendVoucherEmail("redemption-1");
+
+        var messageCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailSender).send(anyString(), anyString(), messageCaptor.capture(), anyString(), anyString());
+
+        String email = messageCaptor.getValue();
+        int codeAt = email.indexOf("DN-ABC123XYZ");
+        assertTrue(codeAt >= 0, "the text body must carry the code");
+        // A text-only client cannot bold anything, so the code has to be framed instead
+        // and must not be sitting in a run of other "Label: value" lines.
+        assertFalse(email.contains("Code:"), "the old inline Code: label is gone");
+        assertFalse(email.substring(Math.max(0, codeAt - 40), codeAt).contains(":"),
+                "the code must not be preceded by another label");
+        assertTrue(email.contains("*****"), "the code should be framed by a rule");
+    }
+
+    @Test
+    void promotesTheExpiryDateIntoItsOwnBannerSoItCannotBeMissed() {
+        when(repository.findDetailedById("redemption-1")).thenReturn(Optional.of(redemption("redemption-1", "user-1", "thandi@example.com")));
+        when(emailSender.isConfigured()).thenReturn(true);
+
+        service.sendVoucherEmail("redemption-1");
+
+        var htmlCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(emailSender).send(anyString(), anyString(), anyString(), htmlCaptor.capture(), anyString());
+
+        assertTrue(htmlCaptor.getValue().contains("Use it by"),
+                "the expiry should be called out rather than left in a list of details");
+    }
+
+    @Test
     void escapesStoreSuppliedTextSoAnOwnerCannotInjectMarkupIntoTheEmail() {
         Store store = storeBuilder().setStoreName("Evil <script>alert(1)</script> & Co").build();
         Redemption redemption = redemption("redemption-1", "user-1", "thandi@example.com");
