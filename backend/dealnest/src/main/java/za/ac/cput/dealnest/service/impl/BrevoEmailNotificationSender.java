@@ -62,6 +62,11 @@ public class BrevoEmailNotificationSender implements EmailNotificationSender {
     @Override
     public void send(String recipient, String subject, String textBody, String htmlBody,
                      String idempotencyKey) {
+        if (!isConfigured()) {
+            log.warn("Brevo is not configured (apiKey or from is missing). Skipping sending email to {}", recipient);
+            return;
+        }
+
         Map<String, Object> sender = new LinkedHashMap<>();
         sender.put("name", hasText(fromName) ? fromName : "DealNest");
         sender.put("email", from);
@@ -74,7 +79,8 @@ public class BrevoEmailNotificationSender implements EmailNotificationSender {
         if (hasText(htmlBody)) {
             payload.put("htmlContent", htmlBody);
         }
-        payload.put("tags", List.of("voucher-claim"));
+        String tag = (subject != null && subject.toLowerCase().contains("password")) ? "password-reset" : "voucher-claim";
+        payload.put("tags", List.of(tag));
 
         client.post()
                 .uri("/v3/smtp/email")
@@ -89,7 +95,7 @@ public class BrevoEmailNotificationSender implements EmailNotificationSender {
                 .retrieve()
                 .toBodilessEntity();
 
-        log.info("Voucher email accepted by Brevo: {}", idempotencyKey);
+        log.info("Email accepted by Brevo for {} (idempotency: {})", recipient, idempotencyKey);
     }
 
     private static String asUuid(String idempotencyKey) {

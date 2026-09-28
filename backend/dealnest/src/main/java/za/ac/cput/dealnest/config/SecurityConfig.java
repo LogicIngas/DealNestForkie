@@ -68,6 +68,8 @@ public class SecurityConfig {
                 // Auth: registration & login for both user types
                 .requestMatchers(HttpMethod.POST, "/api/user/create").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/user/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/user/forgot-password").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/user/reset-password").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/admin/login").permitAll()
 
                 // Promotions: anyone can browse active deals and price history
