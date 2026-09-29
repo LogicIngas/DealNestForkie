@@ -554,6 +554,16 @@ export const priceHistoryService = {
     if (!response.ok) return [];
     return handleResponse(response);
   },
+  // All of a store's deals at once, keyed by promotionID. A store page with a dozen
+  // deals used to need a dozen of these; now it needs one.
+  getByStore: async (storeId) => {
+    const response = await fetch(`${API_BASE_URL}/priceHistory/findByStore/${storeId}`, {
+      headers: authHeaders(),
+    });
+    if (response.status === 402) throw new Error('UPGRADE_REQUIRED');
+    if (!response.ok) return {};
+    return handleResponse(response);
+  },
 };
 
 // ---------------------------------------------------------------------------

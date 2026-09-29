@@ -26,7 +26,7 @@ public class StoreServiceImpl implements IStoreService {
 
     @Override
     public Store read(String storeId) {
-        return repository.findById(storeId).orElse(null);
+        return repository.findDetailedById(storeId).orElse(null);
     }
 
     @Override
@@ -95,7 +95,7 @@ public class StoreServiceImpl implements IStoreService {
 
     @Override
     public Optional<Store> findByUserId(String userId) {
-        return repository.findByUser_UserID(userId);
+        return repository.findDetailedByUserId(userId);
     }
 
     @Override

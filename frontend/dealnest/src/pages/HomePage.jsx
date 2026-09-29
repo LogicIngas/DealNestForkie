@@ -51,10 +51,12 @@ export default function HomePage({ user }) {
       })
       .catch(() => setLoading(false));
 
+    // The feed already arrives ordered — promoted, then featured, then newest — so this
+    // just takes the top few. It used to re-sort by `featured` here, which both undid
+    // the server's ordering and made the home page disagree with every other list.
     promotionService.getActive()
       .then(data => {
-        const sorted = [...data].sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
-        setPromotions(sorted.slice(0, 6));
+        setPromotions((data || []).slice(0, 6));
         setLoadingPromotions(false);
       })
       .catch(() => setLoadingPromotions(false));
@@ -68,15 +70,16 @@ export default function HomePage({ user }) {
         .then(data => setSavedPromotionIds(new Set(data.map(sp => sp.promotion?.promotionID))))
         .catch(() => {});
 
-      storeService.getRecommended(user.userID)
+      // One request, not two. A Plus user used to get /recommended and then
+      // /personalized, each of which re-reads and re-ranks every active store, with the
+      // first result overwritten by the second and thrown away.
+      const loadRecommendations = user.planTier === 'PLUS'
+        ? storeService.getPersonalized
+        : storeService.getRecommended;
+
+      loadRecommendations(user.userID)
         .then(data => setRecommendedStores(data))
         .catch(() => setRecommendedStores(null));
-
-      if (user.planTier === 'PLUS') {
-        storeService.getPersonalized(user.userID)
-          .then(data => data && setRecommendedStores(data))
-          .catch(() => setRecommendedStores(null));
-      }
     }
   }, [user?.userID]);
 

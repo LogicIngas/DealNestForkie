@@ -52,7 +52,7 @@ public class SavedPromotionServiceImpl implements ISavedPromotionService {
 
     @Override
     public SavedPromotion read(String savedPromotionId) {
-        return repository.findById(savedPromotionId).orElse(null);
+        return repository.findDetailedById(savedPromotionId).orElse(null);
     }
 
     @Override

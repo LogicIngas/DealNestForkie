@@ -23,7 +23,7 @@ public class SearchHistoryServiceImpl implements ISearchHistoryService {
 
     @Override
     public SearchHistory read(String searchHistoryId) {
-        return repository.findById(searchHistoryId).orElse(null);
+        return repository.findDetailedById(searchHistoryId).orElse(null);
     }
 
     @Override

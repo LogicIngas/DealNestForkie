@@ -23,7 +23,7 @@ public class FavoriteStoreServiceImpl implements IFavoriteStoreService {
 
     @Override
     public FavoriteStore read(String favoriteStoreId) {
-        return repository.findById(favoriteStoreId).orElse(null);
+        return repository.findDetailedById(favoriteStoreId).orElse(null);
     }
 
     @Override

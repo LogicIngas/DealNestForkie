@@ -2,6 +2,7 @@ package za.ac.cput.dealnest.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.domain.StoreCategory;
 
@@ -33,4 +34,19 @@ public interface IStoreRepository extends JpaRepository<Store,String> {
     @Query("select s from Store s join fetch s.user")
     List<Store> findAllWithOwner();
 
+    /**
+     * A single store with its owner attached.
+     *
+     * <p>{@code findById} cannot serve the read endpoints: a Store is serialised with
+     * its {@code user} field, and that is a lazy to-one. With open-in-view off there is
+     * no session left when Jackson reaches it, so the owner has to come back with the
+     * store. It is also the ownership check on most write paths, which is the same
+     * association.
+     */
+    @Query("select s from Store s join fetch s.user where s.storeId = :storeId")
+    Optional<Store> findDetailedById(@Param("storeId") String storeId);
+
+    /** The store a user owns, owner attached, for the "my store" endpoints. */
+    @Query("select s from Store s join fetch s.user where s.user.userID = :userID")
+    Optional<Store> findDetailedByUserId(@Param("userID") String userID);
 }

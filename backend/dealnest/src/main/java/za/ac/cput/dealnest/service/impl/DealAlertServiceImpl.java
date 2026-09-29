@@ -34,7 +34,7 @@ public class DealAlertServiceImpl implements IDealAlertService {
 
     @Override
     public DealAlert read(String dealAlertId) {
-        return repository.findById(dealAlertId).orElse(null);
+        return repository.findDetailedById(dealAlertId).orElse(null);
     }
 
     @Override

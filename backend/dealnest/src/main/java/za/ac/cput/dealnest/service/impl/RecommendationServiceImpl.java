@@ -92,7 +92,16 @@ public class RecommendationServiceImpl implements IRecommendationService {
     // category's name/label (e.g. "electronics", "home") counts directly, and a
     // term matching an active store's name votes for that store's category.
     private void addSearchCategories(String userId, Set<StoreCategory> engagedCategories) {
-        for (SearchHistory entry : searchHistoryRepository.findByUser_UserID(userId)) {
+        List<SearchHistory> history = searchHistoryRepository.findByUser_UserID(userId);
+        if (history.isEmpty()) return;
+
+        // The active stores are the same rows for every term, so they are read once here.
+        // This used to re-query the whole active-store table inside the loop, so a user
+        // with a dozen past searches paid a dozen identical full-table reads to build the
+        // recommendations shown at the top of the home page.
+        List<Store> activeStores = storeRepository.findByIsActiveTrue();
+
+        for (SearchHistory entry : history) {
             String term = entry.getSearchQuery() == null ? "" : entry.getSearchQuery().trim().toLowerCase();
             if (term.isEmpty()) continue;
 
@@ -105,7 +114,7 @@ public class RecommendationServiceImpl implements IRecommendationService {
                 }
             }
 
-            storeRepository.findByIsActiveTrue().stream()
+            activeStores.stream()
                     .filter(s -> s.getStoreName() != null && s.getStoreName().toLowerCase().contains(term))
                     .map(Store::getCategory)
                     .filter(Objects::nonNull)

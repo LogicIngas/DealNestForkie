@@ -24,7 +24,7 @@ public class DealReportServiceImpl implements IDealReportService {
 
     @Override
     public DealReport read(String reportId) {
-        return repository.findById(reportId).orElse(null);
+        return repository.findDetailedById(reportId).orElse(null);
     }
 
     @Override
