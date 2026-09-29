@@ -1,4 +1,4 @@
-﻿const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 // ---------------------------------------------------------------------------
 // Token helpers
@@ -147,6 +147,24 @@ export const userService = {
       headers: authHeaders(),
     });
     return response.ok;
+  },
+
+  forgotPassword: async (email) => {
+    const response = await fetch(`${API_BASE_URL}/user/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return handleResponse(response);
+  },
+
+  resetPassword: async (token, newPassword) => {
+    const response = await fetch(`${API_BASE_URL}/user/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword }),
+    });
+    return handleResponse(response);
   },
 };
 

@@ -11,6 +11,9 @@ export default function LoginPage({ onLogin }) {
   const [error, setError] = useState('');
   const [notice] = useState(() => sessionStorage.getItem('dealnest_session_message') || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [view, setView] = useState('login'); // 'login' | 'forgot_password'
+  const [resetMessage, setResetMessage] = useState('');
+  const [devResetUrl, setDevResetUrl] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,7 +23,25 @@ export default function LoginPage({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setResetMessage('');
+    setDevResetUrl('');
     setIsLoading(true);
+
+    if (view === 'forgot_password') {
+      try {
+        const response = await userService.forgotPassword(email);
+        setResetMessage(response.message || 'Check your email for the reset link.');
+        if (response.devResetUrl) {
+          setDevResetUrl(response.devResetUrl);
+        }
+      } catch (err) {
+        setError(err.message || 'Failed to send reset link.');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     try {
       const userData = await userService.login(email, password);
       const linkedStore = await storeService.findByUserId(userData.userID);
@@ -42,7 +63,9 @@ export default function LoginPage({ onLogin }) {
             <img src={logo} alt="DealNest" width={220} height={120} className="h-[120px] w-auto mx-auto" />
           </div>
           <div className="p-8">
-            <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Welcome Back</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">
+              {view === 'login' ? 'Welcome Back' : 'Reset Password'}
+            </h2>
             {notice && (
               <div role="alert" aria-live="polite" className="bg-amber-50 border border-amber-200 text-amber-700 p-3 rounded-xl text-sm mb-4 text-center">
                 {notice}
@@ -51,6 +74,21 @@ export default function LoginPage({ onLogin }) {
             {error && (
               <div role="alert" aria-live="polite" className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl text-sm mb-4 text-center">
                 {error}
+              </div>
+            )}
+            {resetMessage && (
+              <div role="alert" aria-live="polite" className="bg-teal-50 border border-teal-200 text-teal-700 p-4 rounded-xl text-sm mb-4 text-center">
+                <p>{resetMessage}</p>
+                {devResetUrl && (
+                  <div className="mt-3 pt-3 border-t border-teal-200">
+                    <a
+                      href={devResetUrl}
+                      className="inline-block px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg text-xs transition shadow-sm"
+                    >
+                      🔗 Open Reset Password Page (Local Dev)
+                    </a>
+                  </div>
+                )}
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -71,34 +109,58 @@ export default function LoginPage({ onLogin }) {
                   />
                 </div>
               </div>
-              <div>
-                <label htmlFor="login-password" className="sr-only">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" aria-hidden="true" />
-                  <input
-                    id="login-password"
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    autoComplete="current-password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="input-field pl-12 pr-12"
-                    required
-                  />
+              {view === 'login' && (
+                <>
+                  <div>
+                    <label htmlFor="login-password" className="sr-only">Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" aria-hidden="true" />
+                      <input
+                        id="login-password"
+                        type={showPassword ? 'text' : 'password'}
+                        name="password"
+                        autoComplete="current-password"
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="input-field pl-12 pr-12"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <button
+                      type="button"
+                      onClick={() => { setView('forgot_password'); setError(''); setResetMessage(''); }}
+                      className="text-xs font-semibold text-teal-600 hover:underline"
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
+                </>
+              )}
+              <button type="submit" disabled={isLoading} className="btn-primary">
+                {isLoading ? 'Please wait…' : view === 'login' ? 'Sign In' : 'Send Reset Link'}
+              </button>
+              {view === 'forgot_password' && (
+                <div className="text-center mt-2">
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
+                    onClick={() => { setView('login'); setError(''); setResetMessage(''); }}
+                    className="text-sm font-semibold text-gray-500 hover:text-gray-700 transition"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    Back to Login
                   </button>
                 </div>
-              </div>
-              <button type="submit" disabled={isLoading} className="btn-primary">
-                {isLoading ? 'Signing in…' : 'Sign In'}
-              </button>
+              )}
             </form>
             <div className="mt-6 text-center space-y-2">
               <p className="text-gray-500 text-sm">Don't have a customer account? <Link to="/signup" className="text-teal-600 font-bold">Sign Up</Link></p>

@@ -46,6 +46,11 @@ public class ResendEmailNotificationSender implements EmailNotificationSender {
     @Override
     public void send(String recipient, String subject, String textBody, String htmlBody,
                      String idempotencyKey) {
+        if (!isConfigured()) {
+            log.warn("Resend is not configured (apiKey or from is missing). Skipping sending email to {}", recipient);
+            return;
+        }
+
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("from", from);
         payload.put("to", List.of(recipient));
