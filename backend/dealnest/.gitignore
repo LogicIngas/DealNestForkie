@@ -32,9 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 
-### DTO Package ###
-src/main/java/za/ac/cput/dealnest/dto/
-
 # Environment variables
 .env
 .env.local
