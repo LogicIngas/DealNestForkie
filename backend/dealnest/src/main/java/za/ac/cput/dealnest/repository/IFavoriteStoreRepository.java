@@ -1,10 +1,31 @@
 package za.ac.cput.dealnest.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import za.ac.cput.dealnest.domain.FavoriteStore;
 import java.util.List;
+import java.util.Optional;
 
 public interface IFavoriteStoreRepository extends JpaRepository<FavoriteStore, String> {
+
+    /**
+     * The favouriting user and the favourited store's owner come back attached.
+     *
+     * <p>A FavoriteStore is serialised with both {@code user} and {@code store}, and a
+     * Store is serialised with its owner, so an unfetched result cost up to three
+     * queries per row. To-one joins throughout, so no rows are duplicated. Served by
+     * idx_favorite_stores_user / _store.
+     */
+    @Query("select f from FavoriteStore f join fetch f.user join fetch f.store s join fetch s.user "
+            + "where f.user.userID = :userID")
     List<FavoriteStore> findByUser_UserID(String userID);
+
+    @Query("select f from FavoriteStore f join fetch f.user join fetch f.store s join fetch s.user "
+            + "where s.storeId = :storeId")
     List<FavoriteStore> findByStore_StoreId(String storeId);
+
+    @Query("select f from FavoriteStore f join fetch f.user join fetch f.store s join fetch s.user "
+            + "where f.favoriteStoreID = :favoriteStoreID")
+    Optional<FavoriteStore> findDetailedById(@Param("favoriteStoreID") String favoriteStoreID);
 }

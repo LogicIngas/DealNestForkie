@@ -10,17 +10,34 @@ import java.util.Optional;
 
 public interface IRedemptionRepository extends JpaRepository<Redemption, String> {
     Optional<Redemption> findByCode(String code);
-    List<Redemption> findByUser_UserID(String userId);
     boolean existsByCode(String code);
 
-    // Explicit JPQL rather than a derived name: the primary key is redemptionID, so
-    // findDetailedById would be parsed as a lookup on a non-existent "id" property and
-    // fail the whole context at startup. join fetch pulls the voucher details the email
-    // needs in one round trip. Every join is to-one, so this cannot duplicate rows.
+    /**
+     * The whole chain a voucher is serialised with comes back attached: the redeeming
+     * user, the promotion, that promotion's store, and the store's owner.
+     *
+     * <p>The profile page lists a user's vouchers and reads
+     * {@code redemption.promotion.discountPrice} out of them, so leaving these lazy cost
+     * three queries per voucher. Every join is to-one, so no rows are duplicated.
+     * Served by idx_redemptions_user.
+     *
+     * <p>Explicit JPQL rather than a derived name: the primary key is redemptionID, so
+     * findDetailedById would be parsed as a lookup on a non-existent "id" property and
+     * fail the whole context at startup.
+     */
     @Query("select r from Redemption r "
             + "join fetch r.user "
             + "join fetch r.promotion p "
-            + "join fetch p.store "
+            + "join fetch p.store s "
+            + "join fetch s.user "
             + "where r.redemptionID = :redemptionID")
     Optional<Redemption> findDetailedById(@Param("redemptionID") String redemptionID);
+
+    @Query("select r from Redemption r "
+            + "join fetch r.user "
+            + "join fetch r.promotion p "
+            + "join fetch p.store s "
+            + "join fetch s.user "
+            + "where r.user.userID = :userId")
+    List<Redemption> findByUser_UserID(String userId);
 }

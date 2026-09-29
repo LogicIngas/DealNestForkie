@@ -35,7 +35,7 @@ public class ReviewServiceImpl implements IReviewService {
 
     @Override
     public Review read(String reviewId) {
-        return repository.findById(reviewId).orElse(null);
+        return repository.findDetailedById(reviewId).orElse(null);
     }
 
     @Override
@@ -59,9 +59,12 @@ public class ReviewServiceImpl implements IReviewService {
         if (storeRef == null) return;
         Store store = storeService.read(storeRef.getStoreId());
         if (store == null) return;
-        List<Review> reviews = repository.findByStore_StoreId(store.getStoreId());
-        int count = reviews.size();
-        double average = count == 0 ? 0.0 : reviews.stream().mapToInt(r -> r.getRating() == null ? 0 : r.getRating()).average().orElse(0.0);
+        // Counted and averaged by Postgres. This used to read every review of the
+        // store into memory to average them in Java, which also had to walk each
+        // review's author and its store's owner.
+        Object[] summary = repository.summariseForStore(store.getStoreId());
+        int count = ((Number) summary[0]).intValue();
+        double average = summary[1] == null ? 0.0 : ((Number) summary[1]).doubleValue();
         store.setTotalReviews(count);
         store.setAverageRating(count == 0 ? null : Math.round(average * 10.0) / 10.0);
         storeService.update(store);

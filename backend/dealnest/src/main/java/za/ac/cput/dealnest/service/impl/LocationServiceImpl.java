@@ -23,7 +23,7 @@ public class LocationServiceImpl implements ILocationService {
 
     @Override
     public Location read(String locationId) {
-        return repository.findById(locationId).orElse(null);
+        return repository.findDetailedById(locationId).orElse(null);
     }
 
     @Override

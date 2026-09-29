@@ -10,12 +10,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import za.ac.cput.dealnest.domain.Promotion;
+import za.ac.cput.dealnest.domain.StoreCategory;
 
 import javax.sql.DataSource;
+import java.sql.Timestamp;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Guards against the deal feed going back to one query per row.
@@ -157,5 +160,168 @@ class IPromotionRepositoryQueryTest {
 
         // Make sure nothing seeded here can be served from the session cache.
         entityManager.clear();
+    }
+
+    /**
+     * The feed order — promoted, then featured, then newest — used to be a Java
+     * comparator run over every deal after it had been fetched. It is now the query's
+     * ORDER BY, which is the whole reason the feed can be served by an ordered index
+     * walk, so the order it produces is worth pinning down.
+     *
+     * <p>The promoted and featured columns are nullable and the seeded rows leave them
+     * null, which is the case the {@code coalesce} in the query exists for: an untagged
+     * deal must sort below a tagged one, not above it as a bare DESC would.
+     */
+    @Test
+    void theFeedOrdersPromotedThenFeaturedThenNewest() {
+        seedDealsForOrdering();
+
+        assertEquals(List.of("Promoted", "Featured", "Newest Untagged", "Deal 2", "Deal 1"),
+                titlesOf(promotionRepository.findByIsActiveTrue()),
+                "promoted first, then featured, then newest — and an untagged deal is "
+                        + "ordered by date among the untagged, not pushed to the front by "
+                        + "a null promoted/featured sorting ahead of every real value");
+    }
+
+    /**
+     * Search used to load every active deal and drop the non-matching ones in a Java
+     * stream, so it now has to be asserted against the database. The patterns below are
+     * already wrapped in {@code %} because that wrapping is the service's job, and this
+     * is a repository test — services are not wired in {@code @DataJpaTest}.
+     */
+    @Test
+    void searchFiltersInTheDatabaseRatherThanInJava() {
+        seedDealsForSearch();
+
+        assertEquals(List.of("Cheap Coffee"), titlesOf(search("%coffee%", null, null)),
+                "a keyword must match the title");
+
+        assertEquals(List.of("Cheap Coffee"), titlesOf(search("%bundle%", null, null)),
+                "a keyword must also match the description");
+
+        // "Cheap Coffee" is deal-1, on the store renamed "Fancy Roaster"; neither its
+        // title nor its description contains "roaster". It comes back only because the
+        // store name is searched, which the old Java filter did.
+        assertEquals(List.of("Cheap Coffee", "Fancy Roaster Beans"),
+                titlesOf(search("%roaster%", null, null)),
+                "a keyword must match the store name as well as the title");
+
+        assertEquals(List.of("Cheap Coffee"), titlesOf(search(null, 100.0, null)),
+                "a budget must exclude anything dearer than it");
+
+        assertEquals(List.of("Cheap Coffee"), titlesOf(search(null, null, StoreCategory.RESTAURANT)),
+                "a category must select only that category");
+
+        assertEquals(List.of("Fancy Roaster Beans"),
+                titlesOf(search(null, null, StoreCategory.GROCERY)),
+                "and it must be the category asked for, not a fixed one");
+
+        assertEquals(List.of("Cheap Coffee"),
+                titlesOf(search("%roaster%", 100.0, StoreCategory.RESTAURANT)),
+                "filters must combine, not replace one another");
+
+        assertEquals(2, search(null, null, null).size(),
+                "omitting every filter must return the whole active feed, not nothing");
+
+        // A deal that has been switched off must not come back, which is also what stops
+        // an inactive deal being visible through search.
+        jdbc.update("update promotions set is_active = false where title = ?", "Fancy Roaster Beans");
+        entityManager.clear();
+        assertEquals(List.of("Cheap Coffee"), titlesOf(search(null, null, null)),
+                "only active deals are searchable");
+    }
+
+    /**
+     * The patterns reaching this query are wrapped in {@code %} and any {@code ~} in the
+     * term doubled, so a shopper searching for "%" gets a literal match rather than the
+     * wildcard the LIKE would otherwise read it as. Only "Cheap Coffee" has a percent
+     * sign anywhere in it, so it is the only deal that can legitimately come back.
+     */
+    @Test
+    void aWildcardCharacterInTheSearchTermIsMatchedLiterally() {
+        seedDealsForSearch();
+
+        assertEquals(2, search("%%%", null, null).size(),
+                "an unescaped term really would match everything, which is what the "
+                        + "service's doubling of ~ is there to prevent");
+
+        assertEquals(List.of("Cheap Coffee"), titlesOf(search("%~%%", null, null)),
+                "an escaped term matches only the text that really contains a %");
+    }
+
+    @Test
+    void theSchedulerReadsOnlyOptedInDealsAndNoEntities() {
+        seedDealsForScheduling();
+        entityManager.clear();
+
+        Statistics statistics = statistics();
+        statistics.clear();
+
+        List<Object[]> schedule = promotionRepository.findScheduleState();
+
+        assertEquals(List.of("scheduled-expired", "scheduled-open"),
+                schedule.stream().map(row -> (String) row[0]).sorted().toList(),
+                "the opted-in deals come back, and nothing else");
+
+        assertEquals(0, statistics.getEntityLoadCount(),
+                "this must be a scalar projection: managed entities here would be "
+                        + "dirty-checked every minute, which is what the old findAll() did");
+    }
+
+    private List<Promotion> search(String term, Double maxPrice, StoreCategory category) {
+        return promotionRepository.searchActive(term, maxPrice, category);
+    }
+
+    private List<String> titlesOf(List<Promotion> promotions) {
+        return promotions.stream().map(Promotion::getTitle).toList();
+    }
+
+    private void seedDealsForOrdering() {
+        // Two owners and stores, so the deal feed still exercises the store + owner
+        // join rather than being served two rows from one cached store.
+        seedTwoDealsWithDistinctStoresAndOwners();
+        jdbc.update("update promotions set created_at = ?, featured = ?, promoted = ? where promotionid = ?",
+                Timestamp.valueOf("2024-01-01 10:00:00"), false, false, "deal-1");
+        jdbc.update("update promotions set created_at = ?, featured = ?, promoted = ? where promotionid = ?",
+                Timestamp.valueOf("2024-01-02 10:00:00"), false, false, "deal-2");
+
+        // Untagged is the NEWEST of the untagged three, so it only leads that group if
+        // the null promoted/featured is read as false rather than sorting to the front.
+        insertDeal("Promoted", "store-1", "2024-01-03 10:00:00", true, true);
+        insertDeal("Featured", "store-2", "2024-01-04 10:00:00", true, false);
+        insertDeal("Newest Untagged", "store-1", "2024-01-05 10:00:00", null, null);
+    }
+
+    private void insertDeal(String title, String storeId, String createdAt, Boolean featured, Boolean promoted) {
+        jdbc.update("""
+                insert into promotions (promotionid, title, store_id, is_active, created_at, featured, promoted)
+                values (?, ?, ?, ?, ?, ?, ?)
+                """,
+                "deal-" + title.toLowerCase(), title, storeId, Boolean.TRUE,
+                Timestamp.valueOf(createdAt), featured, promoted);
+    }
+
+    private void seedDealsForSearch() {
+        seedTwoDealsWithDistinctStoresAndOwners();
+        jdbc.update("update stores set store_name = ? where store_id = ?", "Fancy Roaster", "store-1");
+        // deal-1 sits in a RESTAURANT, deal-2 in a GROCERY, so a category filter has to
+        // actually separate them. Both being RESTAURANT would pass while the filter did
+        // nothing at all.
+        jdbc.update("update stores set category = ? where store_id = ?", "GROCERY", "store-2");
+        jdbc.update("update promotions set title = ?, description = ?, discount_price = ? where promotionid = ?",
+                "Cheap Coffee", "A 50% off bundle", 50.0, "deal-1");
+        jdbc.update("update promotions set title = ?, description = ?, discount_price = ? where promotionid = ?",
+                "Fancy Roaster Beans", "Single origin", 500.0, "deal-2");
+    }
+
+    private void seedDealsForScheduling() {
+        seedTwoDealsWithDistinctStoresAndOwners();
+        // Both are opted in, so the query must return two rows and no entity.
+        jdbc.update("update promotions set schedule_enabled = true, start_date = ?, end_date = ? where promotionid = ?",
+                Timestamp.valueOf("2024-01-01 00:00:00"), Timestamp.valueOf("2024-02-01 00:00:00"), "deal-1");
+        jdbc.update("update promotions set schedule_enabled = true, start_date = ?, end_date = ? where promotionid = ?",
+                Timestamp.valueOf("2024-01-01 00:00:00"), Timestamp.valueOf("2024-02-01 00:00:00"), "deal-2");
+        jdbc.update("update promotions set promotionid = 'scheduled-open' where promotionid = 'deal-1'");
+        jdbc.update("update promotions set promotionid = 'scheduled-expired' where promotionid = 'deal-2'");
     }
 }

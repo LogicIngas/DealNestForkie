@@ -93,21 +93,28 @@ export default function StorePage({ user }) {
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
 
-    promotionService.getActive()
+    // This store's deals, not the whole site's. The page used to download every active
+    // deal in the system and then filter client-side for this one store's.
+    promotionService.getByStore(storeId)
       .then(data => {
-        const storePromos = data.filter(p => p.store?.storeId === storeId);
+        const storePromos = Array.isArray(data) ? data : [];
         setPromotions(storePromos);
-        storePromos.forEach(promo => {
-          priceHistoryService.getByPromotion(promo.promotionID)
-            .then(points => setPriceHistories(prev => ({ ...prev, [promo.promotionID]: points })))
-            .catch((err) => {
-              // 402 → price history is Plus-gated; mark it so the card shows a
-              // lock hint instead of silently swallowing the error.
-              if (err.message === 'UPGRADE_REQUIRED') {
-                setPriceHistories(prev => ({ ...prev, [promo.promotionID]: 'gated' }));
-              }
-            });
-        });
+        if (storePromos.length === 0) return;
+
+        // One request for all of them, not one request per deal. The map is keyed by
+        // promotionID, which is the shape this state already had, so a deal with no
+        // recorded prices is simply absent from it.
+        priceHistoryService.getByStore(storeId)
+          .then(setPriceHistories)
+          .catch((err) => {
+            // 402 → price history is Plus-gated; mark it so the card shows a
+            // lock hint instead of silently swallowing the error.
+            if (err.message === 'UPGRADE_REQUIRED') {
+              setPriceHistories(Object.fromEntries(
+                storePromos.map(promo => [promo.promotionID, 'gated'])
+              ));
+            }
+          });
       })
       .catch(() => {});
 

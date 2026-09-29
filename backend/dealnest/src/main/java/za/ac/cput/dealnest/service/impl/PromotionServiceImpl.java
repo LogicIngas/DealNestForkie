@@ -17,9 +17,7 @@ import za.ac.cput.dealnest.service.IPriceTrackingService;
 import za.ac.cput.dealnest.service.IPromotionService;
 import za.ac.cput.dealnest.service.IStoreService;
 
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class PromotionServiceImpl implements IPromotionService {
@@ -162,7 +160,7 @@ public class PromotionServiceImpl implements IPromotionService {
 
     @Override
     public Promotion read(String promotionId) {
-        return repository.findById(promotionId).orElse(null);
+        return repository.findDetailedById(promotionId).orElse(null);
     }
 
     @Override
@@ -192,39 +190,21 @@ public class PromotionServiceImpl implements IPromotionService {
 
     @Override
     public List<Promotion> findByIsActiveTrue() {
-        // Promoted and featured deals surface first, then everything else.
-        return repository.findByIsActiveTrue().stream()
-                .sorted(Comparator
-                        .comparing((Promotion p) -> !Boolean.TRUE.equals(p.getPromoted()))
-                        .thenComparing(p -> !Boolean.TRUE.equals(p.getFeatured()))
-                        .thenComparing(p -> p.getCreatedAt() == null ? java.time.LocalDateTime.MIN : p.getCreatedAt(), Comparator.reverseOrder()))
-                .collect(Collectors.toList());
-    }
-
-    // Product-level search used by the "find a product within budget" flow.
-    // Free for everyone: a less-strict keyword match over title / description /
-    // store name, with an optional top budget (discountPrice) and category filter.
-    private boolean matchesKeyword(Promotion promotion, String term) {
-        if (term.isEmpty()) return true;
-        if (containsIgnoreCase(promotion.getTitle(), term)) return true;
-        if (containsIgnoreCase(promotion.getDescription(), term)) return true;
-        return promotion.getStore() != null
-                && containsIgnoreCase(promotion.getStore().getStoreName(), term);
-    }
-
-    private boolean containsIgnoreCase(String value, String term) {
-        return value != null && value.toLowerCase().contains(term);
+        // Promoted and featured deals surface first, then everything else. The ordering
+        // lives in the query so Postgres returns the rows already sorted; doing it here
+        // meant fetching and materialising every active deal before the first one could
+        // be sent back.
+        return repository.findByIsActiveTrue();
     }
 
     @Override
     public List<Promotion> searchActive(String keyword, Double maxPrice, StoreCategory category) {
-        String term = keyword == null ? "" : keyword.trim().toLowerCase();
-        return findByIsActiveTrue().stream()
-                .filter(p -> matchesKeyword(p, term))
-                .filter(p -> maxPrice == null
-                        || (p.getDiscountPrice() != null && p.getDiscountPrice() <= maxPrice))
-                .filter(p -> category == null || (p.getStore() != null && category.equals(p.getStore().getCategory())))
-                .collect(Collectors.toList());
+        // The term is passed down as a LIKE pattern. Wrapping it in % keeps the old
+        // partial match, and the ~ doubling is what makes a literal % or _ in a search
+        // term match itself instead of acting as a wildcard.
+        String term = keyword == null || keyword.isBlank() ? null
+                : "%" + keyword.trim().toLowerCase().replace("~", "~~") + "%";
+        return repository.searchActive(term, maxPrice, category);
     }
 
     @Override

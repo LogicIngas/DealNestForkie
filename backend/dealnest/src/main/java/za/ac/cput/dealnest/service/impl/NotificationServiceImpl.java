@@ -23,7 +23,7 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     public Notification read(String notificationId) {
-        return repository.findById(notificationId).orElse(null);
+        return repository.findDetailedById(notificationId).orElse(null);
     }
 
     @Override

@@ -78,6 +78,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/promotion/read/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/promotion/findByStoreId/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/priceHistory/findByPromotionId/**").permitAll()
+                // Whole-store price history. Reachable without a token so an anonymous
+                // visitor gets the same 402 upgrade prompt a signed-out shopper sees,
+                // exactly as the per-deal endpoint above behaves.
+                .requestMatchers(HttpMethod.GET, "/api/priceHistory/findByStore/**").permitAll()
 
                 // Stores: anyone can browse stores
                 .requestMatchers(HttpMethod.GET, "/api/stores").permitAll()
