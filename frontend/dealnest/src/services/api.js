@@ -310,18 +310,30 @@ export const promotionService = {
     return handleResponse(response);
   },
 
-  getActive: async () => {
-    const response = await fetch(`${API_BASE_URL}/promotion/findByIsActiveTrue`);
+  // The active deal feed, capped at `limit` rows. Omit it for the server default (the
+  // six the home page draws); pass 0 only when every active deal is genuinely needed,
+  // which is Explore working out which stores have a live deal. Sending no cap when a
+  // fixed number of cards is all that gets drawn is what used to make the home page
+  // cost the size of the whole catalogue.
+  getActive: async (limit) => {
+    const query = Number.isFinite(limit) ? `?limit=${limit}` : '';
+    const response = await fetch(`${API_BASE_URL}/promotion/findByIsActiveTrue${query}`);
     return handleResponse(response);
   },
 
   // Product-level search — free keyword + optional budget (max discount price)
-  // and category filter, e.g. search('air fryer', 1500, 'ELECTRONICS').
-  search: async ({ keyword, maxPrice, category } = {}) => {
+  // and category filter, e.g. search({ keyword: 'air fryer', maxPrice: 1500 }).
+  //
+  // Paged: resolves to { content, page, size, totalElements, last }. The deals page
+  // renders one page at a time and asks for the next on demand, rather than pulling
+  // every match before drawing the first card.
+  search: async ({ keyword, maxPrice, category, page = 0, size = 24 } = {}) => {
     const params = new URLSearchParams();
     if (keyword) params.set('q', keyword);
     if (maxPrice) params.set('maxPrice', maxPrice);
     if (category) params.set('category', category);
+    params.set('page', page);
+    params.set('size', size);
     const response = await fetch(`${API_BASE_URL}/promotion/search?${params.toString()}`);
     return handleResponse(response);
   },

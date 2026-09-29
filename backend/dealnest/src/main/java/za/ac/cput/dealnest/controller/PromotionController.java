@@ -1,6 +1,7 @@
 package za.ac.cput.dealnest.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -10,6 +11,7 @@ import za.ac.cput.dealnest.domain.Promotion;
 import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.domain.StoreCategory;
 import za.ac.cput.dealnest.domain.StorePlanTier;
+import za.ac.cput.dealnest.dto.PageResponse;
 import za.ac.cput.dealnest.security.SecurityUtil;
 import za.ac.cput.dealnest.service.IPromotionService;
 import za.ac.cput.dealnest.service.IStoreService;
@@ -23,6 +25,16 @@ import java.util.Map;
 @RequestMapping("/api/promotion")
 @CrossOrigin(origins = "${cors.allowed.origin:http://localhost:5173}")
 public class PromotionController {
+
+    /**
+     * Ceiling on how many deals one request may carry, whether it asks via the feed's
+     * {@code limit} or the search's {@code size}.
+     *
+     * <p>Without it, {@code ?size=100000} puts the paging back to what it replaced.
+     * Package-private so the controller test asserts against the same number rather than
+     * repeating it.
+     */
+    static final int MAX_PAGE_SIZE = 100;
 
     private final IPromotionService promotionService;
     private final IStoreService storeService;
@@ -113,16 +125,40 @@ public class PromotionController {
         return promotionService.findByStoreId(storeId);
     }
 
+    /**
+     * The public deal feed, newest-first with promoted and featured deals on top.
+     *
+     * <p>{@code limit} caps how many come back, and defaults to the six the home page
+     * draws. It used to return the whole active feed and let the browser keep the first
+     * six, so the cost of the page scaled with the size of the catalogue rather than
+     * with what it shows. Zero or less asks for all of them, which only Explore needs.
+     *
+     * <p>A positive limit is clamped by {@link #MAX_PAGE_SIZE}, for the same reason
+     * {@code /search} clamps its size: otherwise {@code ?limit=2000000000} is the
+     * "send me everything" request this parameter exists to stop.
+     */
     @GetMapping("/findByIsActiveTrue")
-    public List<Promotion> findByIsActiveTrue() {
-        return promotionService.findByIsActiveTrue();
+    public List<Promotion> findByIsActiveTrue(@RequestParam(defaultValue = "6") int limit) {
+        return promotionService.findByIsActiveTrue(
+                limit <= 0 ? 0 : Math.clamp(limit, 1, MAX_PAGE_SIZE));
     }
 
+    /**
+     * Deals matching the filters, one page at a time.
+     *
+     * <p>{@code size} is capped rather than trusted, so a caller asking for every deal
+     * in one response does not get it. The response carries {@code last} so the client
+     * knows whether to offer a next page without having to reason about how full this
+     * one was.
+     */
     @GetMapping("/search")
-    public List<Promotion> search(@RequestParam(required = false) String q,
-                                  @RequestParam(required = false) Double maxPrice,
-                                  @RequestParam(required = false) StoreCategory category) {
-        return promotionService.searchActive(q, maxPrice, category);
+    public PageResponse<Promotion> search(@RequestParam(required = false) String q,
+                                          @RequestParam(required = false) Double maxPrice,
+                                          @RequestParam(required = false) StoreCategory category,
+                                          @RequestParam(defaultValue = "0") int page,
+                                          @RequestParam(defaultValue = "24") int size) {
+        return promotionService.searchActive(q, maxPrice, category,
+                PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE)));
     }
 
     @GetMapping("/getAll")

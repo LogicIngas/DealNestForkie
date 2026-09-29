@@ -1,5 +1,7 @@
 package za.ac.cput.dealnest.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -25,28 +27,58 @@ public interface IPromotionRepository extends JpaRepository<Promotion, String> {
      * false reproduces the old "only TRUE counts" rule. {@code nulls last} does the same
      * for deals that predate the created_at column.
      *
+     * <p>The trailing {@code promotionID} is a tiebreaker, and it is load-bearing once
+     * the feed is paged. The three columns above are not unique: two deals can share a
+     * tag and a timestamp, and every deal predating created_at shares a null. A sort
+     * that is not a total order leaves tied rows in an order the database is free to
+     * change between statements, and OFFSET then reads them twice or not at all — the
+     * same row appears on two pages while another is never shown. Ordering by the key as
+     * well makes the sequence stable, so page two continues exactly where page one
+     * stopped.
+     *
      * <p>Declared as a constant rather than a method because @Query takes a compile-time
      * constant, which a method call is not.
      */
     String FEED_ORDER = " order by coalesce(p.promoted, false) desc,"
             + " coalesce(p.featured, false) desc,"
-            + " p.createdAt desc nulls last";
+            + " p.createdAt desc nulls last,"
+            + " p.promotionID asc";
 
     /**
-     * These list queries fetch the store and its owner in the same statement.
+     * The leading rows of the feed, stopped after {@code pageable}'s rows.
      *
-     * <p>Promotion lists are returned as entities and serialised straight to JSON, so
-     * Jackson walks promotion.store.storeOwner while writing the response. With both
+     * <p>These list queries fetch the store and its owner in the same statement.
+     * Promotion lists are returned as entities and serialised straight to JSON, so
+     * Jackson walks promotion.store.user while writing the response. With both
      * associations lazy that is one extra query per row, which is what turned a
-     * 40-deal feed into a few hundred round trips to Postgres.
+     * 40-deal feed into a few hundred round trips to Postgres. Both associations are
+     * to-one, so the join cannot duplicate rows and needs no distinct. Fetching the
+     * owner as well keeps the response shape unchanged for callers that read it (the
+     * admin dashboard resolves store ownership from it).
      *
-     * <p>Both associations are to-one, so the join cannot duplicate rows and needs no
-     * distinct. Fetching the owner as well keeps the response shape unchanged for
-     * callers that read it (the admin dashboard resolves store ownership from it).
+     * <p>Home page's Hot Deals draws six cards. It used to ask for the whole active
+     * feed and throw the rest away in the browser, so every visitor paid to join,
+     * materialise and serialise every active deal — store and owner included — to see
+     * six of them. The walk now stops at the limit, so it reads the leading rows of
+     * idx_promotions_active_feed and nothing more.
+     *
+     * <p>The order is unchanged, so "the first six" is the same six the browser was
+     * previously keeping. Pagination was the only thing missing; the rows were always
+     * arriving in the right order.
      */
     @Query("select p from Promotion p join fetch p.store s join fetch s.user where p.isActive = true"
             + FEED_ORDER)
-    List<Promotion> findByIsActiveTrue();
+    List<Promotion> findByIsActiveTrue(Pageable pageable);
+
+    /**
+     * The whole active feed, unpaged, for callers that genuinely need every row: Explore
+     * builds the set of stores holding a live deal from it, and no page of deals can
+     * answer that. Anything drawing a fixed number of cards wants
+     * {@link #findByIsActiveTrue(Pageable)}.
+     */
+    @Query("select p from Promotion p join fetch p.store s join fetch s.user where p.isActive = true"
+            + FEED_ORDER)
+    List<Promotion> findAllActive();
 
     @Query("select p from Promotion p join fetch p.store s join fetch s.user where s.storeId = :storeId"
             + FEED_ORDER)
@@ -73,8 +105,19 @@ public interface IPromotionRepository extends JpaRepository<Promotion, String> {
      * term while stopping a term that itself contains {@code %} or {@code _} from being
      * read as a wildcard. The service wraps the caller's term in {@code %} and doubles
      * any {@code ~} it contains, per LIKE's escaping rules.
+     *
+     * <p>Paged. The deals page used to receive every matching deal in one response and
+     * render all of them, so a first visit with no filters shipped the entire active
+     * catalogue before anything appeared. With a {@link Pageable} the database returns
+     * one screenful and stops.
+     *
+     * <p>The count is declared rather than derived. Spring Data would otherwise build it
+     * by editing the select clause of a query that fetches two to-one associations, and
+     * it would carry both joins into a statement that only has to count rows. Counting
+     * needs the store for the category and store-name filters, so that join stays; the
+     * owner join does not, and dropping it is what makes the count cheap.
      */
-    @Query("select p from Promotion p join fetch p.store s join fetch s.user "
+    @Query(value = "select p from Promotion p join fetch p.store s join fetch s.user "
             + "where p.isActive = true "
             + "and (:keyword is null "
             + "     or lower(p.title) like :keyword escape '~' "
@@ -82,10 +125,19 @@ public interface IPromotionRepository extends JpaRepository<Promotion, String> {
             + "     or lower(s.storeName) like :keyword escape '~') "
             + "and (:maxPrice is null or p.discountPrice <= :maxPrice) "
             + "and (:category is null or s.category = :category) "
-            + FEED_ORDER)
-    List<Promotion> searchActive(@Param("keyword") String keyword,
+            + FEED_ORDER,
+            countQuery = "select count(p) from Promotion p join p.store s "
+                    + "where p.isActive = true "
+                    + "and (:keyword is null "
+                    + "     or lower(p.title) like :keyword escape '~' "
+                    + "     or lower(p.description) like :keyword escape '~' "
+                    + "     or lower(s.storeName) like :keyword escape '~') "
+                    + "and (:maxPrice is null or p.discountPrice <= :maxPrice) "
+                    + "and (:category is null or s.category = :category)")
+    Page<Promotion> searchActive(@Param("keyword") String keyword,
                                  @Param("maxPrice") Double maxPrice,
-                                 @Param("category") StoreCategory category);
+                                 @Param("category") StoreCategory category,
+                                 Pageable pageable);
 
     /**
      * The single promotion behind {@code /read/{id}}, with the store and owner attached.

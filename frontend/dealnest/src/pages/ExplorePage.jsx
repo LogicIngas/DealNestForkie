@@ -60,7 +60,10 @@ export default function ExplorePage({ user }) {
       })
       .catch(() => setLoading(false));
 
-    promotionService.getActive()
+    // 0, not a limit: this list is used to work out which stores currently have a live
+    // deal, and that question cannot be answered from the first page of them. It is the
+    // one caller that really does want the whole feed.
+    promotionService.getActive(0)
       .then(setPromotions)
       .catch(() => {});
 

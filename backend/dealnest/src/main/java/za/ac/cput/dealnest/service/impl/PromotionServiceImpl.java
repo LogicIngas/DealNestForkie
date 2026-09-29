@@ -1,5 +1,7 @@
 package za.ac.cput.dealnest.service.impl;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import za.ac.cput.dealnest.domain.DealAlert;
 import za.ac.cput.dealnest.domain.FavoriteStore;
@@ -8,6 +10,7 @@ import za.ac.cput.dealnest.domain.Promotion;
 import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.domain.StoreCategory;
 import za.ac.cput.dealnest.domain.StorePlanTier;
+import za.ac.cput.dealnest.dto.PageResponse;
 import za.ac.cput.dealnest.factory.NotificationFactory;
 import za.ac.cput.dealnest.repository.IPromotionRepository;
 import za.ac.cput.dealnest.service.IDealAlertService;
@@ -189,22 +192,31 @@ public class PromotionServiceImpl implements IPromotionService {
     }
 
     @Override
-    public List<Promotion> findByIsActiveTrue() {
+    public List<Promotion> findByIsActiveTrue(int limit) {
         // Promoted and featured deals surface first, then everything else. The ordering
         // lives in the query so Postgres returns the rows already sorted; doing it here
         // meant fetching and materialising every active deal before the first one could
         // be sent back.
-        return repository.findByIsActiveTrue();
+        //
+        // A non-positive limit means the caller genuinely wants all of them — Explore
+        // needs the whole feed to work out which stores have a live deal. Everyone else
+        // is drawing a fixed number of cards, and the limit is what stops the database
+        // building a response they will throw away.
+        if (limit <= 0) {
+            return repository.findAllActive();
+        }
+        return repository.findByIsActiveTrue(PageRequest.ofSize(limit));
     }
 
     @Override
-    public List<Promotion> searchActive(String keyword, Double maxPrice, StoreCategory category) {
+    public PageResponse<Promotion> searchActive(String keyword, Double maxPrice,
+                                                StoreCategory category, Pageable pageable) {
         // The term is passed down as a LIKE pattern. Wrapping it in % keeps the old
         // partial match, and the ~ doubling is what makes a literal % or _ in a search
         // term match itself instead of acting as a wildcard.
         String term = keyword == null || keyword.isBlank() ? null
                 : "%" + keyword.trim().toLowerCase().replace("~", "~~") + "%";
-        return repository.searchActive(term, maxPrice, category);
+        return PageResponse.of(repository.searchActive(term, maxPrice, category, pageable));
     }
 
     @Override

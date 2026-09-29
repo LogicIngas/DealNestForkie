@@ -8,6 +8,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import za.ac.cput.dealnest.domain.Promotion;
 import za.ac.cput.dealnest.domain.StoreCategory;
@@ -15,8 +17,10 @@ import za.ac.cput.dealnest.domain.StoreCategory;
 import javax.sql.DataSource;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -73,7 +77,9 @@ class IPromotionRepositoryQueryTest {
         Statistics statistics = statistics();
         statistics.clear();
 
-        List<Promotion> deals = promotionRepository.findByIsActiveTrue();
+        // The page the home page asks for: capped, and the cap is large enough here that
+        // both seeded deals are inside it.
+        List<Promotion> deals = promotionRepository.findByIsActiveTrue(PageRequest.ofSize(6));
         assertEquals(2, deals.size(), "both seeded deals are active and should come back");
 
         // Exactly what Jackson does while writing the response body.
@@ -87,6 +93,94 @@ class IPromotionRepositoryQueryTest {
         assertEquals(0, statistics.getEntityFetchCount(),
                 "the store and its owner must already be loaded: any fetch here means Jackson "
                         + "triggered a query per deal while serialising");
+    }
+
+    /**
+     * The limit is the whole point of the change: the home page draws six cards, so a
+     * catalogue of fifty deals must not be read, joined and serialised to produce them.
+     *
+     * <p>This is asserted on the rows that come back rather than on the SQL, because
+     * what matters is that Postgres stopped early. Counting queries would not catch a
+     * limit that was accepted and then ignored.
+     */
+    @Test
+    void theFeedStopsAtTheLimitItWasGiven() {
+        seedDealsForOrdering();
+        seedExtraDeals(20);
+
+        assertEquals(6, feedPage(6).size(),
+                "Hot Deals draws six, so six rows is all the database should produce");
+        assertEquals(25, promotionRepository.findAllActive().size(),
+                "the unpaged feed still returns everything, for Explore");
+    }
+
+    /**
+     * Capping the feed must not reorder it — "the first six" has to be the same six the
+     * browser used to keep after slicing the full list it was sent.
+     */
+    @Test
+    void theLimitedFeedIsTheLeadingRowsOfTheWholeFeed() {
+        seedDealsForOrdering();
+
+        List<String> whole = promotionRepository.findAllActive().stream()
+                .map(Promotion::getTitle).toList();
+        List<String> firstTwo = promotionRepository.findByIsActiveTrue(PageRequest.ofSize(2)).stream()
+                .map(Promotion::getTitle).toList();
+
+        assertEquals(whole.subList(0, 2), firstTwo,
+                "a limited feed has to be a prefix of the full one, in the same order");
+    }
+
+    /**
+     * The deals page used to render every match in one response. Now it walks pages, so
+     * the floor and ceiling of that walk both need pinning: no page is empty before the
+     * end, pages do not overlap or skip, and the last one says so.
+     */
+    @Test
+    void pagingCoversEveryMatchExactlyOnce() {
+        seedDealsForSearch();
+
+        Page<Promotion> first = searchPage(null, null, null, 0, 1);
+        Page<Promotion> second = searchPage(null, null, null, 1, 1);
+
+        assertEquals(2, first.getTotalElements(),
+                "both seeded deals are active, so both are searchable");
+        assertEquals(1, first.getContent().size(), "one row was asked for");
+        assertEquals(1, second.getContent().size(), "and the next page has the other");
+        assertFalse(first.isLast(), "there is a second page, so the first is not the last");
+        assertTrue(second.isLast(), "the second of two pages is where load-more must stop");
+
+        assertEquals(
+                promotionRepository.findAllActive().stream().map(Promotion::getPromotionID).toList()
+                        .stream().sorted().toList(),
+                Stream.concat(first.getContent().stream(), second.getContent().stream())
+                        .map(Promotion::getPromotionID).sorted().toList(),
+                "paging must partition the result: the same rows, none repeated, none lost");
+    }
+
+    /**
+     * The count behind {@code last} has to respect the filters, or the button offers a
+     * page that turns out to be empty.
+     */
+    @Test
+    void theTotalCountsOnlyMatchingDeals() {
+        seedDealsForSearch();
+
+        assertEquals(1, searchPage("%coffee%", null, null, 0, 10).getTotalElements(),
+                "the count must apply the keyword, not count the whole active feed");
+        assertEquals(1, searchPage(null, 100.0, null, 0, 10).getTotalElements(),
+                "the count must apply the budget filter too");
+        assertEquals(2, searchPage(null, null, null, 0, 10).getTotalElements(),
+                "with no filters it counts every active deal");
+    }
+
+    private List<Promotion> feedPage(int size) {
+        return promotionRepository.findByIsActiveTrue(PageRequest.ofSize(size));
+    }
+
+    private Page<Promotion> searchPage(String term, Double maxPrice, StoreCategory category,
+                                       int page, int size) {
+        return promotionRepository.searchActive(term, maxPrice, category, PageRequest.of(page, size));
     }
 
     @Test
@@ -177,7 +271,7 @@ class IPromotionRepositoryQueryTest {
         seedDealsForOrdering();
 
         assertEquals(List.of("Promoted", "Featured", "Newest Untagged", "Deal 2", "Deal 1"),
-                titlesOf(promotionRepository.findByIsActiveTrue()),
+                titlesOf(feedPage(50)),
                 "promoted first, then featured, then newest — and an untagged deal is "
                         + "ordered by date among the untagged, not pushed to the front by "
                         + "a null promoted/featured sorting ahead of every real value");
@@ -269,7 +363,10 @@ class IPromotionRepositoryQueryTest {
     }
 
     private List<Promotion> search(String term, Double maxPrice, StoreCategory category) {
-        return promotionRepository.searchActive(term, maxPrice, category);
+        // One page far larger than anything these tests seed, so the assertions stay
+        // about which deals match rather than about paging. Paging has its own tests.
+        return promotionRepository.searchActive(term, maxPrice, category,
+                PageRequest.of(0, 100)).getContent();
     }
 
     private List<String> titlesOf(List<Promotion> promotions) {
@@ -299,6 +396,17 @@ class IPromotionRepositoryQueryTest {
                 """,
                 "deal-" + title.toLowerCase(), title, storeId, Boolean.TRUE,
                 Timestamp.valueOf(createdAt), featured, promoted);
+    }
+
+    /**
+     * Filler deals for the limit test, so the feed holds comfortably more rows than the
+     * page being asked for. Untagged and all on one store, because nothing here is about
+     * ordering or ownership — it is about how many rows the database produces.
+     */
+    private void seedExtraDeals(int count) {
+        for (int i = 1; i <= count; i++) {
+            insertDeal("Extra" + i, "store-1", String.format("2024-02-%02d 10:00:00", i), false, false);
+        }
     }
 
     private void seedDealsForSearch() {

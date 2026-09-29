@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import ClaimSuccessModal from '../components/ClaimSuccessModal';
 import { promotionService, savedPromotionService, redemptionService, dealAlertService, searchHistoryService } from '../services/api';
@@ -7,6 +7,10 @@ import {
 } from 'lucide-react';
 import { CATEGORIES, CATEGORY_ICON, CATEGORY_BG } from '../constants/categories';
 import CompareDealsModal from '../components/CompareDealsModal';
+
+// One screenful and a bit. The server caps this at 100 regardless, so raising it here
+// cannot turn the request back into "send me everything".
+const PAGE_SIZE = 24;
 
 function daysLeft(endDate) {
   if (!endDate) return null;
@@ -32,6 +36,19 @@ export default function DealsPage({ user }) {
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasSearched, setHasSearched] = useState(false);
+
+  // Paging. `totalElements` is the server's count of everything that matches, so the
+  // header can say "24 of 310" instead of presenting one page as the whole result.
+  const [page, setPage] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Incremented on every fresh search. A "load more" that was in flight when the
+  // filters changed would otherwise append rows belonging to the previous search onto
+  // the new results.
+  const searchGeneration = useRef(0);
+
   const [savedPromotionIds, setSavedPromotionIds] = useState(new Set());
   const [claimingId, setClaimingId] = useState(null);
   const [claimedCode, setClaimedCode] = useState(null);
@@ -57,18 +74,62 @@ export default function DealsPage({ user }) {
   };
 
   const runSearch = (filters) => {
+    const generation = ++searchGeneration.current;
     setLoading(true);
     promotionService.search({
       keyword: filters.keyword,
       maxPrice: filters.budget ? parseFloat(filters.budget) : null,
       category: filters.category || null,
+      page: 0,
+      size: PAGE_SIZE,
     })
-      .then(data => {
-        setPromotions(data);
+      .then(result => {
+        if (generation !== searchGeneration.current) return;
+        setPromotions(result.content);
+        setPage(0);
+        setTotalElements(result.totalElements);
+        setHasMore(!result.last);
         setHasSearched(true);
       })
-      .catch(() => setPromotions([]))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (generation !== searchGeneration.current) return;
+        setPromotions([]);
+        setTotalElements(0);
+        setHasMore(false);
+      })
+      .finally(() => {
+        if (generation === searchGeneration.current) setLoading(false);
+      });
+  };
+
+  const loadMore = () => {
+    if (loadingMore || !hasMore) return;
+    const generation = searchGeneration.current;
+    const next = page + 1;
+    setLoadingMore(true);
+    promotionService.search({
+      keyword: applied.keyword,
+      maxPrice: applied.budget ? parseFloat(applied.budget) : null,
+      category: applied.category || null,
+      page: next,
+      size: PAGE_SIZE,
+    })
+      .then(result => {
+        if (generation !== searchGeneration.current) return;
+        // Appended, so what is already on screen never flickers or reorders.
+        setPromotions(prev => [...prev, ...result.content]);
+        setPage(next);
+        setTotalElements(result.totalElements);
+        setHasMore(!result.last);
+      })
+      .catch(() => {})
+      .finally(() => {
+        // Not guarded by the generation check the way the append above is: whatever
+        // happened, this request is no longer in flight, and a new search has already
+        // reset the page. Leaving it true would pin the button in its disabled state
+        // for the whole of the new results.
+        setLoadingMore(false);
+      });
   };
 
   useEffect(() => {
@@ -324,7 +385,9 @@ export default function DealsPage({ user }) {
         <>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs text-gray-400">
-              {promotions.length} matching deal{promotions.length === 1 ? '' : 's'}
+              {totalElements > promotions.length
+                ? `Showing ${promotions.length} of ${totalElements} matching deals`
+                : `${totalElements} matching deal${totalElements === 1 ? '' : 's'}`}
             </p>
             <button
               type="button"
@@ -407,6 +470,21 @@ export default function DealsPage({ user }) {
             );
           })}
           </div>
+
+          {hasMore && (
+            <div className="flex justify-center mt-6">
+              <button
+                type="button"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="px-5 py-2.5 rounded-full border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:border-teal-300 hover:text-teal-600 transition disabled:opacity-50"
+              >
+                {loadingMore
+                  ? 'Loading more...'
+                  : `Load more deals (${totalElements - promotions.length} left)`}
+              </button>
+            </div>
+          )}
         </>
       )}
 

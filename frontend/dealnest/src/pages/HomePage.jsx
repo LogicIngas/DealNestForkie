@@ -54,9 +54,14 @@ export default function HomePage({ user }) {
     // The feed already arrives ordered — promoted, then featured, then newest — so this
     // just takes the top few. It used to re-sort by `featured` here, which both undid
     // the server's ordering and made the home page disagree with every other list.
-    promotionService.getActive()
+    //
+    // Six is requested rather than trimmed afterwards. Slicing here meant the server
+    // sent the whole active feed — every deal, store and owner included — for the
+    // browser to keep six rows and discard the rest, so this page got slower with every
+    // deal added to the catalogue despite only ever showing six of them.
+    promotionService.getActive(6)
       .then(data => {
-        setPromotions((data || []).slice(0, 6));
+        setPromotions(data || []);
         setLoadingPromotions(false);
       })
       .catch(() => setLoadingPromotions(false));
