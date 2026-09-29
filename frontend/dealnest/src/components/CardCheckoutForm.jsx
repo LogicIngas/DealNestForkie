@@ -147,6 +147,9 @@ export default function CardCheckoutForm({
   }, [approved]);
 
   const digits = useMemo(() => digitsOnly(cardNumber), [cardNumber]);
+  // The expiry state holds the formatted "MM/YY", so its length is five with the
+  // slash in it. Completeness has to be measured on the digits, not on that string.
+  const expiryDigits = useMemo(() => digitsOnly(expiry), [expiry]);
   const known = useMemo(() => detectBrand(digits), [digits]);
   const cvvLength = known?.cvvLength ?? 3;
 
@@ -173,15 +176,15 @@ export default function CardCheckoutForm({
     if (cvv && cvv.length !== cvvLength) {
       errors.cvv = `${known?.display || 'This card'} uses ${cvvLength} digits.`;
     }
-    if (expiry.length === 4) {
-      const month = Number(expiry.slice(0, 2));
+    if (expiryDigits.length === 4) {
+      const month = Number(expiryDigits.slice(0, 2));
       if (month < 1 || month > 12) errors.expiry = 'The month must be 01 to 12.';
     }
     if (holderName && holderName.trim().length < 2) {
       errors.holderName = 'Enter the name printed on the card.';
     }
     return errors;
-  }, [digits, known, cvv, cvvLength, expiry, holderName]);
+  }, [digits, known, cvv, cvvLength, expiryDigits, holderName]);
 
   // The server is the authority, so its verdict wins over the guess above.
   const serverErrors = useMemo(() => {
@@ -197,7 +200,7 @@ export default function CardCheckoutForm({
   }, [result]);
 
   const errors = { ...localErrors, ...serverErrors };
-  const ready = digits.length > 0 && expiry.length === 4 && cvv.length === cvvLength && holderName.trim().length >= 2;
+  const ready = digits.length > 0 && expiryDigits.length === 4 && cvv.length === cvvLength && holderName.trim().length >= 2;
   const amount = `R${((amountCents ?? 0) / 100).toFixed(2)}`;
   const checks = result?.checks || [];
   const passed = checks.filter((check) => check.passed).length;
