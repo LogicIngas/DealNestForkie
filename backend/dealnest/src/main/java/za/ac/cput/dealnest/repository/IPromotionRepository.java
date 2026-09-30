@@ -171,4 +171,57 @@ public interface IPromotionRepository extends JpaRepository<Promotion, String> {
     @Query("select p.promotionID, p.startDate, p.endDate, p.isActive "
             + "from Promotion p where p.scheduleEnabled = true")
     List<Object[]> findScheduleState();
+
+    /**
+     * The admin overview's promotion counts, without materialising a single row.
+     *
+     * <p>The overview used to call {@link #findAllWithStore()} and count the result in
+     * the browser. That query joins store and owner, so the cost was the whole
+     * promotions table joined twice over — to draw two numbers. These are index-only
+     * counts; {@code count()} is inherited from JpaRepository.
+     *
+     * <p>{@code isActive = true} rather than a coalesce: the column is a non-null
+     * boolean, so there is no null case to decide, and the predicate matches the index
+     * the scheduler and the feed already use.
+     */
+    @Query("select count(p) from Promotion p where p.isActive = true")
+    long countActive();
+
+    /**
+     * The newest deals for the admin overview's activity table, stopped at the limit.
+     *
+     * <p>The table shows a fixed eight rows, and it was previously fed by
+     * {@link #findAllWithStore()} — every promotion in the database, joined to store and
+     * owner, sorted in the browser, and eight kept. This walks the leading rows and stops.
+     *
+     * <p>{@code createdAt} is nullable (deals predating the column share a null), so
+     * {@code nulls last} keeps them out of the "newest" rows rather than letting a null
+     * sort ahead of everything. {@code promotionID} is the tiebreaker for the same reason
+     * as {@link #FEED_ORDER}: a sort that is not a total order can return tied rows in a
+     * different order between calls, so two consecutive fetches of the overview could
+     * disagree about what its eighth row is.
+     */
+    @Query("select p from Promotion p join fetch p.store s"
+            + " order by p.createdAt desc nulls last, p.promotionID asc")
+    List<Promotion> findRecent(Pageable pageable);
+
+    /**
+     * One page of the admin console's promotion list, store attached.
+     *
+     * <p>{@link #findAllWithStore()} is the same query without the limit. The order
+     * matches {@link #findRecent(Pageable)} — newest first, nulls last, with the id as a
+     * tiebreaker so paging is repeatable.
+     *
+     * <p>The owner is deliberately not joined here even though the console's promotion
+     * cards show the store name. The store dashboard needs the owner; this list does not,
+     * and a store has exactly one owner, so the join would multiply nothing while making
+     * the database carry a wider row for every promotion returned.
+     *
+     * <p>The count query drops both fetches: counting promotions needs neither the store
+     * nor the owner, and Spring Data would otherwise carry both into it.
+     */
+    @Query(value = "select p from Promotion p join fetch p.store s"
+            + " order by p.createdAt desc nulls last, p.promotionID asc",
+            countQuery = "select count(p) from Promotion p")
+    Page<Promotion> findAllForAdmin(Pageable pageable);
 }

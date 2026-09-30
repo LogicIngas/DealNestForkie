@@ -491,6 +491,70 @@ export const adminService = {
     }
     return data.admin ?? data;
   },
+
+  // The overview's numbers, counted by the database.
+  //
+  // One small response in place of four whole tables. The overview used to call
+  // getAll() on stores, users, promotions and reports and count the rows in the
+  // browser, so its cost grew with the size of the database rather than with the
+  // nine numbers on screen — and promotions in particular came with a store and an
+  // owner join attached. See IAdminService.getStats() on the backend.
+  getStats: async () => {
+    const response = await fetch(`${API_BASE_URL}/admin/stats`, {
+      headers: authHeaders(ADMIN_SCOPE),
+    });
+    return handleResponse(response, ADMIN_SCOPE);
+  },
+
+  // The newest deals for the overview's activity table, capped. This panel draws a
+  // fixed number of rows and used to be handed the entire promotions table to pick
+  // them out of in the browser.
+  getRecentPromotions: async (limit = 8) => {
+    const response = await fetch(`${API_BASE_URL}/admin/recent-promotions?limit=${limit}`, {
+      headers: authHeaders(ADMIN_SCOPE),
+    });
+    return handleResponse(response, ADMIN_SCOPE);
+  },
+
+  // Paged tab lists. Each resolves to { content, page, size, totalElements, last } and
+  // the console appends one page at a time.
+  //
+  // These deliberately do not reuse storeService/userService/promotionService/
+  // dealReportService. Those endpoints are shared with the shopfront — Home and Explore
+  // render every store — so paging them would change what customers receive. The admin
+  // routes carry their own pages instead, and live under /api/admin so the existing
+  // ADMIN_SCOPE role applies to them for free.
+  getStoresPage: async (page = 0, size = 24) => {
+    const response = await fetch(
+      `${API_BASE_URL}/admin/stores?page=${page}&size=${size}`,
+      { headers: authHeaders(ADMIN_SCOPE) },
+    );
+    return handleResponse(response, ADMIN_SCOPE);
+  },
+
+  getUsersPage: async (page = 0, size = 24) => {
+    const response = await fetch(
+      `${API_BASE_URL}/admin/users?page=${page}&size=${size}`,
+      { headers: authHeaders(ADMIN_SCOPE) },
+    );
+    return handleResponse(response, ADMIN_SCOPE);
+  },
+
+  getPromotionsPage: async (page = 0, size = 24) => {
+    const response = await fetch(
+      `${API_BASE_URL}/admin/promotions?page=${page}&size=${size}`,
+      { headers: authHeaders(ADMIN_SCOPE) },
+    );
+    return handleResponse(response, ADMIN_SCOPE);
+  },
+
+  getReportsPage: async (page = 0, size = 24) => {
+    const response = await fetch(
+      `${API_BASE_URL}/admin/reports?page=${page}&size=${size}`,
+      { headers: authHeaders(ADMIN_SCOPE) },
+    );
+    return handleResponse(response, ADMIN_SCOPE);
+  },
 };
 
 // ---------------------------------------------------------------------------
