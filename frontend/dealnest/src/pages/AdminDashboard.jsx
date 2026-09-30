@@ -51,7 +51,6 @@ export default function AdminDashboard({ admin, onLogout }) {
   const [recentPromotions, setRecentPromotions] = useState([]);
 
   const [loading, setLoading] = useState(true);
-  const [tabLoading, setTabLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
   // Distinguishes "nothing came back" from "one section failed". The empty state is
   // only honest when every request failed; a partial failure still has real content
@@ -73,6 +72,19 @@ export default function AdminDashboard({ admin, onLogout }) {
   // measuring the accumulated array, which is wrong as soon as an admin deletes a row
   // from the page in front of them. One request per page instead of one per tab.
   const [paging, setPaging] = useState({});
+
+  // Whether a tab's first load has settled — succeeded or failed. This is state, not a
+  // ref, and that is the whole fix: React runs effects after paint, so a tab switch used
+  // to render one frame with an empty array and no loading flag, which painted "No users
+  // yet." before the request had even been sent. Keying the skeleton off this instead is
+  // correct whatever order things happen in, because it is false from the moment the tab
+  // is selected rather than from the moment the response arrives.
+  const [tabLoaded, setTabLoaded] = useState({});
+  // Per-tab failure, so a tab that could not be fetched says so instead of claiming there
+  // is nothing to show. "No users yet" and "the users request failed" are different
+  // sentences, and only one of them is true.
+  const [tabErrors, setTabErrors] = useState({});
+
   const [loadingMore, setLoadingMore] = useState({});
   // Ref, not state: setState does not take effect until the next render, so two clicks
   // landing in the same tick would both read loadingMore as false and both request the
@@ -83,13 +95,17 @@ export default function AdminDashboard({ admin, onLogout }) {
     loadStats();
   }, []);
 
-  // Fetch a tab's first page the first time that tab is opened.
-  useEffect(() => {
-    if (tab === 'overview') return;
-    if (loadedTabs.current.has(tab)) return;
-    loadedTabs.current.add(tab);
-    loadTab(tab);
-  }, [tab]);
+  // Fetching is started from the tab click rather than from an effect on `tab`. React
+  // batches setTab with the loading state this triggers into one render, so the skeleton
+  // is the first thing that paints. An effect on `tab` would leave a frame in between,
+  // and that frame is what showed "No users yet." while the request was still in flight.
+  const handleTabChange = (next) => {
+    setTab(next);
+    if (next === 'overview') return;
+    if (loadedTabs.current.has(next)) return;
+    loadedTabs.current.add(next);
+    loadTab(next);
+  };
 
   const loadStats = async () => {
     setLoading(true);
@@ -158,7 +174,12 @@ export default function AdminDashboard({ admin, onLogout }) {
       pagingInFlight.current.add(which);
       setLoadingMore(prev => ({ ...prev, [which]: true }));
     } else {
-      setTabLoading(true);
+      // Back to unsettled while the request is in flight, so a Retry shows the skeleton
+      // rather than the failure text it is there to clear.
+      setTabLoaded(prev => ({ ...prev, [which]: false }));
+      // A retry starts clean, so a previous failure does not keep saying so once the
+      // request is back in flight.
+      setTabErrors(prev => ({ ...prev, [which]: null }));
     }
 
     const nextPage = append ? (paging[which]?.page ?? 0) + 1 : 0;
@@ -181,13 +202,17 @@ export default function AdminDashboard({ admin, onLogout }) {
         pageSize: result.size,
       } }));
     } catch (error) {
-      setLoadError(`${labels[which]} could not be loaded. ${error.message || ''}`.trim());
+      const message = `${labels[which]} could not be loaded. ${error.message || ''}`.trim();
+      setLoadError(message);
+      setTabErrors(prev => ({ ...prev, [which]: message }));
     } finally {
       if (append) {
         pagingInFlight.current.delete(which);
         setLoadingMore(prev => ({ ...prev, [which]: false }));
       } else {
-        setTabLoading(false);
+        // Settled, either way. Without this a failed tab would sit on the skeleton
+        // forever, and an empty result would keep waiting for rows that are not coming.
+        setTabLoaded(prev => ({ ...prev, [which]: true }));
       }
     }
   };
@@ -209,10 +234,18 @@ export default function AdminDashboard({ admin, onLogout }) {
     loadTab(tab);
   };
 
-  // Whether a tab has any rows yet, so its empty state is not shown while it is still
-  // loading. Without this, opening a tab that had never been fetched would flash
-  // "No users yet." before the data arrived.
-  const tabHasContent = { stores, users, promotions, reports };
+  // A tab still waiting on its first response draws the skeleton. Keyed off whether the
+  // load has settled, not off whether rows have arrived, so a genuinely empty tab shows
+  // its empty state the moment the answer lands, and a tab in flight never claims to be
+  // empty. tabHasContent could not do this: an empty array and an unanswered request look
+  // identical, and it was reading the wrong one.
+  const tabSettling = tab !== 'overview' && !tabLoaded[tab];
+
+  // A tab that failed and a tab with nothing in it are different states, and only one of
+  // them is "none found".
+  const tabEmptyMessage = (which, emptyText) => (
+    tabErrors[which] ? 'These could not be loaded. Use Retry above.' : emptyText
+  );
 
   const handleResolveReport = async (report, status) => {
     setReportBusyId(report.reportID);
@@ -335,7 +368,7 @@ export default function AdminDashboard({ admin, onLogout }) {
           <button
             key={t.key}
             type="button"
-            onClick={() => setTab(t.key)}
+            onClick={() => handleTabChange(t.key)}
             aria-pressed={tab === t.key}
             className={`px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition ${tab === t.key ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
           >
@@ -366,8 +399,8 @@ export default function AdminDashboard({ admin, onLogout }) {
           // Every request failed — that is an empty dataset only in the sense that
           // nothing arrived, so say so rather than drawing a convincing row of zeros.
           <EmptyState icon={XIcon} text="The admin data could not be loaded. Use Retry above." />
-        ) : tabLoading && !tabHasContent[tab] ? (
-          // A tab fetching for the first time. Skeleton rather than the empty state,
+        ) : tabSettling ? (
+          // A tab waiting on its first response. Skeleton rather than the empty state,
           // so "still loading" is never mistaken for "there is nothing here".
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {CARD_PLACEHOLDERS.map(i => <div key={i} className="h-24 bg-white rounded-2xl border border-gray-100 animate-pulse" />)}
@@ -391,7 +424,7 @@ export default function AdminDashboard({ admin, onLogout }) {
           </div>
         ) : tab === 'stores' ? (
           stores.length === 0 ? (
-            <EmptyState icon={StoreIcon} text="No stores yet." />
+            <EmptyState icon={StoreIcon} text={tabEmptyMessage('stores', 'No stores yet.')} />
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -444,7 +477,7 @@ export default function AdminDashboard({ admin, onLogout }) {
           )
         ) : tab === 'users' ? (
           users.length === 0 ? (
-            <EmptyState icon={Users} text="No users yet." />
+            <EmptyState icon={Users} text={tabEmptyMessage('users', 'No users yet.')} />
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -483,7 +516,7 @@ export default function AdminDashboard({ admin, onLogout }) {
           )
         ) : tab === 'promotions' ? (
           promotions.length === 0 ? (
-            <EmptyState icon={Tag} text="No promotions yet." />
+            <EmptyState icon={Tag} text={tabEmptyMessage('promotions', 'No promotions yet.')} />
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -518,7 +551,7 @@ export default function AdminDashboard({ admin, onLogout }) {
           )
         ) : (
           reports.length === 0 ? (
-            <EmptyState icon={Flag} text="No reports yet." />
+            <EmptyState icon={Flag} text={tabEmptyMessage('reports', 'No reports yet.')} />
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
