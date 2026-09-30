@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   ShieldCheck, LogOut, Users, Tag, BadgeCheck, Trash2, MapPin, Store as StoreIcon, Flag, Check, X as XIcon, Sparkles, Crown
 } from 'lucide-react';
-import { storeService, userService, promotionService, dealReportService } from '../services/api';
+import { storeService, userService, promotionService, dealReportService, ADMIN_SCOPE } from '../services/api';
 import { CATEGORY_ICON } from '../constants/categories';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -13,6 +13,10 @@ const TABS = [
   { key: 'promotions', label: 'Promotions' },
   { key: 'reports', label: 'Reports' },
 ];
+
+// The overview grid is 3 columns wide, so the loading skeleton draws nine cards to
+// match the nine stat cards it stands in for.
+const STAT_CARD_PLACEHOLDERS = Array.from({ length: 9 }, (_, i) => i);
 
 const REPORT_REASON_LABELS = {
   MISLEADING: 'Misleading information',
@@ -31,6 +35,11 @@ export default function AdminDashboard({ admin, onLogout }) {
   const [promotions, setPromotions] = useState([]);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  // Distinguishes "nothing came back" from "one section failed". The empty state is
+  // only honest when every request failed; a partial failure still has real content
+  // to show, and hiding it behind an error page would be its own lie.
+  const [anyLoaded, setAnyLoaded] = useState(false);
 
   const [storeBusyId, setStoreBusyId] = useState(null);
   const [userBusyId, setUserBusyId] = useState(null);
@@ -44,28 +53,50 @@ export default function AdminDashboard({ admin, onLogout }) {
 
   const loadAll = async () => {
     setLoading(true);
-    try {
-      const [storesData, usersData, promosData, reportsData] = await Promise.all([
-        storeService.getAll(),
-        userService.getAll(),
-        promotionService.getAll(),
-        dealReportService.getAll().catch(() => []),
-      ]);
-      setStores(storesData);
-      setUsers(usersData);
-      setPromotions(promosData);
-      setReports(reportsData);
-    } catch (error) {
-      // Non-fatal: individual tabs stay empty and can be retried on refresh.
-    } finally {
-      setLoading(false);
+    setLoadError(null);
+    // Every call here declares ADMIN_SCOPE so the admin JWT is the one that goes out.
+    // /stores is public, the rest are hasRole("ADMIN").
+    //
+    // allSettled, not all: with Promise.all a single 403 from one admin endpoint
+    // rejected the whole batch and none of the four setters ran, so the console drew
+    // "0 stores, 0 users, 0 promotions" even for the sections that had loaded fine.
+    // A refused endpoint now costs you that one section and a message, not the lot.
+    const results = await Promise.allSettled([
+      storeService.getAll(),
+      userService.getAll(ADMIN_SCOPE),
+      promotionService.getAll(ADMIN_SCOPE),
+      dealReportService.getAll(ADMIN_SCOPE),
+    ]);
+
+    const [storesResult, usersResult, promosResult, reportsResult] = results;
+    if (storesResult.status === 'fulfilled') setStores(storesResult.value);
+    if (usersResult.status === 'fulfilled') setUsers(usersResult.value);
+    if (promosResult.status === 'fulfilled') setPromotions(promosResult.value);
+    if (reportsResult.status === 'fulfilled') setReports(reportsResult.value);
+
+    const sections = [
+      ['Stores', storesResult],
+      ['Users', usersResult],
+      ['Promotions', promosResult],
+      ['Reports', reportsResult],
+    ];
+    const failed = sections.filter(([, result]) => result.status === 'rejected');
+    setAnyLoaded(failed.length < sections.length);
+    if (failed.length > 0) {
+      const names = failed.map(([name]) => name).join(', ');
+      setLoadError(
+        failed.length === sections.length
+          ? 'Could not load any admin data. Check that you are signed in as an admin.'
+          : `Could not load: ${names}. Everything else below is up to date.`
+      );
     }
+    setLoading(false);
   };
 
   const handleResolveReport = async (report, status) => {
     setReportBusyId(report.reportID);
     try {
-      const updated = await dealReportService.resolve(report.reportID, status);
+      const updated = await dealReportService.resolve(report.reportID, status, ADMIN_SCOPE);
       setReports(prev => prev.map(r => r.reportID === updated.reportID ? updated : r));
     } catch (error) {
       alert(error.message || 'Failed to update report.');
@@ -79,7 +110,7 @@ export default function AdminDashboard({ admin, onLogout }) {
   const toggleStoreVerified = async (store) => {
     setStoreBusyId(store.storeId);
     try {
-      const updated = await storeService.update(store.storeId, { ...store, verified: !store.verified });
+      const updated = await storeService.update(store.storeId, { ...store, verified: !store.verified }, ADMIN_SCOPE);
       setStores(prev => prev.map(s => s.storeId === updated.storeId ? updated : s));
     } catch (error) {
       alert(error.message || 'Failed to update store.');
@@ -91,7 +122,7 @@ export default function AdminDashboard({ admin, onLogout }) {
   const toggleStoreActive = async (store) => {
     setStoreBusyId(store.storeId);
     try {
-      const updated = await storeService.update(store.storeId, { ...store, active: !store.active });
+      const updated = await storeService.update(store.storeId, { ...store, active: !store.active }, ADMIN_SCOPE);
       setStores(prev => prev.map(s => s.storeId === updated.storeId ? updated : s));
     } catch (error) {
       alert(error.message || 'Failed to update store.');
@@ -103,7 +134,7 @@ export default function AdminDashboard({ admin, onLogout }) {
   const toggleUserActive = async (user) => {
     setUserBusyId(user.userID);
     try {
-      const updated = await userService.update(user.userID, { ...user, isActive: !user.isActive });
+      const updated = await userService.update(user.userID, { ...user, isActive: !user.isActive }, ADMIN_SCOPE);
       setUsers(prev => prev.map(u => u.userID === updated.userID ? updated : u));
     } catch (error) {
       alert(error.message || 'Failed to update user.');
@@ -118,9 +149,11 @@ export default function AdminDashboard({ admin, onLogout }) {
     setPromoToDelete(null);
     setPromoBusyId(promo.promotionID);
     try {
-      const success = await promotionService.remove(promo.promotionID);
-      if (success) setPromotions(prev => prev.filter(p => p.promotionID !== promo.promotionID));
+      await promotionService.remove(promo.promotionID, ADMIN_SCOPE);
+      setPromotions(prev => prev.filter(p => p.promotionID !== promo.promotionID));
     } catch (error) {
+      // remove() now throws on a denied delete, so a refusal is reported here
+      // instead of leaving the row sitting there looking unresponsive.
       alert(error.message || 'Failed to remove promotion.');
     } finally {
       setPromoBusyId(null);
@@ -164,10 +197,27 @@ export default function AdminDashboard({ admin, onLogout }) {
       </div>
 
       <div className="p-6 max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto">
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {[1, 2, 3].map(i => <div key={i} className="h-20 bg-white rounded-2xl border border-gray-100 animate-pulse" />)}
+        {loadError && (
+          <div role="alert" className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+            <XIcon className="w-5 h-5 text-red-500 flex-shrink-0" aria-hidden="true" />
+            <p className="text-sm font-semibold text-red-800 flex-1 min-w-0">{loadError}</p>
+            <button
+              type="button"
+              onClick={loadAll}
+              className="text-xs font-bold px-3 py-1.5 rounded-full bg-red-600 text-white hover:bg-red-700 transition"
+            >
+              Retry
+            </button>
           </div>
+        )}
+        {loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {STAT_CARD_PLACEHOLDERS.map(i => <div key={i} className="h-20 bg-white rounded-2xl border border-gray-100 animate-pulse" />)}
+          </div>
+        ) : loadError && !anyLoaded ? (
+          // Every request failed — that is an empty dataset only in the sense that
+          // nothing arrived, so say so rather than drawing a convincing row of zeros.
+          <EmptyState icon={XIcon} text="The admin data could not be loaded. Use Retry above." />
         ) : tab === 'overview' ? (
           <div className="space-y-6">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">

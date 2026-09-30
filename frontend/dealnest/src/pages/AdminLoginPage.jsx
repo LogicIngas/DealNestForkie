@@ -7,6 +7,9 @@ import logo from '../assets/logo.png';
 export default function AdminLoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // A session-expired redirect drops the reason here; an empty state reads as
+  // "nothing happened", which is how an expired token came to look like a broken site.
+  const [notice, setNotice] = useState(() => sessionStorage.getItem('dealnest_admin_message') || '');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -14,6 +17,8 @@ export default function AdminLoginPage({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setNotice('');
+    sessionStorage.removeItem('dealnest_admin_message');
     setIsLoading(true);
     try {
       const adminData = await adminService.login(email, password);
@@ -37,6 +42,11 @@ export default function AdminLoginPage({ onLogin }) {
             </p>
           </div>
           <div className="p-8 pt-4">
+            {notice && (
+              <div role="status" aria-live="polite" className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-xl text-sm mb-4 text-center">
+                {notice}
+              </div>
+            )}
             {error && (
               <div role="alert" aria-live="polite" className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl text-sm mb-4 text-center">
                 {error}

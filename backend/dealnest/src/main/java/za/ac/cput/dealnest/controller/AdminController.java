@@ -38,6 +38,11 @@ public class AdminController {
 
     @PutMapping("/update/{adminId}")
     public Admin update(@PathVariable String adminId, @RequestBody Admin admin) {
+        // The id has to come from the path, not the body. Passing the body straight
+        // through meant an entity with a null @Id reached save(), which Hibernate
+        // treats as a fresh insert — so "update admin X" quietly created a second
+        // admin row instead of changing anything.
+        admin.setAdminID(adminId);
         return adminService.update(admin);
     }
 

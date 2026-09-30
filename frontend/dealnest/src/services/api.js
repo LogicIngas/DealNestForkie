@@ -1,18 +1,50 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
+// VITE_API_URL is read at BUILD time, so a deployed build silently inherits whatever
+// was in .env when it was built. .env is committed for local dev and points at
+// localhost, so a static host that was created without VITE_API_URL set in its own
+// environment ships a bundle that calls the visitor's own machine — which looks like
+// "works on my laptop, empty on the deployed site". Shout about it rather than let it
+// present as missing data.
+if (typeof window !== 'undefined' && /^https?:\/\/(localhost|127\.0\.0\.1)/.test(API_BASE_URL)) {
+  console.warn(
+    `[DealNest] API_BASE_URL is "${API_BASE_URL}" — this build is calling a local machine, not a server. ` +
+    'If you are on a deployed site, set VITE_API_URL in that host\'s environment variables and rebuild.'
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Token helpers
+//
+// This app has two independent sessions: the customer / store-owner session and
+// the admin console session, each with its own JWT and its own storage keys. Every
+// request therefore has to state which session it acts for, because picking the
+// wrong one is not cosmetic. The admin list endpoints are gated on
+// hasRole("ADMIN") and the moderation endpoints on SecurityUtil.isAdmin(), so a
+// customer token sent to the admin console is answered 403 and the dashboard
+// comes up empty. See ADMIN_SCOPE.
 // ---------------------------------------------------------------------------
+export const USER_SCOPE = 'user';
+export const ADMIN_SCOPE = 'admin';
+
 const getToken = () => localStorage.getItem('dealnest_token');
 const getAdminToken = () => localStorage.getItem('dealnest_admin_token');
 
-// Drop every saved session detail (used when the backend rejects our token).
-const clearSession = () => {
+const tokenForScope = (scope) => (scope === ADMIN_SCOPE ? getAdminToken() : getToken());
+
+// Drops one session's saved details (used when the backend rejects its token).
+// The other session is deliberately left alone: signing out of the admin console
+// must not sign a customer out of the site, and a customer session going stale
+// must not evict the admin from the console.
+const clearSession = (scope) => {
+  if (scope === ADMIN_SCOPE) {
+    localStorage.removeItem('dealnest_admin');
+    localStorage.removeItem('dealnest_admin_token');
+    return;
+  }
   localStorage.removeItem('dealnest_user');
   localStorage.removeItem('dealnest_role');
   localStorage.removeItem('dealnest_token');
-  localStorage.removeItem('dealnest_admin');
-  localStorage.removeItem('dealnest_admin_token');
 };
 
 const decodeJwtPayload = (token) => {
@@ -39,11 +71,13 @@ export const hasValidToken = (type = 'user') => {
 const isLoginCall = (url = '') => /\/user\/login$|\/admin\/login$/.test(url);
 
 /**
- * Returns headers for an authenticated user request.
- * Falls back to admin token when no user token is present (admin dashboard calls).
+ * Returns headers for an authenticated request made on behalf of `scope`.
+ *
+ * Defaults to the customer session so the existing call sites keep working
+ * unchanged; the admin console passes ADMIN_SCOPE explicitly.
  */
-const authHeaders = (extra = {}) => {
-  const token = getToken() || getAdminToken();
+const authHeaders = (scope = USER_SCOPE, extra = {}) => {
+  const token = tokenForScope(scope);
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -54,7 +88,7 @@ const authHeaders = (extra = {}) => {
 // ---------------------------------------------------------------------------
 // Response handler
 // ---------------------------------------------------------------------------
-const handleResponse = async (response) => {
+const handleResponse = async (response, scope = USER_SCOPE) => {
   if (!response.ok) {
     const text = await response.text();
     let message = text || 'Something went wrong';
@@ -65,13 +99,24 @@ const handleResponse = async (response) => {
       // Keep the raw text as the message.
     }
 
-    // A protected endpoint returned 401 → token is missing, expired, or invalid.
-    // Log the stale session out and ask for a fresh sign-in.
+    // A protected endpoint returned 401 → that session's token is missing, expired,
+    // or invalid. Log out *that* session only and send the caller back to the sign-in
+    // page it actually belongs to; the admin console must not be dumped on the
+    // customer login page, and a customer token going stale must not evict the admin.
     if (response.status === 401 && !isLoginCall(response.url)) {
-      clearSession();
-      sessionStorage.setItem('dealnest_session_message', message);
-      if (!window.location.pathname.startsWith('/login')) {
-        window.location.href = '/login';
+      clearSession(scope);
+      const isAdminCall = scope === ADMIN_SCOPE;
+      const signInPath = isAdminCall ? '/admin/login' : '/login';
+      const alreadyOnSignIn = isAdminCall
+        ? window.location.pathname.startsWith('/admin/login')
+        : window.location.pathname.startsWith('/login');
+      if (isAdminCall) {
+        sessionStorage.setItem('dealnest_admin_message', message);
+      } else {
+        sessionStorage.setItem('dealnest_session_message', message);
+      }
+      if (!alreadyOnSignIn) {
+        window.location.href = signInPath;
       }
       throw new Error('Session expired. Please sign in again.');
     }
@@ -125,28 +170,33 @@ export const userService = {
     return handleResponse(response);
   },
 
-  update: async (userId, userData) => {
+  // Shared by the customer profile screen and the admin console's "suspend user"
+  // action, so the caller declares which session is acting.
+  update: async (userId, userData, scope = USER_SCOPE) => {
     const response = await fetch(`${API_BASE_URL}/user/update/${userId}`, {
       method: 'PUT',
-      headers: authHeaders(),
+      headers: authHeaders(scope),
       body: JSON.stringify(userData),
     });
-    return handleResponse(response);
+    return handleResponse(response, scope);
   },
 
-  getAll: async () => {
+  getAll: async (scope = USER_SCOPE) => {
     const response = await fetch(`${API_BASE_URL}/user/getAll`, {
-      headers: authHeaders(),
+      headers: authHeaders(scope),
     });
-    return handleResponse(response);
+    return handleResponse(response, scope);
   },
 
-  remove: async (userId) => {
+  remove: async (userId, scope = USER_SCOPE) => {
     const response = await fetch(`${API_BASE_URL}/user/delete/${userId}`, {
       method: 'DELETE',
-      headers: authHeaders(),
+      headers: authHeaders(scope),
     });
-    return response.ok;
+    // Routed through handleResponse so a denied delete throws with the server's
+    // message instead of resolving to a bare `false` the caller has to guess about.
+    await handleResponse(response, scope);
+    return true;
   },
 
   forgotPassword: async (email) => {
@@ -197,13 +247,17 @@ export const storeService = {
     return handleResponse(response);
   },
 
-  update: async (storeId, storeData) => {
+  // Store owners edit their own store from the store dashboard; the admin console
+  // edits any store's verified/active flags. Both go through the same endpoint, so
+  // the caller declares the session — the backend's ownership check only short-circuits
+  // for a real ROLE_ADMIN principal.
+  update: async (storeId, storeData, scope = USER_SCOPE) => {
     const response = await fetch(`${API_BASE_URL}/stores/${storeId}`, {
       method: 'PUT',
-      headers: authHeaders(),
+      headers: authHeaders(scope),
       body: JSON.stringify(storeData),
     });
-    return handleResponse(response);
+    return handleResponse(response, scope);
   },
 
   getRecommended: async (userId) => {
@@ -303,11 +357,11 @@ export const savedPromotionService = {
 // 4. PROMOTION CONTROLLER
 // ---------------------------------------------------------------------------
 export const promotionService = {
-  getAll: async () => {
+  getAll: async (scope = USER_SCOPE) => {
     const response = await fetch(`${API_BASE_URL}/promotion/getAll`, {
-      headers: authHeaders(),
+      headers: authHeaders(scope),
     });
-    return handleResponse(response);
+    return handleResponse(response, scope);
   },
 
   // The active deal feed, capped at `limit` rows. Omit it for the server default (the
@@ -362,12 +416,15 @@ export const promotionService = {
     return handleResponse(response);
   },
 
-  remove: async (promotionId) => {
+  remove: async (promotionId, scope = USER_SCOPE) => {
     const response = await fetch(`${API_BASE_URL}/promotion/delete/${promotionId}`, {
       method: 'DELETE',
-      headers: authHeaders(),
+      headers: authHeaders(scope),
     });
-    return response.ok;
+    // handleResponse, not a bare `response.ok`: a 403 here previously resolved to
+    // false and the admin saw the row simply refuse to disappear, with no reason given.
+    await handleResponse(response, scope);
+    return true;
   },
 
   bulkCreate: async (storeId, promotions) => {
@@ -417,12 +474,17 @@ export const notificationService = {
 // ---------------------------------------------------------------------------
 export const adminService = {
   login: async (email, password) => {
+    // Drop any previous admin session first: if this login fails we must not be left
+    // holding the old token, which the route guard would happily treat as a live one.
+    clearSession(ADMIN_SCOPE);
     const response = await fetch(`${API_BASE_URL}/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // The backend binds the credential to Admin.passwordHash, so the raw password
+      // travels under that field name.
       body: JSON.stringify({ email, passwordHash: password }),
     });
-    const data = await handleResponse(response);
+    const data = await handleResponse(response, ADMIN_SCOPE);
     // Store admin JWT separately and return just the admin object
     if (data.token) {
       localStorage.setItem('dealnest_admin_token', data.token);
@@ -529,27 +591,27 @@ export const dealReportService = {
     return handleResponse(response);
   },
 
-  getAll: async () => {
+  getAll: async (scope = USER_SCOPE) => {
     const response = await fetch(`${API_BASE_URL}/dealReport/getAll`, {
-      headers: authHeaders(),
+      headers: authHeaders(scope),
     });
-    return handleResponse(response);
+    return handleResponse(response, scope);
   },
 
-  findByStatus: async (status) => {
+  findByStatus: async (status, scope = USER_SCOPE) => {
     const response = await fetch(`${API_BASE_URL}/dealReport/findByStatus/${status}`, {
-      headers: authHeaders(),
+      headers: authHeaders(scope),
     });
-    return handleResponse(response);
+    return handleResponse(response, scope);
   },
 
-  resolve: async (reportId, status) => {
+  resolve: async (reportId, status, scope = USER_SCOPE) => {
     const response = await fetch(`${API_BASE_URL}/dealReport/resolve/${reportId}`, {
       method: 'PUT',
-      headers: authHeaders(),
+      headers: authHeaders(scope),
       body: JSON.stringify({ status }),
     });
-    return handleResponse(response);
+    return handleResponse(response, scope);
   },
 };
 
