@@ -18,20 +18,31 @@ import AdminDashboard from './pages/AdminDashboard';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import { hasValidToken } from './services/api';
 
+// Reads a JSON blob back out of storage. A truncated or hand-edited value would
+// otherwise throw during render and white-screen the whole app, not just the
+// section that owns it.
+const readStoredJson = (key) => {
+  const raw = localStorage.getItem(key);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
+};
+
 function App() {
-  const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('dealnest_user');
-    return savedUser ? JSON.parse(savedUser) : null;
-  });
+  const [user, setUser] = useState(() => readStoredJson('dealnest_user'));
   const [role, setRole] = useState(() => localStorage.getItem('dealnest_role') || 'customer');
   // A saved user alone isn't a valid session — the JWT must exist and be unexpired.
   const isAuthenticated = user !== null && hasValidToken('user');
 
-  const [admin, setAdmin] = useState(() => {
-    const savedAdmin = localStorage.getItem('dealnest_admin');
-    return savedAdmin ? JSON.parse(savedAdmin) : null;
-  });
-  const isAdminAuthenticated = admin !== null;
+  const [admin, setAdmin] = useState(() => readStoredJson('dealnest_admin'));
+  // Same rule as the customer session, and for the same reason: the admin JWT is
+  // checked against ROLE_ADMIN by every endpoint the console loads, so a saved admin
+  // object with a dead token rendered a dashboard whose every request was refused.
+  const isAdminAuthenticated = admin !== null && hasValidToken('admin');
 
   const login = (userData, userRole) => {
     setUser(userData);
