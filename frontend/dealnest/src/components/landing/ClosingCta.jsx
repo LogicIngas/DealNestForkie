@@ -1,47 +1,58 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Tag, Store as StoreIcon, ArrowRight } from 'lucide-react';
+import { Bezel, IslandCta } from './primitives';
+import Reveal from './Reveal';
 
 export default function ClosingCta({ isAuthenticated }) {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 py-20 sm:py-24">
-      <div aria-hidden="true" className="absolute -top-24 -left-20 w-[28rem] h-[28rem] rounded-full bg-white/10 blur-3xl" />
-      <div aria-hidden="true" className="absolute -bottom-32 -right-16 w-[26rem] h-[26rem] rounded-full bg-emerald-300/20 blur-3xl" />
+    <section className="relative overflow-hidden bg-gray-50 py-24 sm:py-36">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(50rem 34rem at 50% 108%, rgba(13,148,136,0.12), transparent 66%),' +
+            'radial-gradient(30rem 24rem at 50% -10%, rgba(16,185,129,0.08), transparent 64%)',
+        }}
+      />
 
-      <div className="relative max-w-4xl mx-auto px-5 sm:px-8 text-center">
-        <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-[1.08]">
-          Your neighbourhood is already discounting.
-        </h2>
-        <p className="mt-5 text-lg text-teal-50/90 leading-relaxed max-w-2xl mx-auto">
-          Join free and start claiming. Store owners can publish a promotion the same afternoon.
-        </p>
+      <div className="relative mx-auto max-w-5xl px-4 sm:px-8 lg:px-10">
+        <Bezel radius="2.5rem" inset="0.4375rem" coreClassName="px-6 py-20 text-center sm:px-14 sm:py-28">
+          <Reveal>
+            <h2 className="mx-auto max-w-3xl font-display text-4xl font-light leading-[1.0] tracking-[-0.035em] text-gray-900 sm:text-6xl lg:text-7xl">
+              Your neighbourhood is already discounting.
+            </h2>
+          </Reveal>
 
-        <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            to={isAuthenticated ? '/app' : '/signup'}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-extrabold text-teal-700 shadow-xl shadow-teal-900/20 hover:-translate-y-0.5 hover:shadow-2xl transition-all"
-          >
-            {isAuthenticated ? 'Open the app' : 'Create your free account'}
-            <Tag className="w-5 h-5" aria-hidden="true" />
-          </Link>
-          <Link
-            to="/store-signup"
-            className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-white/50 bg-white/10 backdrop-blur-sm px-8 py-4 text-base font-bold text-white hover:bg-white/20 hover:border-white transition-all"
-          >
-            <StoreIcon className="w-5 h-5" aria-hidden="true" />
-            List your store
-            <ArrowRight className="w-5 h-5" aria-hidden="true" />
-          </Link>
-        </div>
+          <Reveal delay={110}>
+            <p className="mx-auto mt-8 max-w-xl text-[1.0625rem] leading-relaxed text-gray-600">
+              Join free and start claiming. Store owners can publish a promotion the same afternoon.
+            </p>
+          </Reveal>
 
-        {!isAuthenticated && (
-          <p className="mt-8 text-sm text-teal-100/80">
-            Already have an account?{' '}
-            <Link to="/login" className="font-bold text-white underline underline-offset-4 hover:text-teal-50">
-              Sign in
-            </Link>
-          </p>
-        )}
+          <Reveal delay={200}>
+            <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <IslandCta to={isAuthenticated ? '/app' : '/signup'}>
+                {isAuthenticated ? 'Open the app' : 'Create your free account'}
+              </IslandCta>
+              <IslandCta to="/store-signup" variant="outline">
+                List your store
+              </IslandCta>
+            </div>
+          </Reveal>
+
+          {!isAuthenticated && (
+            <Reveal delay={280} as="p" className="mt-9 text-sm text-gray-500">
+              Already have an account?{' '}
+              <Link
+                to="/login"
+                className="text-teal-700 underline decoration-teal-700/30 underline-offset-4 fluid duration-500 hover:text-teal-600"
+              >
+                Sign in
+              </Link>
+            </Reveal>
+          )}
+        </Bezel>
       </div>
     </section>
   );

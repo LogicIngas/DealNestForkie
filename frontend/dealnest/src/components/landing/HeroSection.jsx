@@ -1,10 +1,11 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Tag, Clock, MapPin, Star, Ticket, Check, Store as StoreIcon, Sparkles } from 'lucide-react';
+import { Tag, Clock, MapPin, Star, Ticket, Check, Storefront, Lightning } from '@phosphor-icons/react';
+import { Bezel, IslandCta, Eyebrow } from './primitives';
+import Reveal from './Reveal';
 
 // Illustrative cards, not live data — the marketing page must render with no
 // session and no API call. The two deals mirror what the demo seed publishes so
-// the prices on this page match what you actually see after `npm run seed`.
+// the prices here match what you actually see after `npm run seed`.
 const SHOWCASE = [
   {
     id: 'airfryer',
@@ -15,8 +16,7 @@ const SHOWCASE = [
     now: 1199,
     off: 46,
     daysLeft: 5,
-    category: 'ELECTRONICS',
-    accent: 'from-blue-500 to-blue-600',
+    tilt: '-1.6deg',
   },
   {
     id: 'tv',
@@ -27,9 +27,15 @@ const SHOWCASE = [
     now: 9599,
     off: 40,
     daysLeft: 9,
-    category: 'ELECTRONICS',
-    accent: 'from-violet-500 to-violet-600',
+    tilt: '1.4deg',
   },
+];
+
+const STATS = [
+  { value: '8', label: 'Deal categories' },
+  { value: '6', label: 'Cities covered' },
+  { value: 'R49', label: 'Plus, per 30 days' },
+  { value: 'R0', label: 'To start saving' },
 ];
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -40,154 +46,178 @@ function voucherCode(seed) {
   return `${out.slice(0, 4)}-${out.slice(4)}`;
 }
 
-export default function HeroSection({ isAuthenticated }) {
-  const primaryTo = isAuthenticated ? '/app' : '/signup';
-  const primaryLabel = isAuthenticated ? 'Open the app' : 'Start saving free';
-
+function DealPlate({ deal }) {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-teal-700 via-teal-600 to-emerald-600 pt-32 pb-20 sm:pt-40 sm:pb-28">
+    // The resting tilt sits on the shell and the hover lift on the core. Both
+    // write `transform`, so on a single element the later one would win and the
+    // other would never be seen; split across two they compose.
+    //
+    // The angle arrives as a custom property so Tailwind can scope it to `sm:`
+    // and leave the plates square below that. An inline `transform` cannot be
+    // made responsive, and a tilted card is a mis-tap waiting to happen on a
+    // phone.
+    <Bezel
+      className="h-full rotate-0 transition-transform duration-1000 ease-fluid hover:rotate-0 sm:rotate-[var(--tilt)] sm:hover:rotate-0"
+      style={{ '--tilt': deal.tilt }}
+    >
+      <article className="group h-full p-6 transition-transform duration-1000 ease-fluid hover:-translate-y-1.5">
+        <div className="flex items-start justify-between gap-4">
+          <span className="grid h-11 w-11 place-items-center rounded-[0.875rem] bg-teal-50 ring-1 ring-inset ring-teal-600/15">
+            <Ticket size={20} weight="light" className="text-teal-600" aria-hidden="true" />
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1.5 text-[11px] font-semibold text-teal-700 ring-1 ring-inset ring-teal-600/20">
+            <Tag size={12} weight="fill" aria-hidden="true" />
+            {deal.off}% off
+          </span>
+        </div>
+
+        <h3 className="mt-6 font-display text-xl font-medium tracking-tight text-gray-900">{deal.title}</h3>
+        <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-gray-500">
+          <MapPin size={13} weight="light" className="text-gray-400" aria-hidden="true" />
+          {deal.store} · {deal.city}
+        </p>
+
+        <div className="mt-6 flex items-baseline gap-2.5">
+          <span className="font-display text-3xl font-medium tracking-tight text-gray-900">
+            R{deal.now.toLocaleString('en-ZA')}
+          </span>
+          <span className="text-sm text-gray-400 line-through">R{deal.was.toLocaleString('en-ZA')}</span>
+        </div>
+        <p className="mt-1 text-xs font-medium text-teal-700">
+          You save R{(deal.was - deal.now).toLocaleString('en-ZA')}
+        </p>
+
+        {/* The dashed well reads as a tear-off ticket stub. */}
+        <div className="mt-6 rounded-2xl border border-dashed border-teal-700/20 bg-teal-50/60 px-4 py-3.5">
+          <p className="text-[9px] font-medium uppercase tracking-[0.22em] text-teal-700/60">Voucher code</p>
+          <p className="mt-1 font-mono-brand text-lg tracking-[0.18em] text-teal-900">
+            {voucherCode(deal.was)}
+          </p>
+        </div>
+
+        <div className="mt-5 flex items-center justify-between border-t border-slate-900/[0.06] pt-4 text-[11px] text-gray-500">
+          <span className="inline-flex items-center gap-1.5 font-medium">
+            <Clock size={13} weight="light" className="text-amber-500" aria-hidden="true" />
+            {deal.daysLeft} days left
+          </span>
+          <span className="inline-flex items-center gap-1 font-medium text-amber-500">
+            <Star size={13} weight="fill" aria-hidden="true" />
+            4.8
+          </span>
+        </div>
+      </article>
+    </Bezel>
+  );
+}
+
+export default function HeroSection({ isAuthenticated }) {
+  return (
+    // gray-50, the exact page the app shell renders, so the marketing page and
+    // the product sit on the same ground the moment you sign in.
+    <section className="relative min-h-[100dvh] overflow-hidden bg-gray-50 pt-32 pb-20 sm:pt-40 sm:pb-28">
+      {/* Radial mesh orbs, painted as static gradients rather than blurred
+          elements. Two composited layers cost nothing per frame, where a blurred
+          div re-filters itself on every step of the scroll. Kept far weaker than
+          a dark hero needs — at these opacities they are ambient light on a light
+          page, not glowing orbs. */}
       <div
         aria-hidden="true"
-        className="absolute -top-40 -right-32 w-[34rem] h-[34rem] rounded-full bg-teal-300/20 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="absolute -bottom-48 -left-24 w-[30rem] h-[30rem] rounded-full bg-emerald-400/20 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 opacity-[0.07]"
+        className="pointer-events-none absolute inset-0"
         style={{
-          backgroundImage:
-            'linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)',
-          backgroundSize: '56px 56px',
+          background:
+            'radial-gradient(48rem 40rem at 78% -8%, rgba(13,148,136,0.10), transparent 60%),' +
+            'radial-gradient(40rem 34rem at 6% 42%, rgba(16,185,129,0.07), transparent 62%),' +
+            'radial-gradient(52rem 44rem at 50% 108%, rgba(13,148,136,0.06), transparent 60%)',
         }}
       />
 
-      <div className="relative max-w-7xl mx-auto px-5 sm:px-8 grid lg:grid-cols-2 gap-14 lg:gap-8 items-center">
-        <div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/15 backdrop-blur-sm border border-white/25 px-4 py-1.5 text-xs font-bold text-teal-50 uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-            South Africa's local deals marketplace
-          </span>
+      <div className="relative mx-auto grid max-w-7xl gap-16 px-4 sm:px-8 lg:grid-cols-12 lg:gap-12 lg:px-10">
+        <div className="lg:col-span-6 lg:pt-16">
+          <Reveal>
+            <Eyebrow>
+              <Lightning size={11} weight="fill" className="mr-1.5 align-[-1px]" aria-hidden="true" />
+              South Africa&apos;s local deals marketplace
+            </Eyebrow>
+          </Reveal>
 
-          <h1 className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.05]">
-            The best deals in your neighbourhood,
-            <span className="block text-teal-100">all in one nest.</span>
-          </h1>
+          <Reveal delay={90}>
+            <h1 className="mt-8 font-display text-[3.25rem] font-light leading-[0.98] tracking-[-0.035em] text-gray-900 sm:text-7xl lg:text-[5.25rem]">
+              The best deals
+              <br />
+              in your street,
+              <br />
+              <span className="text-teal-700">all in one nest.</span>
+            </h1>
+          </Reveal>
 
-          <p className="mt-6 text-lg sm:text-xl text-teal-50/90 max-w-xl leading-relaxed">
-            Local stores publish their real promotions. You browse, save and claim a voucher code, then show it
-            in-store. No coupon hunting, no expired printouts.
-          </p>
-
-          <div className="mt-9 flex flex-col sm:flex-row gap-3.5">
-            <Link
-              to={primaryTo}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-7 py-4 text-base font-extrabold text-teal-700 shadow-xl shadow-teal-900/20 hover:-translate-y-0.5 hover:shadow-2xl transition-all"
-            >
-              {primaryLabel}
-              <Tag className="w-5 h-5" aria-hidden="true" />
-            </Link>
-            <a
-              href="#stores"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-white/40 bg-white/10 backdrop-blur-sm px-7 py-4 text-base font-bold text-white hover:bg-white/20 hover:border-white/70 transition-all"
-            >
-              <StoreIcon className="w-5 h-5" aria-hidden="true" />
-              I own a store
-            </a>
-          </div>
-
-          <ul className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-sm text-teal-50/90">
-            {['Free to join', 'No card needed to browse', 'Nothing auto-renews'].map(item => (
-              <li key={item} className="inline-flex items-center gap-2">
-                <Check className="w-4 h-4 text-teal-200" aria-hidden="true" />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="relative">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            {SHOWCASE.map(deal => (
-              <article
-                key={deal.id}
-                className="bg-white rounded-3xl shadow-2xl shadow-teal-900/25 p-5 hover:-translate-y-1 transition-transform"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${deal.accent} flex items-center justify-center`}>
-                    <Ticket className="w-6 h-6 text-white" aria-hidden="true" />
-                  </div>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-teal-600 text-white px-2.5 py-1 text-xs font-extrabold">
-                    <Tag className="w-3 h-3" aria-hidden="true" />
-                    {deal.off}% OFF
-                  </span>
-                </div>
-
-                <h3 className="mt-4 font-extrabold text-gray-900 leading-snug">{deal.title}</h3>
-                <p className="mt-1 text-sm text-gray-500 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
-                  {deal.store} · {deal.city}
-                </p>
-
-                <div className="mt-4 flex items-baseline gap-2">
-                  <span className="text-2xl font-extrabold text-teal-600">
-                    R{deal.now.toLocaleString('en-ZA')}
-                  </span>
-                  <span className="text-sm text-gray-400 line-through">
-                    R{deal.was.toLocaleString('en-ZA')}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs font-bold text-emerald-600">
-                  You save R{(deal.was - deal.now).toLocaleString('en-ZA')}
-                </p>
-
-                <div className="mt-4 rounded-2xl border-2 border-dashed border-teal-300 bg-teal-50/70 px-4 py-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-teal-700">Voucher code</p>
-                  <p className="font-mono text-lg font-extrabold tracking-[0.2em] text-teal-900 mt-0.5">
-                    {voucherCode(deal.id.length + deal.now)}
-                  </p>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-500">
-                  <span className="inline-flex items-center gap-1.5 font-semibold">
-                    <Clock className="w-3.5 h-3.5 text-orange-500" aria-hidden="true" />
-                    {deal.daysLeft} days left
-                  </span>
-                  <span className="inline-flex items-center gap-1 font-semibold text-amber-500">
-                    <Star className="w-3.5 h-3.5" fill="currentColor" aria-hidden="true" />
-                    4.8
-                  </span>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          <div className="absolute -bottom-6 -left-2 sm:left-4 lg:-left-6 hidden sm:block bg-white rounded-2xl shadow-xl shadow-teal-900/15 px-5 py-4 border border-gray-100">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Redeemed in store</p>
-            <p className="mt-1 text-sm font-extrabold text-gray-900">
-              7 days ago · R1 000 saved
+          <Reveal delay={180}>
+            <p className="mt-9 max-w-lg text-[1.0625rem] leading-relaxed text-gray-600 sm:text-lg">
+              Local stores publish their real promotions. You browse, save and claim a voucher code, then show it
+              in-store. No coupon hunting, no expired printouts.
             </p>
-          </div>
+          </Reveal>
+
+          <Reveal delay={260}>
+            <div className="mt-11 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <IslandCta to={isAuthenticated ? '/app' : '/signup'}>
+                {isAuthenticated ? 'Open the app' : 'Start saving free'}
+              </IslandCta>
+              <IslandCta href="#stores" variant="outline">
+                <Storefront size={16} weight="light" aria-hidden="true" />
+                I own a store
+              </IslandCta>
+            </div>
+          </Reveal>
+
+          <Reveal delay={340}>
+            <ul className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-[13px] text-gray-500">
+              {['Free to join', 'No card needed to browse', 'Nothing auto-renews'].map(item => (
+                <li key={item} className="inline-flex items-center gap-2">
+                  <Check size={14} weight="bold" className="text-teal-600" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+        </div>
+
+        {/* The showcase is deliberately off-axis: the second plate drops and
+            tilts against the first, so the pair reads as a physical arrangement
+            rather than two centred columns. */}
+        <div className="relative lg:col-span-6">
+          <Reveal
+            delay={200}
+            className="grid gap-6 sm:grid-cols-2 sm:[&>*:nth-child(2)]:mt-14 lg:[&>*:nth-child(2)]:mt-20"
+          >
+            {SHOWCASE.map(deal => (
+              <DealPlate key={deal.id} deal={deal} />
+            ))}
+          </Reveal>
+
+          <Reveal delay={420} className="mt-10 lg:absolute lg:-bottom-12 lg:-left-6 lg:mt-0 lg:w-64">
+            <Bezel coreClassName="bg-white p-5">
+              <p className="text-[9px] font-medium uppercase tracking-[0.22em] text-gray-400">Redeemed in store</p>
+              <p className="mt-2 font-display text-sm font-medium text-gray-900">7 days ago</p>
+              <p className="mt-0.5 font-display text-2xl font-medium tracking-tight text-teal-700">R1 000 saved</p>
+            </Bezel>
+          </Reveal>
         </div>
       </div>
 
-      <div className="relative max-w-7xl mx-auto px-5 sm:px-8 mt-20 sm:mt-24">
-        <dl className="grid grid-cols-2 lg:grid-cols-4 gap-4 rounded-3xl bg-white/10 backdrop-blur-sm border border-white/20 p-5 sm:p-7">
-          {[
-            { value: '8', label: 'Deal categories' },
-            { value: '6', label: 'Cities covered' },
-            { value: 'R49', label: 'Plus, per 30 days' },
-            { value: 'R0', label: 'To start saving' },
-          ].map(stat => (
-            <div key={stat.label} className="text-center sm:text-left">
-              <dt className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{stat.value}</dt>
-              <dd className="mt-1 text-xs sm:text-sm font-semibold text-teal-100/85">{stat.label}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
+      <Reveal delay={140} className="relative mx-auto mt-24 max-w-7xl px-4 sm:mt-32 sm:px-8 lg:px-10">
+        <Bezel radius="1.75rem" inset="0.3125rem" coreClassName="bg-white px-7 py-8 sm:px-10">
+          <dl className="grid grid-cols-2 gap-8 lg:grid-cols-4 lg:gap-6">
+            {STATS.map(stat => (
+              <div key={stat.label}>
+                <dt className="font-display text-3xl font-light tracking-tight text-gray-900 sm:text-4xl">
+                  {stat.value}
+                </dt>
+                <dd className="mt-2 text-xs text-gray-500">{stat.label}</dd>
+              </div>
+            ))}
+          </dl>
+        </Bezel>
+      </Reveal>
     </section>
   );
 }

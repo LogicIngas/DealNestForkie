@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { Menu, X, Store as StoreIcon } from 'lucide-react';
-import logo from '../../assets/logo.png';
+import { List, Storefront } from '@phosphor-icons/react';
+import { IslandCta } from './primitives';
 
 const LINKS = [
   { href: '#how', label: 'How it works' },
@@ -10,157 +10,182 @@ const LINKS = [
   { href: '#pricing', label: 'Pricing' },
 ];
 
+/**
+ * A floating glass island, detached from the top of the page, rather than a bar
+ * glued to it. It matches the app's white-glass card treatment instead of
+ * inventing a dark chrome the product does not use. It is also the one element
+ * here that gets a backdrop blur, because it is fixed — blur on a scrolling
+ * container would repaint the page on every frame.
+ */
 export default function LandingNav({ isAuthenticated }) {
-  const [open, setOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = React.useState(false);
+  const [linksIn, setLinksIn] = React.useState(false);
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // The mobile sheet covers the page, so lock the body behind it while it's open.
-  useEffect(() => {
+  // The sheet covers the page, so stop the document scrolling behind it.
+  React.useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
     return () => {
       document.body.style.overflow = '';
     };
   }, [open]);
 
+  /* Reset before each open, then release a frame later. Without the reset the
+     links would still be settled from last time and the stagger would not
+     replay. The double rAF makes sure the reset has painted before the class
+     that starts the transition is applied — otherwise the browser coalesces
+     both into one and nothing animates. */
+  React.useEffect(() => {
+    if (!open) {
+      setLinksIn(false);
+      return undefined;
+    }
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setLinksIn(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, [open]);
+
+  React.useEffect(() => {
+    const onKey = e => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
-    <header
-      className={`fixed top-0 inset-x-0 z-40 transition-all ${
-        scrolled ? 'bg-white/85 backdrop-blur-lg border-b border-gray-100 shadow-sm' : 'bg-transparent'
-      }`}
-    >
-      <div className="max-w-7xl mx-auto px-5 sm:px-8">
-        <div className={`flex items-center justify-between transition-all ${scrolled ? 'h-16' : 'h-20'}`}>
-          <Link to="/" className="flex items-center gap-2.5" aria-label="DealNest home">
-            <img src={logo} alt="DealNest" width={86} height={46} className="h-11 w-auto" />
+    <>
+      <header className="fixed inset-x-0 top-0 z-40 px-4 pt-5 sm:px-6 sm:pt-6">
+        <nav
+          className="ambient mx-auto flex w-full max-w-6xl items-center justify-between gap-6 rounded-full bg-white/80 p-1.5 pl-5 ring-1 ring-inset ring-slate-900/[0.06] backdrop-blur-2xl sm:pl-6"
+          aria-label="Main"
+        >
+          <Link
+            to="/"
+            className="flex items-center gap-2.5 font-display text-[0.9375rem] font-semibold tracking-tight text-gray-900"
+          >
+            <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-teal-600 to-emerald-600">
+              <Storefront size={15} weight="fill" className="text-white" />
+            </span>
+            DealNest
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-8" aria-label="Main">
+          <ul className="hidden items-center gap-1 lg:flex">
             {LINKS.map(link => (
-              <a
-                key={link.href}
-                href={link.href}
-                className={`text-sm font-semibold transition-colors hover:text-teal-700 ${
-                  scrolled ? 'text-gray-600' : 'text-gray-700'
-                }`}
-              >
-                {link.label}
-              </a>
+              <li key={link.href}>
+                <a
+                  href={link.href}
+                  className="block rounded-full px-4 py-2 text-sm text-gray-500 fluid duration-500 hover:bg-slate-100 hover:text-gray-900"
+                >
+                  {link.label}
+                </a>
+              </li>
             ))}
-          </nav>
+          </ul>
 
-          <div className="hidden lg:flex items-center gap-3">
-            <Link
-              to="/store-signup"
-              className={`inline-flex items-center gap-2 text-sm font-semibold rounded-xl px-4 py-2.5 transition-colors ${
-                scrolled ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-800 hover:bg-white/60'
-              }`}
-            >
-              <StoreIcon className="w-4 h-4" aria-hidden="true" />
-              List your store
-            </Link>
+          <div className="hidden items-center gap-2 lg:flex">
             {isAuthenticated ? (
-              <Link
-                to="/app"
-                className="inline-flex items-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-teal-200/60 hover:shadow-lg hover:shadow-teal-300/60 hover:-translate-y-0.5 transition-all"
-              >
+              <IslandCta to="/app" className="px-5 py-2.5 text-sm">
                 Open the app
-              </Link>
+              </IslandCta>
             ) : (
               <>
-                <Link to="/login" className="text-sm font-bold text-gray-700 hover:text-teal-700 transition-colors px-2">
+                <Link
+                  to="/login"
+                  className="rounded-full px-4 py-2.5 text-sm text-gray-500 fluid duration-500 hover:text-gray-900"
+                >
                   Sign in
                 </Link>
-                <Link
-                  to="/signup"
-                  className="inline-flex items-center rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-teal-200/60 hover:shadow-lg hover:shadow-teal-300/60 hover:-translate-y-0.5 transition-all"
-                >
+                <IslandCta to="/signup" className="px-5 py-2.5 text-sm">
                   Start saving
-                </Link>
+                </IslandCta>
               </>
             )}
           </div>
 
+          {/* The bars rotate into an X rather than being swapped for a cross
+              icon, so the control reads as one object deforming. */}
           <button
             type="button"
             onClick={() => setOpen(true)}
             aria-label="Open menu"
             aria-expanded={open}
-            className="lg:hidden inline-flex items-center justify-center w-11 h-11 rounded-xl text-gray-700 hover:bg-gray-100 transition-colors"
+            className="grid h-10 w-10 place-items-center rounded-full text-gray-700 fluid duration-500 hover:bg-slate-100 lg:hidden"
           >
-            <Menu className="w-6 h-6" />
+            <List size={22} weight="light" />
           </button>
-        </div>
-      </div>
+        </nav>
+      </header>
 
       {open && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-white">
-          <div className="flex items-center justify-between h-20 px-5">
-            <img src={logo} alt="DealNest" width={86} height={46} className="h-11 w-auto" />
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-white/90 backdrop-blur-3xl lg:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu"
+        >
+          <div className="flex items-center justify-between px-5 pt-5 sm:px-6 sm:pt-6">
+            <span className="flex items-center gap-2.5 font-display text-[0.9375rem] font-semibold text-gray-900">
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-teal-600 to-emerald-600">
+                <Storefront size={15} weight="fill" className="text-white" />
+              </span>
+              DealNest
+            </span>
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Close menu"
-              className="inline-flex items-center justify-center w-11 h-11 rounded-xl text-gray-700 hover:bg-gray-100 transition-colors"
+              className="relative grid h-10 w-10 place-items-center rounded-full text-gray-700 fluid duration-500 hover:bg-slate-100"
             >
-              <X className="w-6 h-6" />
+              <span className="absolute h-px w-5 rotate-45 bg-current fluid duration-500" />
+              <span className="absolute h-px w-5 -rotate-45 bg-current fluid duration-500" />
             </button>
           </div>
-          <nav className="px-5 pt-4 flex flex-col" aria-label="Mobile">
-            {LINKS.map(link => (
-              <a
+
+          <ul className="flex flex-1 flex-col justify-center gap-1 px-5 sm:px-6">
+            {LINKS.map((link, i) => (
+              <li
                 key={link.href}
-                href={link.href}
-                onClick={() => setOpen(false)}
-                className="text-lg font-bold text-gray-800 py-4 border-b border-gray-100"
+                /* Slides up out of an invisible box, each link a beat behind the
+                   one above it. The overlay only exists once it is open, so the
+                   entrance has to be driven by a state change after mount rather
+                   than by a class present from the first frame. */
+                className={`fluid duration-700 ${
+                  linksIn ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0'
+                }`}
+                style={{ transitionDelay: `${i * 70}ms` }}
               >
-                {link.label}
-              </a>
-            ))}
-            <Link
-              to="/store-signup"
-              onClick={() => setOpen(false)}
-              className="text-lg font-bold text-gray-800 py-4 border-b border-gray-100"
-            >
-              List your store
-            </Link>
-            <div className="mt-8 flex flex-col gap-3">
-              {isAuthenticated ? (
-                <Link
-                  to="/app"
+                <a
+                  href={link.href}
                   onClick={() => setOpen(false)}
-                  className="w-full text-center rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-4 text-base font-bold text-white"
+                  className="block font-display py-4 text-4xl font-light tracking-tight text-gray-900 fluid duration-500 hover:text-teal-700"
                 >
-                  Open the app
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    to="/signup"
-                    onClick={() => setOpen(false)}
-                    className="w-full text-center rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 px-6 py-4 text-base font-bold text-white"
-                  >
-                    Start saving
-                  </Link>
-                  <Link
-                    to="/login"
-                    onClick={() => setOpen(false)}
-                    className="w-full text-center rounded-2xl border-2 border-teal-600 px-6 py-4 text-base font-bold text-teal-700"
-                  >
-                    Sign in
-                  </Link>
-                </>
-              )}
-            </div>
-          </nav>
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex flex-col gap-3 px-5 pb-8 sm:px-6">
+            <IslandCta to={isAuthenticated ? '/app' : '/signup'} onClick={() => setOpen(false)} className="w-full">
+              {isAuthenticated ? 'Open the app' : 'Start saving'}
+            </IslandCta>
+            {!isAuthenticated && (
+              <Link
+                to="/login"
+                onClick={() => setOpen(false)}
+                className="rounded-full px-6 py-3 text-center text-sm font-semibold text-teal-700 ring-1 ring-inset ring-teal-700/20 fluid duration-500 hover:bg-teal-50"
+              >
+                Sign in
+              </Link>
+            )}
+          </div>
         </div>
       )}
-    </header>
+    </>
   );
 }

@@ -10,8 +10,155 @@
     background-color: #f3f4f6;
     color: #1f2937;
   }
-  
   }
+
+/* ---------------------------------------------------------------------------
+   Landing page
+   The marketing page is its own world: its own typeface, its own easing curves,
+   its own reveal choreography. Nothing below leaks into the app shell, which
+   stays on Inter.
+   --------------------------------------------------------------------------- */
+
+/* The one motion curve used everywhere on the page. A long, weighted tail with
+   almost no initial velocity, so elements arrive rather than appear. */
+@utility ease-fluid {
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The transition used everywhere on the page: the fluid curve, over an explicit
+   list of properties.
+   `transition-all` is the obvious thing to reach for and it is the wrong one. It
+   silently opts the element into animating top/left/width/height/padding if any
+   of those ever change, which is a layout reflow on every frame. Naming the
+   properties keeps the cost on transform and opacity, which the compositor can
+   handle without touching layout at all. */
+@utility fluid {
+  transition-property:
+    color,
+    background-color,
+    border-color,
+    outline-color,
+    text-decoration-color,
+    fill,
+    stroke,
+    opacity,
+    transform,
+    translate,
+    scale,
+    rotate,
+    filter;
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@utility font-display {
+  font-family: 'Geist', 'Inter', sans-serif;
+  font-feature-settings: 'ss01', 'cv01';
+}
+
+@utility font-mono-brand {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+}
+
+/* Scroll-reveal. The element starts displaced, blurred and transparent, and the
+   .is-in class (added by the IntersectionObserver in Reveal.jsx) resolves it.
+   Only transform and opacity animate, so nothing triggers layout. */
+@utility reveal {
+  opacity: 0;
+  transform: translate3d(0, 4rem, 0);
+  filter: blur(12px);
+  transition:
+    opacity 1100ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 1100ms cubic-bezier(0.32, 0.72, 0, 1),
+    filter 1100ms cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform, opacity;
+}
+
+@utility reveal-in {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  filter: blur(0);
+  will-change: auto;
+}
+
+/* Film grain, fixed to the viewport so it never repaints with the document. */
+@utility grain {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------------------------------------------------------------------------
+   The app's own surface tokens, restated for the marketing page.
+   These are lifted from the app shell rather than invented here: gray-50 page,
+   #1f2937 body ink, the teal-600 to emerald-600 action gradient, and the
+   white-glass card treatment from .card-glass. If the app's palette changes,
+   this is the one place to follow it.
+   --------------------------------------------------------------------------- */
+@utility landing-tokens {
+  --ld-page: #f9fafb;
+  --ld-tray: #eef2f7;
+  --ld-surface: #ffffff;
+  --ld-ink: #1f2937;
+  --ld-ink-soft: #4b5563;
+  --ld-ink-mute: #6b7280;
+  --ld-hairline: rgba(15, 23, 42, 0.07);
+  --ld-brand: #0d9488;
+  --ld-brand-deep: #059669;
+}
+
+/* The soft, highly diffused ambient shadow. Same construction as the app's
+   .card-glass, opened up: more spread, far less density, so a card sits in
+   ambient light rather than being stamped onto the page. */
+@utility ambient {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px -8px rgba(15, 23, 42, 0.1),
+    0 24px 48px -16px rgba(15, 23, 42, 0.07);
+}
+
+@utility ambient-lift {
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.05),
+    0 14px 32px -10px rgba(13, 148, 136, 0.16),
+    0 40px 72px -20px rgba(15, 23, 42, 0.1);
+}
+
+/* Hairline used on every bezel: near-black on a light surface. */
+@utility bezel-light {
+  border: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+/* The tray's edge falling onto the plate. On a white core a white highlight is
+   invisible, so the inner shadow does the work instead: it darkens the top
+   inside edge, which is what actually reads as depth. */
+@utility core-sheen {
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+
+/* Double-bezel geometry: the tray, and the plate that sits inside it.
+   The core subtracts the shell's padding from the shell's radius so the two
+   curves stay concentric. These are static utilities on purpose: Tailwind can
+   only emit a utility it can see written out in the source, so a
+   template-interpolated `rounded-[calc(...)]` in a component is invisible to
+   the scanner and silently generates no CSS at all. The values travel as custom
+   properties instead, which needs no class to be guessed.
+
+   The padding is derived from the same --bezel-inset as the radius. Hardcoding
+   it instead would leave the two disagreeing on any card that overrides the
+   inset, and the corner would be a pixel off concentric — the exact thing this
+   construction exists to avoid. */
+@utility bezel-shell {
+  border-radius: var(--bezel-radius, 2rem);
+  padding: var(--bezel-inset, 0.375rem);
+}
+
+@utility bezel-core {
+  border-radius: calc(var(--bezel-radius, 2rem) - var(--bezel-inset, 0.375rem));
+}
 
 /* Hide scrollbars on the app shell only, for the mobile-app look. The landing
    page is a normal scrolling document viewed on desktop too, so it keeps the
@@ -27,6 +174,15 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse {
     animation: none;
+  }
+
+  /* The landing page reveals everything in place when motion is off, rather
+     than leaving content stuck at opacity 0 forever. */
+  .reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
   }
 }
 
