@@ -28,11 +28,20 @@ export function validateEmail(value) {
   if (email.length > MAX_EMAIL_LENGTH) return 'That email address is too long.';
   if (/\s/.test(email)) return 'An email address cannot contain spaces.';
   if (!email.includes('@')) return 'Enter an email address in the format name@example.co.za.';
-  if (email.includes('@', 1) !== email.lastIndexOf('@') + 1) {
+  // Count the separators rather than comparing positions. The previous check
+  // compared `includes('@', 1)` — a boolean — against `lastIndexOf('@') + 1` — a
+  // number. `!==` between a boolean and a number is always true, so this fired on
+  // every address containing an @, and the line above had already handled the
+  // ones without. No valid address could get past it, and the "one @" message
+  // was the only thing a user could ever see.
+  if ((email.match(/@/g) || []).length > 1) {
     return 'An email address can only contain one @.';
   }
-  if (!EMAIL_PATTERN.test(email)) return 'That does not look like a valid email address.';
+  // Ordered ahead of the pattern test so the doubled dot is reported as the
+  // specific typo it is. The pattern rejects it too, so checking it afterwards
+  // meant this branch could never fire and its message was dead.
   if (/\.\./.test(email)) return 'An email address cannot contain two dots in a row.';
+  if (!EMAIL_PATTERN.test(email)) return 'That does not look like a valid email address.';
 
   return null;
 }
