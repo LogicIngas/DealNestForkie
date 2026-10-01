@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { storeService, favoriteService, promotionService } from '../services/api';
+import { storeService, promotionService } from '../services/api';
+import { useFavorites } from '../hooks/useSavedToggles';
 import { Search, Heart, MapPin, List, Map as MapIcon, Store as StoreIcon, SlidersHorizontal, X, Star, Navigation } from 'lucide-react';
 import { CATEGORIES, CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
 import StoreMap from '../components/StoreMap';
@@ -27,11 +28,15 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 
 function matchesSearch(store, term) {
   if (!term) return true;
-  return (
-    store.storeName.toLowerCase().includes(term) ||
-    store.city.toLowerCase().includes(term) ||
-    store.category.toLowerCase().includes(term)
-  );
+  // A store is not obliged to carry a name, a city or a category, and this runs over
+  // every store on the page. Reading .toLowerCase() off a null takes the whole page down
+  // — which surfaces as the category filter "not working", since that is the state the
+  // user was in when they hit it.
+  const haystack = [store.storeName, store.city, store.category]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(term);
 }
 
 const defaultFilters = { categories: [], minRating: 0, maxDistanceKm: null, dealsOnly: false, sortBy: 'relevance' };
@@ -51,6 +56,21 @@ export default function ExplorePage({ user }) {
     categories: isKnownCategory ? [initialCategory] : [],
   }));
   const [userLocation, setUserLocation] = useState(null);
+  const { isFavorite, toggleFavorite } = useFavorites(user);
+
+  // The category chip links on the home page and the landing page carry ?category=.
+  // React Router keeps this component mounted when only the query string changes, so
+  // the seed state below is read once and would otherwise leave the list showing the
+  // previous category. Track the param we have already applied so this only fires on
+  // an actual change, never over a chip the user toggled here.
+  const appliedCategoryParam = useRef(initialCategory);
+  useEffect(() => {
+    if (initialCategory === appliedCategoryParam.current) return;
+    appliedCategoryParam.current = initialCategory;
+    if (!isKnownCategory) return;
+    setFilters(prev => ({ ...prev, categories: [initialCategory] }));
+    setSearchTerm('');
+  }, [initialCategory, isKnownCategory]);
 
   useEffect(() => {
     storeService.getAll()
@@ -137,10 +157,9 @@ export default function ExplorePage({ user }) {
     e.preventDefault();
     e.stopPropagation();
     try {
-      await favoriteService.add(user.userID, storeId);
-      alert('Store added to favorites!');
-    } catch (error) {
-      alert('Error adding to favorites. It may already be saved.');
+      await toggleFavorite(storeId);
+    } catch {
+      // The hook has already put the heart back; nothing useful to add here.
     }
   };
 
@@ -303,6 +322,34 @@ export default function ExplorePage({ user }) {
         </p>
       )}
 
+      {/* Which category is applied, shown whether or not the filter panel is open.
+          A chip link from the landing page or the home feed applies the filter before
+          anything is rendered, and until it is visible here the results look
+          unfiltered — which is indistinguishable from the link having done nothing. */}
+      {filters.categories.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Showing</span>
+          {filters.categories.map(value => {
+            const cat = CATEGORIES.find(c => c.value === value);
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => toggleCategory(value)}
+                aria-label={`Remove ${cat?.label || value} filter`}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-600 text-white hover:bg-teal-500 transition"
+              >
+                {cat?.label || value}
+                <X size={11} aria-hidden="true" />
+              </button>
+            );
+          })}
+          <button type="button" onClick={clearFilters} className="text-xs font-semibold text-gray-500 hover:text-red-500 transition">
+            Clear
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center text-gray-500 py-20">Loading deals...</div>
       ) : view === 'map' ? (
@@ -318,6 +365,7 @@ export default function ExplorePage({ user }) {
           )}
           {filteredStores.map(store => {
             const CatIcon = CATEGORY_ICON[store.category] || StoreIcon;
+            const favorited = isFavorite(store.storeId);
             return (
             <Link key={store.storeId} to={`/app/store/${store.storeId}`} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-start gap-4 hover:shadow-md hover:-translate-y-0.5 transition">
               {store.imageUrl ? (
@@ -341,10 +389,11 @@ export default function ExplorePage({ user }) {
                   <button
                     type="button"
                     onClick={(e) => handleFavorite(store.storeId, e)}
-                    aria-label="Save store"
+                    aria-pressed={favorited}
+                    aria-label={favorited ? 'Remove store from favourites' : 'Save store'}
                     className="min-w-11 min-h-11 flex items-center justify-center hover:bg-red-50 rounded-full transition text-gray-500 hover:text-red-500 flex-shrink-0"
                   >
-                    <Heart size={20} />
+                    <Heart size={20} fill={favorited ? 'currentColor' : 'none'} className={favorited ? 'text-red-500' : ''} />
                   </button>
                 </div>
               </div>

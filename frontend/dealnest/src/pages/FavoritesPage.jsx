@@ -47,20 +47,32 @@ export default function FavoritesPage({ user }) {
   };
 
   const handleRemoveStore = async (favoriteId) => {
-    if (window.confirm("Remove this store from favorites?")) {
+    if (!window.confirm("Remove this store from favorites?")) return;
+    try {
       const success = await favoriteService.remove(favoriteId);
       if (success) {
         setFavorites(prev => prev.filter(f => f.favoriteStoreID !== favoriteId));
+      } else {
+        loadAll();
       }
+    } catch {
+      // The row is still on the server, so re-read the list rather than leave the card
+      // on screen pretending it has gone.
+      loadAll();
     }
   };
 
   const handleRemovePromotion = async (savedPromotionId) => {
-    if (window.confirm("Remove this deal from your saved list?")) {
+    if (!window.confirm("Remove this deal from your saved list?")) return;
+    try {
       const success = await savedPromotionService.remove(savedPromotionId);
       if (success) {
         setSavedPromotions(prev => prev.filter(sp => sp.savedPromotionID !== savedPromotionId));
+      } else {
+        loadAll();
       }
+    } catch {
+      loadAll();
     }
   };
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ClaimSuccessModal from '../components/ClaimSuccessModal';
-import { storeService, promotionService, favoriteService, savedPromotionService, redemptionService } from '../services/api';
+import { storeService, promotionService, redemptionService } from '../services/api';
+import { useFavorites, useSavedDeals, isSaveLimitError } from '../hooks/useSavedToggles';
 import { MapPin, Star, Tag, Clock, ArrowRight, Store as StoreIcon, Heart, Bookmark, Flame, Search, TrendingUp, Ticket } from 'lucide-react';
 import { CATEGORIES, CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
 
@@ -35,8 +36,8 @@ export default function HomePage({ user }) {
   const [loading, setLoading] = useState(true);
   const [promotions, setPromotions] = useState([]);
   const [loadingPromotions, setLoadingPromotions] = useState(true);
-  const [favoriteStoreIds, setFavoriteStoreIds] = useState(new Set());
-  const [savedPromotionIds, setSavedPromotionIds] = useState(new Set());
+  const { isFavorite, toggleFavorite } = useFavorites(user);
+  const { isDealSaved, toggleSavedDeal } = useSavedDeals(user);
   const [searchTerm, setSearchTerm] = useState('');
   const [recommendedStores, setRecommendedStores] = useState(null);
   const [claimingId, setClaimingId] = useState(null);
@@ -67,14 +68,6 @@ export default function HomePage({ user }) {
       .catch(() => setLoadingPromotions(false));
 
     if (user?.userID) {
-      favoriteService.getByUser(user.userID)
-        .then(data => setFavoriteStoreIds(new Set(data.map(f => f.store?.storeId))))
-        .catch(() => {});
-
-      savedPromotionService.getByUser(user.userID)
-        .then(data => setSavedPromotionIds(new Set(data.map(sp => sp.promotion?.promotionID))))
-        .catch(() => {});
-
       // One request, not two. A Plus user used to get /recommended and then
       // /personalized, each of which re-reads and re-ranks every active store, with the
       // first result overwritten by the second and thrown away.
@@ -91,26 +84,22 @@ export default function HomePage({ user }) {
   const handleFavorite = async (storeId, e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user?.userID || favoriteStoreIds.has(storeId)) return;
     try {
-      await favoriteService.add(user.userID, storeId);
-      setFavoriteStoreIds(prev => new Set(prev).add(storeId));
-    } catch (error) {
-      // Store may already be saved; nothing else to do here.
+      await toggleFavorite(storeId);
+    } catch {
+      // The hook has already put the heart back; nothing useful to add here.
     }
   };
 
   const handleSavePromotion = async (promotionId, e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user?.userID || savedPromotionIds.has(promotionId)) return;
     try {
-      await savedPromotionService.add(user.userID, promotionId);
-      setSavedPromotionIds(prev => new Set(prev).add(promotionId));
+      await toggleSavedDeal(promotionId);
     } catch (error) {
-      // Surface the free-plan save cap distinctly; otherwise the promotion may
-      // already be saved, which is fine to ignore.
-      if (error.message?.includes('Upgrade to DealNest Plus')) alert(error.message);
+      // Surface the free-plan save cap distinctly. Anything else has already been
+      // rolled back, so the bookmark going back to its old state is the whole message.
+      if (isSaveLimitError(error)) alert(error.message);
     }
   };
 
@@ -172,7 +161,7 @@ export default function HomePage({ user }) {
           {CATEGORIES.map(cat => (
             <Link
               key={cat.value}
-              to={`/explore?category=${cat.value}`}
+              to={`/app/explore?category=${cat.value}`}
               className="flex-shrink-0 w-20 flex flex-col items-center gap-1.5 text-center snap-start group"
             >
               <div className={`w-14 h-14 ${cat.bg} rounded-2xl flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:scale-105 transition`}>
@@ -203,10 +192,11 @@ export default function HomePage({ user }) {
             {promotions.map(promo => {
               const remaining = daysLeft(promo.endDate);
               const category = promo.store?.category;
+              const saved = isDealSaved(promo.promotionID);
               return (
                 <Link
                   key={promo.promotionID}
-                  to={promo.store ? `/store/${promo.store.storeId}` : '#'}
+                  to={promo.store ? `/app/store/${promo.store.storeId}` : '/app/deals'}
                   className="flex-shrink-0 w-60 snap-start bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition"
                 >
                   <div className="flex items-start justify-between mb-3">
@@ -234,10 +224,11 @@ export default function HomePage({ user }) {
                       <button
                         type="button"
                         onClick={(e) => handleSavePromotion(promo.promotionID, e)}
-                        aria-label="Save deal"
+                        aria-pressed={saved}
+                        aria-label={saved ? 'Remove deal from saved' : 'Save deal'}
                         className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600 flex-shrink-0"
                       >
-                        <Bookmark size={16} fill={savedPromotionIds.has(promo.promotionID) ? 'currentColor' : 'none'} className={savedPromotionIds.has(promo.promotionID) ? 'text-teal-600' : ''} />
+                        <Bookmark size={16} fill={saved ? 'currentColor' : 'none'} className={saved ? 'text-teal-600' : ''} />
                       </button>
                     </div>
                   </div>
@@ -325,7 +316,9 @@ export default function HomePage({ user }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {stores.slice(0, 6).map(store => (
+          {stores.slice(0, 6).map(store => {
+            const favorited = isFavorite(store.storeId);
+            return (
             <Link key={store.storeId} to={`/app/store/${store.storeId}`} className="block bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition">
               <div className="flex items-start gap-4">
                 {store.imageUrl ? (
@@ -353,10 +346,11 @@ export default function HomePage({ user }) {
                       <button
                         type="button"
                         onClick={(e) => handleFavorite(store.storeId, e)}
-                        aria-label="Save store"
+                        aria-pressed={favorited}
+                        aria-label={favorited ? 'Remove store from favourites' : 'Save store'}
                         className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-red-50 transition text-gray-500 hover:text-red-500"
                       >
-                        <Heart size={16} fill={favoriteStoreIds.has(store.storeId) ? 'currentColor' : 'none'} className={favoriteStoreIds.has(store.storeId) ? 'text-red-500' : ''} />
+                        <Heart size={16} fill={favorited ? 'currentColor' : 'none'} className={favorited ? 'text-red-500' : ''} />
                       </button>
                     </div>
                   </div>
@@ -364,7 +358,8 @@ export default function HomePage({ user }) {
                 </div>
               </div>
             </Link>
-          ))}
+          );
+          })}
         </div>
       )}
 

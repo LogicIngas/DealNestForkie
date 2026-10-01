@@ -129,8 +129,8 @@ function App() {
         <Route path="/app/*" element={
           isAuthenticated ?
           <AuthenticatedLayout user={user} role={role} onLogout={logout} onUpdateUser={updateUser} /> :
-          <Navigate to="/login" replace />
-        } />
+          <RequireAuth />
+        }/>
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -146,6 +146,20 @@ function ConsoleFallback() {
       </div>
     </div>
   );
+}
+
+/**
+ * Sends a signed-out visitor to sign-in, carrying where they were headed.
+ *
+ * The category links are the reason this exists. A visitor who clicks a category on the
+ * landing page arrives at /app/explore?category=… which is behind the session, and a bare
+ * redirect to /login dropped the query string on the floor — signing in then landed them
+ * on the home feed with no category applied, which reads as the filter not working. The
+ * pathname and search go across as router state and LoginPage comes back to them.
+ */
+function RequireAuth() {
+  const location = useLocation();
+  return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
 }
 
 function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {

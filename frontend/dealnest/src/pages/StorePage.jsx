@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ClaimSuccessModal from '../components/ClaimSuccessModal';
-import { storeService, promotionService, favoriteService, savedPromotionService, reviewService, redemptionService, dealReportService, priceHistoryService, analyticsService } from '../services/api';
+import { storeService, promotionService, reviewService, redemptionService, dealReportService, priceHistoryService, analyticsService } from '../services/api';
+import { useFavorites, useSavedDeals, isSaveLimitError } from '../hooks/useSavedToggles';
 import { ArrowLeft, MapPin, Star, Tag, Clock, Phone, Mail, Heart, Bookmark, Store as StoreIcon, BadgeCheck, MessageSquare, Pencil, Trash2, Ticket, Flag, Share2, Check, Lock, Sparkles } from 'lucide-react';
 import { CATEGORY_ICON, CATEGORY_BG, CATEGORY_COLOR } from '../constants/categories';
 import ConfirmModal from '../components/ConfirmModal';
@@ -31,8 +32,8 @@ export default function StorePage({ user }) {
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [savedPromotionIds, setSavedPromotionIds] = useState(new Set());
+  const { isFavorite, toggleFavorite } = useFavorites(user);
+  const { isDealSaved, toggleSavedDeal } = useSavedDeals(user);
 
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
@@ -119,17 +120,7 @@ export default function StorePage({ user }) {
       .catch(() => {});
 
     loadReviews();
-
-    if (user?.userID) {
-      favoriteService.getByUser(user.userID)
-        .then(data => setIsFavorite(data.some(f => f.store?.storeId === storeId)))
-        .catch(() => {});
-
-      savedPromotionService.getByUser(user.userID)
-        .then(data => setSavedPromotionIds(new Set(data.map(sp => sp.promotion?.promotionID))))
-        .catch(() => {});
-    }
-  }, [storeId, user?.userID]);
+  }, [storeId]);
 
   useEffect(() => {
     if (!location.hash.startsWith('#deal-') || promotions.length === 0) return;
@@ -143,12 +134,10 @@ export default function StorePage({ user }) {
   }, [location.hash, promotions]);
 
   const handleFavorite = async () => {
-    if (!user?.userID || isFavorite) return;
     try {
-      await favoriteService.add(user.userID, storeId);
-      setIsFavorite(true);
-    } catch (error) {
-      // Store may already be saved; nothing else to do here.
+      await toggleFavorite(storeId);
+    } catch {
+      // The hook has already put the heart back; nothing useful to add here.
     }
   };
 
@@ -222,14 +211,12 @@ export default function StorePage({ user }) {
   };
 
   const handleSavePromotion = async (promotionId) => {
-    if (!user?.userID || savedPromotionIds.has(promotionId)) return;
     try {
-      await savedPromotionService.add(user.userID, promotionId);
-      setSavedPromotionIds(prev => new Set(prev).add(promotionId));
+      await toggleSavedDeal(promotionId);
     } catch (error) {
-      // Surface the free-plan save cap distinctly; otherwise the promotion may
-      // already be saved, which is fine to ignore.
-      if (error.message?.includes('Upgrade to DealNest Plus')) alert(error.message);
+      // Surface the free-plan save cap distinctly. Anything else has already been
+      // rolled back, so the bookmark going back to its old state is the whole message.
+      if (isSaveLimitError(error)) alert(error.message);
     }
   };
 
@@ -288,6 +275,7 @@ export default function StorePage({ user }) {
   const CatIcon = CATEGORY_ICON[store.category] || StoreIcon;
   const openTime = formatTime(store.openingTime);
   const closeTime = formatTime(store.closingTime);
+  const favorited = isFavorite(storeId);
 
   return (
     <div className="p-6 pb-24 max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl mx-auto">
@@ -328,10 +316,11 @@ export default function StorePage({ user }) {
                 <button
                   type="button"
                   onClick={handleFavorite}
-                  aria-label="Save store"
+                  aria-pressed={favorited}
+                  aria-label={favorited ? 'Remove store from favourites' : 'Save store'}
                   className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-red-50 transition text-gray-500 hover:text-red-500"
                 >
-                  <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} className={isFavorite ? 'text-red-500' : ''} />
+                  <Heart size={20} fill={favorited ? 'currentColor' : 'none'} className={favorited ? 'text-red-500' : ''} />
                 </button>
               </div>
             </div>
@@ -385,6 +374,7 @@ export default function StorePage({ user }) {
           {promotions.map(promo => {
             const remaining = daysLeft(promo.endDate);
             const highlighted = highlightedPromoId === promo.promotionID;
+            const saved = isDealSaved(promo.promotionID);
             return (
               <div
                 key={promo.promotionID}
@@ -421,10 +411,11 @@ export default function StorePage({ user }) {
                     <button
                       type="button"
                       onClick={() => handleSavePromotion(promo.promotionID)}
-                      aria-label="Save deal"
+                      aria-pressed={saved}
+                      aria-label={saved ? 'Remove deal from saved' : 'Save deal'}
                       className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600"
                     >
-                      <Bookmark size={18} fill={savedPromotionIds.has(promo.promotionID) ? 'currentColor' : 'none'} className={savedPromotionIds.has(promo.promotionID) ? 'text-teal-600' : ''} />
+                      <Bookmark size={18} fill={saved ? 'currentColor' : 'none'} className={saved ? 'text-teal-600' : ''} />
                     </button>
                     <button
                       type="button"
