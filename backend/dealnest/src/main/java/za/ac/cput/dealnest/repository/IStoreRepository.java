@@ -37,6 +37,29 @@ public interface IStoreRepository extends JpaRepository<Store,String> {
     List<Store> findAllWithOwner();
 
     /**
+     * The leading active stores, stopped at {@code pageable}'s rows.
+     *
+     * <p>The home page draws a fixed number of cards and used to call
+     * {@link #findAllWithOwner()} for them — the entire store table, every owner
+     * attached, unfiltered by the active flag the page filters on anyway — and then kept
+     * the first few rows. That made the page scale with the size of the store directory
+     * rather than with what it shows. This stops at the limit instead.
+     *
+     * <p>Ordered by rating, descending, so the leading rows are the ones a
+     * rating-first card list wants and the cap cannot change which stores appear at the
+     * top. {@code storeId} is the tiebreaker: many stores share a rating (and a brand-new
+     * one shares a null), and without a total order Postgres may return tied rows in a
+     * different order between calls, so a capped query could otherwise show a different
+     * set of stores on two visits.
+     *
+     * <p>Null ratings sort last, matching the browser's previous behaviour of comparing
+     * {@code averageRating} and skipping the nulls.
+     */
+    @Query("select s from Store s join fetch s.user where s.isActive = true"
+            + " order by s.averageRating desc nulls last, s.storeId asc")
+    List<Store> findActive(Pageable pageable);
+
+    /**
      * A single store with its owner attached.
      *
      * <p>{@code findById} cannot serve the read endpoints: a Store is serialised with

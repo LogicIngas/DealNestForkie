@@ -149,6 +149,12 @@ export const userService = {
     return handleResponse(response);
   },
 
+  // Resolves to the user object, with `role` and `storeId` attached.
+  //
+  // The server works out which app this account opens (see UserController#login) so the
+  // sign-in screen doesn't have to ask a second question over a second round trip before
+  // it can paint. `role` is attached onto the returned user rather than returned beside
+  // it, so every existing caller keeps receiving the same object shape.
   login: async (email, password) => {
     const response = await fetch(`${API_BASE_URL}/user/login`, {
       method: 'POST',
@@ -160,7 +166,12 @@ export const userService = {
     if (data.token) {
       localStorage.setItem('dealnest_token', data.token);
     }
-    return data.user ?? data;
+    const user = data.user ?? data;
+    if (user && data.role) {
+      user.role = data.role;
+      user.storeId = data.storeId ?? null;
+    }
+    return user;
   },
 
   getUserById: async (userId) => {
@@ -238,6 +249,15 @@ export const storeService = {
     return handleResponse(response);
   },
 
+  // The capped, highest-rated-first store feed the home page draws. `limit` is the
+  // number of cards on screen, so this is one indexed walk that stops, rather than the
+  // whole store directory arriving for the browser to filter and slice.
+  getActive: async (limit) => {
+    const query = Number.isFinite(limit) ? `?limit=${limit}` : '';
+    const response = await fetch(`${API_BASE_URL}/stores/active${query}`);
+    return handleResponse(response);
+  },
+
   create: async (storeData) => {
     const response = await fetch(`${API_BASE_URL}/stores`, {
       method: 'POST',
@@ -260,16 +280,25 @@ export const storeService = {
     return handleResponse(response, scope);
   },
 
-  getRecommended: async (userId) => {
-    const response = await fetch(`${API_BASE_URL}/stores/recommended/${userId}`, {
+  // The home page's "Recommended" strip.
+  //
+  // The server still ranks EVERY active store and only stops walking afterwards, so the
+  // top of the list is unchanged from the uncapped version — `limit` decides how much of
+  // that ranking comes back, not which stores are scored. Capping here rather than in the
+  // browser is what the limit is for: the response used to carry the whole ranked
+  // directory, and the page mapped over all of it to draw a strip six cards wide.
+  getRecommended: async (userId, limit) => {
+    const query = Number.isFinite(limit) ? `?limit=${limit}` : '';
+    const response = await fetch(`${API_BASE_URL}/stores/recommended/${userId}${query}`, {
       headers: authHeaders(),
     });
     if (!response.ok) return [];
     return handleResponse(response);
   },
 
-  getPersonalized: async (userId) => {
-    const response = await fetch(`${API_BASE_URL}/stores/personalized/${userId}`, {
+  getPersonalized: async (userId, limit) => {
+    const query = Number.isFinite(limit) ? `?limit=${limit}` : '';
+    const response = await fetch(`${API_BASE_URL}/stores/personalized/${userId}${query}`, {
       headers: authHeaders(),
     });
     if (!response.ok) return null;

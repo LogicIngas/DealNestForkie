@@ -7,7 +7,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.domain.User;
+import za.ac.cput.dealnest.repository.IStoreRepository;
 import za.ac.cput.dealnest.security.JwtUtil;
 import za.ac.cput.dealnest.service.IUserService;
 import za.ac.cput.dealnest.service.IPasswordResetService;
@@ -30,12 +32,17 @@ public class UserController {
     private final IUserService userService;
     private final JwtUtil jwtUtil;
     private final IPasswordResetService passwordResetService;
+    private final IStoreRepository storeRepository;
 
     @Autowired
-    public UserController(IUserService userService, JwtUtil jwtUtil, IPasswordResetService passwordResetService) {
+    public UserController(IUserService userService,
+                          JwtUtil jwtUtil,
+                          IPasswordResetService passwordResetService,
+                          IStoreRepository storeRepository) {
         this.userService = userService;
         this.jwtUtil = jwtUtil;
         this.passwordResetService = passwordResetService;
+        this.storeRepository = storeRepository;
     }
 
     @PostMapping("/create")
@@ -43,15 +50,46 @@ public class UserController {
             return userService.create(user);
     }
 
+    /**
+     * Signs a customer or store owner in.
+     *
+     * <p>The response carries a {@code role} of either {@code store} or {@code customer},
+     * because the sign-in screen has to know which of the two apps to open. It used to
+     * work that out by calling {@code /stores/findByUserId} as a second request, which it
+     * could only issue once this one had returned — so every login paid a second full
+     * round trip before the app painted anything. Deciding it here costs one indexed
+     * lookup against idx_stores_owner and keeps it off the critical path.
+     *
+     * <p>{@code storeId} is here so the store dashboard does not have to discover its own
+     * identity through {@code /stores/findByUserId} on arrival. It still reads the store
+     * record once — it has to, to render anything — but by primary key rather than by
+     * scanning for the owner. A session restored from localStorage has no {@code storeId}
+     * on it, so the dashboard keeps the lookup as a fallback.
+     *
+     * <p>Additive only — {@code token} and {@code user} are unchanged, so a client that
+     * ignores the new fields, or one predating them, behaves exactly as before.
+     */
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody User credentials) {
         return userService.login(credentials.getEmail(), credentials.getPassword())
                 .<ResponseEntity<?>>map(user -> {
                     String token = jwtUtil.generateUserToken(user.getUserID(), user.getEmail());
-                    return ResponseEntity.ok(Map.of("token", token, "user", user));
+                    return ResponseEntity.ok(buildLoginResponse(token, user));
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("message", "Incorrect email or password.")));
+    }
+
+    // LinkedHashMap rather than Map.of because storeId is legitimately null for a
+    // customer, and Map.of rejects null values.
+    private Map<String, Object> buildLoginResponse(String token, User user) {
+        Store linkedStore = storeRepository.findByUser_UserID(user.getUserID()).orElse(null);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("token", token);
+        response.put("user", user);
+        response.put("role", linkedStore != null ? "store" : "customer");
+        response.put("storeId", linkedStore != null ? linkedStore.getStoreId() : null);
+        return response;
     }
 
     @PostMapping("/forgot-password")

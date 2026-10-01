@@ -11,7 +11,7 @@ import CardCheckoutForm from '../components/CardCheckoutForm';
 import { CATEGORIES } from '../constants/categories';
 import { storageService } from '../services/storageService';
 import ConfirmModal from '../components/ConfirmModal';
-import logo from '../assets/logo.png';
+import { LOGO_HEADER } from '../assets/logos';
 import { validateEmail, normaliseEmail } from '../lib/validation';
 
 function daysLeft(endDate) {
@@ -94,9 +94,20 @@ export default function StoreDashboard({ user, onLogout }) {
 
   const isPro = userStore?.planTier === 'PRO';
 
+  // /user/login hands back the store id for a store owner, so this usually does not have
+  // to ask. It still falls back to the lookup: a session restored from localStorage has
+  // no storeId on it (it predates the field), and the dashboard cannot render anything
+  // without the store record, so a missing id has to be resolved rather than assumed away.
   useEffect(() => {
     if (!user?.userID) return;
     setLoadingStore(true);
+    if (user.storeId) {
+      storeService.getById(user.storeId)
+        .then(setUserStore)
+        .catch(() => storeService.findByUserId(user.userID).then(setUserStore))
+        .finally(() => setLoadingStore(false));
+      return;
+    }
     storeService.findByUserId(user.userID)
       .then(setUserStore)
       .finally(() => setLoadingStore(false));
@@ -463,7 +474,7 @@ export default function StoreDashboard({ user, onLogout }) {
     <div className="min-h-screen bg-gray-50 pb-12">
       <div className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <img src={logo} alt="DealNest" width={103} height={56} className="h-14 w-auto" />
+          <img src={LOGO_HEADER.src} srcSet={LOGO_HEADER.srcSet} sizes={LOGO_HEADER.sizes} alt="DealNest" width={103} height={56} decoding="async" className="h-14 w-auto" />
           <span className="text-xs font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded uppercase tracking-wider">Store</span>
         </div>
         <button type="button" onClick={onLogout} aria-label="Log out" className="min-w-11 min-h-11 flex items-center justify-center text-gray-500 hover:text-red-500 transition">

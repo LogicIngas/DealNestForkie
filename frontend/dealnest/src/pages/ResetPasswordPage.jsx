@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 import { userService } from '../services/api';
-import logo from '../assets/logo.png';
+import { LOGO_LARGE } from '../assets/logos';
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -48,7 +48,15 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md transform transition-all">
         <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden border border-white/20">
           <div className="px-8 pt-8 pb-4 text-center">
-            <img src={logo} alt="DealNest" width={220} height={120} className="h-[120px] w-auto mx-auto" />
+            <img
+          src={LOGO_LARGE.src}
+          srcSet={LOGO_LARGE.srcSet}
+          sizes={LOGO_LARGE.sizes}
+          alt="DealNest"
+          width={220}
+          height={120}
+          className="h-[120px] w-auto mx-auto"
+        />
           </div>
           <div className="p-8">
             <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Set New Password</h2>

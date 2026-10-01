@@ -1,5 +1,6 @@
 package za.ac.cput.dealnest.service.impl;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.domain.StoreCategory;
@@ -95,6 +96,11 @@ public class StoreServiceImpl implements IStoreService {
     @Override
     public List<Store> findByIsActiveTrue() {
         return repository.findByIsActiveTrue();
+    }
+
+    @Override
+    public List<Store> findActive(int limit) {
+        return repository.findActive(PageRequest.ofSize(Math.max(limit, 1)));
     }
 
     @Override

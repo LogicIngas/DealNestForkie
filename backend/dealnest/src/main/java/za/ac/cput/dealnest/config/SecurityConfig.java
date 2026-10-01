@@ -85,6 +85,9 @@ public class SecurityConfig {
 
                 // Stores: anyone can browse stores
                 .requestMatchers(HttpMethod.GET, "/api/stores").permitAll()
+                // Declared before /api/stores/{id} so the capped, ranked home-page feed is
+                // matched as the literal path rather than read as a store id of "active".
+                .requestMatchers(HttpMethod.GET, "/api/stores/active").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/stores/{id}").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/stores/findByUserId/**").permitAll()
 

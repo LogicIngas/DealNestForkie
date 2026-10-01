@@ -43,11 +43,16 @@ export default function HomePage({ user }) {
   const [claimingId, setClaimingId] = useState(null);
   const [claimedCode, setClaimedCode] = useState(null);
 
+  // "Stores For You" draws six cards and "Recommended" draws six. Both used to arrive
+  // whole and get sliced in the browser.
+  const STORE_FEED_SIZE = 12;
+  const RECOMMENDED_LIMIT = 6;
+
   useEffect(() => {
-    storeService.getAll()
+    storeService.getActive(STORE_FEED_SIZE)
       .then(data => {
-        // Keep only active stores for the home page
-        setStores(data.filter(s => s.active === true));
+        // Already active-only and highest-rated-first from the server.
+        setStores(data || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -75,7 +80,10 @@ export default function HomePage({ user }) {
         ? storeService.getPersonalized
         : storeService.getRecommended;
 
-      loadRecommendations(user.userID)
+      // The strip is six cards wide. The server ranks every active store and then stops
+      // walking, so the six it returns are the same six the uncapped call produced — this
+      // only keeps the rest of the ranked directory out of the response.
+      loadRecommendations(user.userID, RECOMMENDED_LIMIT)
         .then(data => setRecommendedStores(data))
         .catch(() => setRecommendedStores(null));
     }
@@ -124,10 +132,11 @@ export default function HomePage({ user }) {
     else navigate('/app/deals');
   };
 
-  const topRatedStores = [...stores]
-    .filter(s => s.averageRating != null)
-    .sort((a, b) => b.averageRating - a.averageRating)
-    .slice(0, 6);
+  // Fallback for when there are no recommendations yet — a brand-new account with no
+  // saved stores, or the request failed. `stores` already arrives highest-rated-first with
+  // the unrated ones last, so this only trims to six; the sort it used to do here
+  // re-ordered a list the database had already ordered.
+  const topRatedStores = stores.slice(0, 6);
 
   const displayRecommended = recommendedStores && recommendedStores.length > 0 ? recommendedStores : topRatedStores;
 

@@ -1,21 +1,33 @@
-import React, { useState, Suspense } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { LogOut, Home, Search, Heart, UserCircle, Ticket } from 'lucide-react';
-import logo from './assets/logo.png';
+import { LOGO_HEADER } from './assets/logos';
 import NotificationBell from './components/NotificationBell';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
 import LandingPage from './pages/LandingPage';
-import HomePage from './pages/HomePage';
-import ExplorePage from './pages/ExplorePage';
-import DealsPage from './pages/DealsPage';
-import StorePage from './pages/StorePage';
-import FavoritesPage from './pages/FavoritesPage';
-import ProfilePage from './pages/ProfilePage';
-import StoreDashboard from './pages/StoreDashboard';
-import StoreSignupPage from './pages/StoreSignupPage'; // New file we will create next
-import ResetPasswordPage from './pages/ResetPasswordPage';
 import { hasValidToken } from './services/api';
+
+// Every page is a separate chunk, fetched when its route is first matched.
+//
+// These were all eager imports, so one bundle carried the sign-in form, all six landing
+// sections, the admin console, the store dashboard and every leaf of leaflet — 891 kB of
+// JS and 80 kB of CSS that a visitor sitting on the login form had to download, parse and
+// execute before the form appeared. Splitting per route means the login screen fetches
+// the login screen.
+//
+// LandingPage is the exception: it is the root route, so any visitor landing on the site
+// lands on it, and a chunk fetched on arrival is a round trip before anything paints. It
+// stays in the initial bundle. Everything below it is reached by an explicit click.
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const SignupPage = lazy(() => import('./pages/SignupPage'));
+const HomePage = lazy(() => import('./pages/HomePage'));
+const ExplorePage = lazy(() => import('./pages/ExplorePage'));
+const DealsPage = lazy(() => import('./pages/DealsPage'));
+const StorePage = lazy(() => import('./pages/StorePage'));
+const FavoritesPage = lazy(() => import('./pages/FavoritesPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const StoreDashboard = lazy(() => import('./pages/StoreDashboard'));
+const StoreSignupPage = lazy(() => import('./pages/StoreSignupPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 
 // The admin console is not part of the public site. Its routes are only
 // registered when VITE_ADMIN_CONSOLE=true is set at BUILD time, so by default
@@ -31,8 +43,8 @@ import { hasValidToken } from './services/api';
 // at the routing layer, it does not strip the files from the build output.
 const ADMIN_CONSOLE_ENABLED = import.meta.env.VITE_ADMIN_CONSOLE === 'true';
 
-const AdminLoginPage = React.lazy(() => import('./pages/AdminLoginPage'));
-const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
+const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 
 // Reads a JSON blob back out of storage. A truncated or hand-edited value would
 // otherwise throw during render and white-screen the whole app, not just the
@@ -62,9 +74,13 @@ function App() {
 
   const login = (userData, userRole) => {
     setUser(userData);
-    setRole(userRole);
+    // The server now tells us which app this account opens, so the sign-in screen no
+    // longer has to look it up. Anything that doesn't pass a role (the store-signup
+    // flow) keeps whatever it decided for itself.
+    const resolvedRole = userRole ?? userData?.role ?? 'customer';
+    setRole(resolvedRole);
     localStorage.setItem('dealnest_user', JSON.stringify(userData));
-    localStorage.setItem('dealnest_role', userRole);
+    localStorage.setItem('dealnest_role', resolvedRole);
   };
 
   const logout = () => {
@@ -92,11 +108,18 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-['Inter']">
-      <Routes>
+      {/* Covers the top-level route components (sign-in, sign-up, the store dashboard,
+          the admin console). None of these render alongside anything else, so when one of
+          their chunks is still downloading there is nothing left on screen to keep — the
+          fallback can simply be the whole page. The signed-in pages are handled by a
+          second boundary below, so switching tabs does not take the header and bottom nav
+          with it. */}
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
         {/* Public marketing page. Stays reachable for signed-in users too — the nav
-            and footer offer "Open the app" rather than hiding the page behind a
-            redirect, so a subscriber can still share the link. */}
-        <Route path="/" element={<LandingPage isAuthenticated={isAuthenticated} />} />
+              and footer offer "Open the app" rather than hiding the page behind a
+              redirect, so a subscriber can still share the link. */}
+          <Route path="/" element={<LandingPage isAuthenticated={isAuthenticated} />} />
 
         <Route path="/login" element={!isAuthenticated ? <LoginPage onLogin={login} /> : <Navigate to="/app" replace />} />
         <Route path="/signup" element={!isAuthenticated ? <SignupPage /> : <Navigate to="/app" replace />} />
@@ -125,15 +148,41 @@ function App() {
         )}
 
         {/* The signed-in shell lives under /app so it can't collide with marketing
-            routes added later. Every internal link carries the same prefix. */}
-        <Route path="/app/*" element={
-          isAuthenticated ?
-          <AuthenticatedLayout user={user} role={role} onLogout={logout} onUpdateUser={updateUser} /> :
-          <RequireAuth />
-        }/>
+              routes added later. Every internal link carries the same prefix. */}
+          <Route path="/app/*" element={
+            isAuthenticated ?
+            <AuthenticatedLayout user={user} role={role} onLogout={logout} onUpdateUser={updateUser} /> :
+            <RequireAuth />
+          }/>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </div>
+  );
+}
+
+// Shown while a top-level route chunk is in flight. Matches the page background rather
+// than a spinner so it reads as "loading" instead of "broken".
+function RouteFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-screen" role="status">
+      <div className="h-8 w-8 rounded-full border-2 border-teal-500 border-t-transparent animate-spin">
+        <span className="sr-only">Loading</span>
+      </div>
+    </div>
+  );
+}
+
+// Shown while a signed-in page chunk is in flight. Confined to the scrollable content
+// area, so the header and bottom nav stay on screen and the tab switch does not read as
+// the app having closed.
+function ContentFallback() {
+  return (
+    <div className="flex items-center justify-center py-24" role="status">
+      <div className="h-8 w-8 rounded-full border-2 border-teal-500 border-t-transparent animate-spin">
+        <span className="sr-only">Loading</span>
+      </div>
     </div>
   );
 }
@@ -180,7 +229,17 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
   return (
     <div className="app-shell flex flex-col h-screen overflow-hidden bg-gray-50">
       <header className="bg-white px-6 py-4 flex justify-between items-center shadow-sm z-10 flex-shrink-0">
-        <img src={logo} alt="DealNest" width={103} height={56} className="h-14 w-auto" />
+<img
+          alt="DealNest"
+          width={103}
+          height={56}
+          src={LOGO_HEADER.src}
+          srcSet={LOGO_HEADER.srcSet}
+          sizes={LOGO_HEADER.sizes}
+          loading="eager"
+          decoding="async"
+          className="h-14 w-auto"
+        />
         <div className="flex items-center gap-2">
           <Link to="/app/profile" className="text-sm font-medium text-gray-600 hidden sm:block hover:text-teal-600 transition mr-2">Hi, {user?.firstName || 'User'}</Link>
           <NotificationBell user={user} />
@@ -198,13 +257,19 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
             redirects back to /app — leaving the header and bottom nav rendered
             over an entirely empty <main> on every tab. */}
         <Routes>
-          <Route index element={<HomePage user={user} />} />
-          <Route path="explore" element={<ExplorePage user={user} />} />
-          <Route path="deals" element={<DealsPage user={user} />} />
-          <Route path="store/:storeId" element={<StorePage user={user} />} />
-          <Route path="favorites" element={<FavoritesPage user={user} />} />
-          <Route path="profile" element={<ProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />} />
-          <Route path="*" element={<Navigate to="/app" replace />} />
+          {/* Each of these is a separate chunk. The boundary lives inside the scroll area
+              so the header, the greeting and the bottom nav stay mounted and visible while
+              the next tab's code downloads. Without it the page would suspend all the way
+              up to the boundary in App(), blanking the entire shell. */}
+          <Suspense fallback={<ContentFallback />}>
+            <Route index element={<HomePage user={user} />} />
+            <Route path="explore" element={<ExplorePage user={user} />} />
+            <Route path="deals" element={<DealsPage user={user} />} />
+            <Route path="store/:storeId" element={<StorePage user={user} />} />
+            <Route path="favorites" element={<FavoritesPage user={user} />} />
+            <Route path="profile" element={<ProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />} />
+            <Route path="*" element={<Navigate to="/app" replace />} />
+          </Suspense>
         </Routes>
       </main>
 

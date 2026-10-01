@@ -37,6 +37,14 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS points integer;
 CREATE INDEX IF NOT EXISTS idx_promotions_active_feed
     ON promotions (is_active, promoted DESC, featured DESC, created_at DESC);
 
+-- The capped home-page store feed: WHERE is_active = true, ordered by average_rating.
+-- Matches that predicate AND that sort, so the leading rows come back already ordered
+-- and the LIMIT stops the walk instead of the database sorting the whole active
+-- directory to throw most of it away. DESC NULLS LAST matches IStoreRepository's
+-- findActive(), which ranks an unrated store below every rated one.
+CREATE INDEX IF NOT EXISTS idx_stores_active_feed
+    ON stores (is_active, average_rating DESC NULLS LAST, store_id);
+
 -- Per-store listings, the store dashboard, and the analytics fan-out all
 -- filter on store_id alone.
 CREATE INDEX IF NOT EXISTS idx_promotions_store

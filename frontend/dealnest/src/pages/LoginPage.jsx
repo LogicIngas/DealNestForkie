@@ -4,7 +4,7 @@ import { Lock, Eye, EyeOff } from 'lucide-react';
 import { userService, storeService } from '../services/api';
 import EmailField from '../components/EmailField';
 import { validateEmail } from '../lib/validation';
-import logo from '../assets/logo.png';
+import { LOGO_LARGE } from '../assets/logos';
 
 export default function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -65,8 +65,17 @@ export default function LoginPage({ onLogin }) {
 
     try {
       const userData = await userService.login(email, password);
-      const linkedStore = await storeService.findByUserId(userData.userID);
-      const userRole = linkedStore ? 'store' : 'customer';
+
+      // The login response already carries the role, so this used to be a second
+      // round trip (/stores/findByUserId) that the browser had to wait on before it
+      // could open the right app. It is only still needed if this server predates that
+      // field, which is the one case where an extra request beats guessing wrong.
+      let userRole = userData?.role;
+      if (!userRole) {
+        const linkedStore = await storeService.findByUserId(userData.userID);
+        userRole = linkedStore ? 'store' : 'customer';
+      }
+
       onLogin(userData, userRole);
       navigate(destination);
     } catch (err) {
@@ -81,7 +90,15 @@ export default function LoginPage({ onLogin }) {
       <div className="w-full max-w-md transform transition-all">
         <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden border border-white/20">
           <div className="px-8 pt-8 pb-4 text-center">
-            <img src={logo} alt="DealNest" width={220} height={120} className="h-[120px] w-auto mx-auto" />
+            <img
+              src={LOGO_LARGE.src}
+              srcSet={LOGO_LARGE.srcSet}
+              sizes={LOGO_LARGE.sizes}
+              alt="DealNest"
+              width={220}
+              height={120}
+              className="h-[120px] w-auto mx-auto"
+            />
           </div>
           <div className="p-8">
             <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">

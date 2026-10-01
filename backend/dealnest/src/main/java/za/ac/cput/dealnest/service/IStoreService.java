@@ -17,6 +17,15 @@ public interface IStoreService extends IService<Store, String>{
 
     List<Store> findByIsActiveTrue();
 
+    /**
+     * The top {@code limit} active stores by rating, owner attached.
+     *
+     * <p>For callers drawing a fixed number of cards. See
+     * {@link IStoreRepository#findActive(org.springframework.data.domain.Pageable)} for
+     * why the walk stops instead of returning the whole table.
+     */
+    List<Store> findActive(int limit);
+
     List<Store> findByStoreNameContainingIgnoreCase(String storeName);
 
     Optional<Store> findByUserId(String userId);

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock } from 'lucide-react';
 import { adminService } from '../services/api';
 import EmailField from '../components/EmailField';
-import logo from '../assets/logo.png';
+import { LOGO_LARGE } from '../assets/logos';
 import { validateEmail } from '../lib/validation';
 
 export default function AdminLoginPage({ onLogin }) {
@@ -43,7 +43,15 @@ export default function AdminLoginPage({ onLogin }) {
       <div className="w-full max-w-md">
         <div className="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden border border-white/20">
           <div className="px-8 pt-8 pb-4 text-center">
-            <img src={logo} alt="DealNest" width={183} height={100} className="h-[100px] w-auto mx-auto" />
+            <img
+              src={LOGO_LARGE.src}
+              srcSet={LOGO_LARGE.srcSet}
+              sizes={LOGO_LARGE.sizes}
+              alt="DealNest"
+              width={183}
+              height={100}
+              className="h-[100px] w-auto mx-auto"
+            />
             <p className="flex items-center justify-center gap-1 text-xs font-bold text-gray-500 uppercase tracking-wider mt-2">
               <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" /> Admin Portal
             </p>

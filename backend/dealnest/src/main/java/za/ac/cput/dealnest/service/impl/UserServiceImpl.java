@@ -139,11 +139,22 @@ public class UserServiceImpl implements IUserService {
         LocalDateTime last = user.getLastActivityDate();
         int current = user.getCurrentStreak();
 
+        // Already checked in today. Nothing below would change the streak or the
+        // points, and rewriting lastActivityDate with a later time on the same date is
+        // invisible to everything that reads it — the comparisons here only ever look at
+        // the date, never the time of day.
+        //
+        // This used to fall through to repository.save() and put an UPDATE on the users
+        // table in front of every sign-in after the first one of the day, writing a row
+        // that came back identical. Returning the user as-is keeps the write off the
+        // path between pressing Sign In and the token coming back.
+        if (last != null && last.toLocalDate().equals(now.toLocalDate())) {
+            return user;
+        }
+
         if (last == null) {
             user.setCurrentStreak(1);
             user.setPoints((user.getPoints() == null ? 0 : user.getPoints()) + 2);
-        } else if (last.toLocalDate().equals(now.toLocalDate())) {
-            // Already checked in today: streak and points stay as they are.
         } else if (last.toLocalDate().plusDays(1).equals(now.toLocalDate())) {
             user.setCurrentStreak(current + 1);
             user.setPoints((user.getPoints() == null ? 0 : user.getPoints()) + 2);
