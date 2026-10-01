@@ -30,6 +30,23 @@ public class SavedPromotionServiceImpl implements ISavedPromotionService {
 
     @Override
     public SavedPromotion create(SavedPromotion savedPromotion) {
+        // A repeat save answers with the row that already exists instead of writing a
+        // second one — the same idempotency the favourite store gets, and for the same
+        // reason: a duplicate survives an unsave, so the bookmark appears not to clear.
+        //
+        // This has to run before the cap check below. Re-saving a deal the user already
+        // has saved is not a new save, so answering 402 for it would both refuse a no-op
+        // and report the cap as the reason the bookmark would not fill.
+        String userId = savedPromotion.getUser() != null ? savedPromotion.getUser().getUserID() : null;
+        String promotionId = savedPromotion.getPromotion() != null
+                ? savedPromotion.getPromotion().getPromotionID() : null;
+        if (userId != null && promotionId != null) {
+            List<SavedPromotion> existing = repository.findByUserAndPromotion(userId, promotionId);
+            if (!existing.isEmpty()) {
+                return existing.get(0);
+            }
+        }
+
         if (savedPromotion.getUser() != null) {
             User user = userService.read(savedPromotion.getUser().getUserID());
             if (user != null && user.getPlanTier() != UserPlanTier.PLUS

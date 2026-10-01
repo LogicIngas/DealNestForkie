@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 import { userService, storeService } from '../services/api';
 import EmailField from '../components/EmailField';
@@ -17,6 +17,16 @@ export default function LoginPage({ onLogin }) {
   const [resetMessage, setResetMessage] = useState('');
   const [devResetUrl, setDevResetUrl] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Where to go once signed in. A category link on the landing page or the home feed sends
+  // an anonymous visitor here carrying ?category=…; without this the category was silently
+  // dropped and the visitor landed on an unfiltered home feed. Only in-app paths are
+  // honoured — anything else in the state falls back to /app rather than being navigated to.
+  const destination = (() => {
+    const from = location.state?.from;
+    return typeof from === 'string' && /^\/app(\/|$)/.test(from) ? from : '/app';
+  })();
 
   useEffect(() => {
     sessionStorage.removeItem('dealnest_session_message');
@@ -58,7 +68,7 @@ export default function LoginPage({ onLogin }) {
       const linkedStore = await storeService.findByUserId(userData.userID);
       const userRole = linkedStore ? 'store' : 'customer';
       onLogin(userData, userRole);
-      navigate('/app');
+      navigate(destination);
     } catch (err) {
       setError(err.message || 'Incorrect email or password.');
     } finally {

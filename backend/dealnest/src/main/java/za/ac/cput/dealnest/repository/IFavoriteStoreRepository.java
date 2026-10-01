@@ -28,4 +28,20 @@ public interface IFavoriteStoreRepository extends JpaRepository<FavoriteStore, S
     @Query("select f from FavoriteStore f join fetch f.user join fetch f.store s join fetch s.user "
             + "where f.favoriteStoreID = :favoriteStoreID")
     Optional<FavoriteStore> findDetailedById(@Param("favoriteStoreID") String favoriteStoreID);
+
+    /**
+     * Every row this user has saved for one store.
+     *
+     * <p>{@code favorite_stores} has no uniqueness constraint on (user, store) — schema.sql
+     * only indexes the two columns — so a second save of the same pair would insert a
+     * duplicate row. The heart then reads as filled after one un-heart, because deleting
+     * the row the client was holding leaves the other one behind.
+     *
+     * <p>A List rather than a single result on purpose: if duplicates are already in the
+     * table, a scalar finder throws instead of letting the caller de-duplicate.
+     * Served by idx_favorite_stores_user.
+     */
+    @Query("select f from FavoriteStore f join fetch f.user join fetch f.store s join fetch s.user "
+            + "where f.user.userID = :userID and s.storeId = :storeId")
+    List<FavoriteStore> findByUserAndStore(@Param("userID") String userID, @Param("storeId") String storeId);
 }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import ClaimSuccessModal from '../components/ClaimSuccessModal';
-import { promotionService, savedPromotionService, redemptionService, dealAlertService, searchHistoryService } from '../services/api';
+import { promotionService, redemptionService, dealAlertService, searchHistoryService } from '../services/api';
+import { useSavedDeals, isSaveLimitError } from '../hooks/useSavedToggles';
 import {
   Search, Tag, Clock, Ticket, Bookmark, BellPlus, Flame, Star, Store as StoreIcon, Sparkles, Scale, History, X
 } from 'lucide-react';
@@ -49,7 +50,7 @@ export default function DealsPage({ user }) {
   // the new results.
   const searchGeneration = useRef(0);
 
-  const [savedPromotionIds, setSavedPromotionIds] = useState(new Set());
+  const { isDealSaved, toggleSavedDeal } = useSavedDeals(user);
   const [claimingId, setClaimingId] = useState(null);
   const [claimedCode, setClaimedCode] = useState(null);
 
@@ -139,9 +140,6 @@ export default function DealsPage({ user }) {
 
   useEffect(() => {
     if (user?.userID) {
-      savedPromotionService.getByUser(user.userID)
-        .then(data => setSavedPromotionIds(new Set(data.map(sp => sp.promotion?.promotionID))))
-        .catch(() => {});
       searchHistoryService.getByUser(user.userID)
         .then(items => setRecentSearches(
           items.slice().sort((a, b) => new Date(b.searchDate) - new Date(a.searchDate)).slice(0, 8)))
@@ -222,12 +220,12 @@ export default function DealsPage({ user }) {
   const handleSavePromotion = async (promotionId, e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user?.userID || savedPromotionIds.has(promotionId)) return;
     try {
-      await savedPromotionService.add(user.userID, promotionId);
-      setSavedPromotionIds(prev => new Set(prev).add(promotionId));
+      await toggleSavedDeal(promotionId);
     } catch (error) {
-      if (error.message?.includes('Upgrade to DealNest Plus')) alert(error.message);
+      // Surface the free-plan save cap distinctly. Anything else has already been
+      // rolled back, so the bookmark going back to its old state is the whole message.
+      if (isSaveLimitError(error)) alert(error.message);
     }
   };
 
@@ -401,10 +399,11 @@ export default function DealsPage({ user }) {
           {promotions.map(promo => {
             const remaining = daysLeft(promo.endDate);
             const categoryName = promo.store?.category;
+            const saved = isDealSaved(promo.promotionID);
             return (
               <Link
                 key={promo.promotionID}
-                to={promo.store ? `/store/${promo.store.storeId}` : '#'}
+                to={promo.store ? `/app/store/${promo.store.storeId}` : '/app/deals'}
                 className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition group"
               >
                 <div className="flex items-start justify-between mb-3">
@@ -432,10 +431,11 @@ export default function DealsPage({ user }) {
                     <button
                       type="button"
                       onClick={(e) => handleSavePromotion(promo.promotionID, e)}
-                      aria-label="Save deal"
+                      aria-pressed={saved}
+                      aria-label={saved ? 'Remove deal from saved' : 'Save deal'}
                       className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600 flex-shrink-0"
                     >
-                      <Bookmark size={16} fill={savedPromotionIds.has(promo.promotionID) ? 'currentColor' : 'none'} className={savedPromotionIds.has(promo.promotionID) ? 'text-teal-600' : ''} />
+                      <Bookmark size={16} fill={saved ? 'currentColor' : 'none'} className={saved ? 'text-teal-600' : ''} />
                     </button>
                   </div>
                 </div>
