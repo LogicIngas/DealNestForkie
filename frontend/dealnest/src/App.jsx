@@ -177,13 +177,19 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
       </header>
 
       <main className="flex-1 overflow-y-auto pb-20 bg-gray-50">
+        {/* These paths are relative to the /app/* parent route above, so they
+            must NOT repeat the /app prefix. React Router resolves a descendant
+            route against the parent match, so path="/app" under a parent matched
+            at /app/* asks for /app/app, matches nothing, and the catch-all then
+            redirects back to /app — leaving the header and bottom nav rendered
+            over an entirely empty <main> on every tab. */}
         <Routes>
-          <Route path="/app" element={<HomePage user={user} />} />
-          <Route path="/app/explore" element={<ExplorePage user={user} />} />
-          <Route path="/app/deals" element={<DealsPage user={user} />} />
-          <Route path="/app/store/:storeId" element={<StorePage user={user} />} />
-          <Route path="/app/favorites" element={<FavoritesPage user={user} />} />
-          <Route path="/app/profile" element={<ProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />} />
+          <Route index element={<HomePage user={user} />} />
+          <Route path="explore" element={<ExplorePage user={user} />} />
+          <Route path="deals" element={<DealsPage user={user} />} />
+          <Route path="store/:storeId" element={<StorePage user={user} />} />
+          <Route path="favorites" element={<FavoritesPage user={user} />} />
+          <Route path="profile" element={<ProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />} />
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Routes>
       </main>
