@@ -619,7 +619,12 @@ export const reviewService = {
       method: 'DELETE',
       headers: authHeaders(),
     });
-    return response.ok;
+    // Routed through handleResponse rather than returning response.ok. Returning the
+    // boolean reported a 403 or 500 as a plain "false", which the caller read as a
+    // successful delete: the review list was reloaded, the row came back unchanged, and
+    // the shopper was told nothing had gone wrong.
+    await handleResponse(response);
+    return true;
   },
 };
 

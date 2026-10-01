@@ -120,8 +120,15 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/location/delete/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/location/getAll").hasRole("ADMIN")
 
-                // Admin: review moderation (delete any review, view all reviews)
-                .requestMatchers(HttpMethod.DELETE, "/api/review/delete/**").hasRole("ADMIN")
+                // Admin: view all reviews
+                //
+                // Deliberately no DELETE rule here. Spring Security stops at the first
+                // matcher that matches, so an admin-only matcher on
+                // /api/review/delete/** declared above the user rule further down meant
+                // the admin rule always won: a shopper deleting their own review was
+                // answered 403 and the review stayed put. Deletion is admitted for any
+                // signed-in user here and scoped to the review's own author in
+                // ReviewController, so an admin can still moderate anyone's review.
                 .requestMatchers(HttpMethod.GET, "/api/review/getAll").hasRole("ADMIN")
 
                 // Admin: deal report resolution & oversight
