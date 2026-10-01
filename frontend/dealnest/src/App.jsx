@@ -229,7 +229,7 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
   return (
     <div className="app-shell flex flex-col h-screen overflow-hidden bg-gray-50">
       <header className="bg-white px-6 py-4 flex justify-between items-center shadow-sm z-10 flex-shrink-0">
-<img
+        <img
           alt="DealNest"
           width={103}
           height={56}
@@ -256,12 +256,16 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
             at /app/* asks for /app/app, matches nothing, and the catch-all then
             redirects back to /app — leaving the header and bottom nav rendered
             over an entirely empty <main> on every tab. */}
-        <Routes>
-          {/* Each of these is a separate chunk. The boundary lives inside the scroll area
-              so the header, the greeting and the bottom nav stay mounted and visible while
-              the next tab's code downloads. Without it the page would suspend all the way
-              up to the boundary in App(), blanking the entire shell. */}
-          <Suspense fallback={<ContentFallback />}>
+        {/*
+          The boundary wraps <Routes>; it must not sit inside it. <Routes> builds its
+          route table by walking its children, and anything that is not a <Route> (or a
+          fragment of them) is not a route — a <Suspense> in that position leaves the
+          table unmatchable, which blanks <main> while the header and nav still render.
+          That is the same empty-<main> failure as 3403a70, reached a different way, and
+          it shows up only on the lazy routes.
+        */}
+        <Suspense fallback={<ContentFallback />}>
+          <Routes>
             <Route index element={<HomePage user={user} />} />
             <Route path="explore" element={<ExplorePage user={user} />} />
             <Route path="deals" element={<DealsPage user={user} />} />
@@ -269,8 +273,8 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
             <Route path="favorites" element={<FavoritesPage user={user} />} />
             <Route path="profile" element={<ProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />} />
             <Route path="*" element={<Navigate to="/app" replace />} />
-          </Suspense>
-        </Routes>
+          </Routes>
+        </Suspense>
       </main>
 
       <nav className="fixed bottom-0 w-full bg-white border-t border-gray-200 h-16 flex justify-around items-center z-20 shadow-lg">
