@@ -28,7 +28,7 @@ WHERE password NOT LIKE '$2%';
 -- ============================================================
 
 -- Admin login:
--- Email: admin@dealnest
+-- Email: admin@dealnest.co.za
 -- Password: admin1234
 
 INSERT INTO admins (
@@ -41,7 +41,7 @@ INSERT INTO admins (
 )
 VALUES (
     '5b89bce5-d8a7-476e-899e-a263ba813212',
-    'admin@dealnest',
+    'admin@dealnest.co.za',
     '$2b$10$g8mrETSe5uPbGtZQL4LYTeQaAwpZIdI14oEH7s7fNVErzJW3gP0hO',
     TRUE,
     NOW(),

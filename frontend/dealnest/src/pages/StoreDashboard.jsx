@@ -12,6 +12,7 @@ import { CATEGORIES } from '../constants/categories';
 import { storageService } from '../services/storageService';
 import ConfirmModal from '../components/ConfirmModal';
 import logo from '../assets/logo.png';
+import { validateEmail, normaliseEmail } from '../lib/validation';
 
 function daysLeft(endDate) {
   if (!endDate) return null;
@@ -63,6 +64,7 @@ export default function StoreDashboard({ user, onLogout }) {
   const [showEditStore, setShowEditStore] = useState(false);
   const [storeForm, setStoreForm] = useState(emptyStoreForm);
   const [savingStore, setSavingStore] = useState(false);
+  const [storeFormError, setStoreFormError] = useState('');
 
   const [togglingId, setTogglingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -293,6 +295,16 @@ export default function StoreDashboard({ user, onLogout }) {
 
   const handleSubmitStore = async (e) => {
     e.preventDefault();
+
+    // The store's contact address is shown on its public page, so a typo here
+    // would replace a working address shoppers can reply to.
+    const emailError = validateEmail(storeForm.email);
+    if (emailError) {
+      setStoreFormError(emailError);
+      return;
+    }
+
+    setStoreFormError('');
     setSavingStore(true);
     try {
       const updated = await storeService.update(userStore.storeId, {
@@ -304,7 +316,7 @@ export default function StoreDashboard({ user, onLogout }) {
       setUserStore(updated);
       setShowEditStore(false);
     } catch (error) {
-      alert(error.message || "Failed to update store details.");
+      setStoreFormError(error.message || "Failed to update store details.");
     } finally {
       setSavingStore(false);
     }
@@ -982,6 +994,11 @@ export default function StoreDashboard({ user, onLogout }) {
               <X className="w-6 h-6" />
             </button>
             <h3 className="text-xl font-bold text-gray-800 mb-4">Edit Store Details</h3>
+            {storeFormError && (
+              <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {storeFormError}
+              </div>
+            )}
             <form onSubmit={handleSubmitStore} className="space-y-4">
               <div className="flex items-center gap-3">
                 {storeForm.imageUrl ? (
@@ -1013,7 +1030,16 @@ export default function StoreDashboard({ user, onLogout }) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="store-email" className="sr-only">Email</label>
-                  <input id="store-email" type="email" name="email" autoComplete="email" placeholder="Email" value={storeForm.email} onChange={handleStoreFormChange} className="input-field" />
+                  <input
+                    id="store-email"
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    placeholder="Email"
+                    value={storeForm.email}
+                    onChange={e => setStoreForm({ ...storeForm, email: normaliseEmail(e.target.value) })}
+                    className="input-field"
+                  />
                 </div>
                 <div>
                   <label htmlFor="store-phone" className="sr-only">Phone number</label>

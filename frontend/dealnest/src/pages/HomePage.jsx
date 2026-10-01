@@ -22,7 +22,7 @@ function SectionHeader({ title, icon: Icon, iconClassName = 'text-orange-500' })
       <h3 className="text-lg font-bold text-gray-800 flex items-center gap-1.5">
         {Icon && <Icon size={18} className={iconClassName} />} {title}
       </h3>
-      <Link to="/explore" className="text-xs font-semibold text-teal-600 flex items-center gap-0.5 hover:underline">
+      <Link to="/app/explore" className="text-xs font-semibold text-teal-600 flex items-center gap-0.5 hover:underline">
         See all <ArrowRight size={12} />
       </Link>
     </div>
@@ -131,8 +131,8 @@ export default function HomePage({ user }) {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchTerm.trim()) navigate(`/deals?q=${encodeURIComponent(searchTerm.trim())}`);
-    else navigate('/deals');
+    if (searchTerm.trim()) navigate(`/app/deals?q=${encodeURIComponent(searchTerm.trim())}`);
+    else navigate('/app/deals');
   };
 
   const topRatedStores = [...stores]
@@ -288,7 +288,7 @@ export default function HomePage({ user }) {
             {displayRecommended.map(store => (
               <Link
                 key={store.storeId}
-                to={`/store/${store.storeId}`}
+                to={`/app/store/${store.storeId}`}
                 className="flex-shrink-0 w-40 snap-start bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition text-center"
               >
                 {store.imageUrl ? (
@@ -326,7 +326,7 @@ export default function HomePage({ user }) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {stores.slice(0, 6).map(store => (
-            <Link key={store.storeId} to={`/store/${store.storeId}`} className="block bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition">
+            <Link key={store.storeId} to={`/app/store/${store.storeId}`} className="block bg-white rounded-3xl shadow-sm border border-gray-100 p-4 hover:shadow-lg hover:-translate-y-0.5 transition">
               <div className="flex items-start gap-4">
                 {store.imageUrl ? (
                   <img src={store.imageUrl} alt="" className="w-16 h-16 rounded-2xl object-cover flex-shrink-0" />

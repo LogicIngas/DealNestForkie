@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import { CATEGORIES } from '../constants/categories';
+import { validateEmail, normaliseEmail } from '../lib/validation';
 
 const PLUS_PERKS = ['Unlimited saved deals (free plan caps at 10)', 'A Plus badge on your reviews', 'Deal alerts that ping you when a deal matches your budget'];
 
@@ -96,6 +97,9 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
+  // Live while the edit form is open; the save handler below is the real gate.
+  const emailError = editing ? validateEmail(form.email) : null;
+
   const startEditing = () => {
     setForm({
       firstName: user?.firstName || '',
@@ -108,8 +112,17 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
   };
 
   const handleSave = async () => {
-    setSaving(true);
     setError('');
+
+    // The profile form posts the whole user object, so a bad address here would
+    // otherwise be persisted on the account and quietly break the next login.
+    const emailError = validateEmail(form.email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
+
+    setSaving(true);
     try {
       // Send the full user object so unrelated fields (password, etc.) aren't wiped out.
       const updated = await userService.update(user.userID, { ...user, ...form });
@@ -344,15 +357,15 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 mb-6">
-        <Link to="/favorites" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center hover:shadow-md transition">
+        <Link to="/app/favorites" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center hover:shadow-md transition">
           <div className="text-2xl font-bold text-gray-800">{favorites.length}</div>
           <div className="text-xs text-gray-500 mt-1">Saved Stores</div>
         </Link>
-        <Link to="/favorites" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center hover:shadow-md transition">
+        <Link to="/app/favorites" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center hover:shadow-md transition">
           <div className="text-2xl font-bold text-gray-800">{savedDeals.length}</div>
           <div className="text-xs text-gray-500 mt-1">Saved Deals</div>
         </Link>
-        <Link to="/favorites" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center hover:shadow-md transition">
+        <Link to="/app/favorites" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center hover:shadow-md transition">
           <div className="text-2xl font-bold text-green-600">
             {totalSaved > 0 ? `R${totalSaved.toFixed(2)}` : 'R0.00'}
           </div>
@@ -365,7 +378,7 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-gray-800">Your saves</h3>
-            <Link to="/favorites" className="flex items-center gap-0.5 text-xs font-semibold text-teal-600 hover:underline">
+            <Link to="/app/favorites" className="flex items-center gap-0.5 text-xs font-semibold text-teal-600 hover:underline">
               See all <ChevronRight size={12} />
             </Link>
           </div>
@@ -656,9 +669,20 @@ export default function ProfilePage({ user, onLogout, onUpdateUser }) {
                 type="email"
                 autoComplete="email"
                 value={form.email}
-                onChange={handleChange}
-                className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200 text-sm"
+                onChange={e => setForm({ ...form, email: normaliseEmail(e.target.value) })}
+                aria-invalid={emailError ? 'true' : undefined}
+                aria-describedby={emailError ? 'profile-email-error' : undefined}
+                className={`w-full px-3 py-2 rounded-xl border focus:outline-none focus:ring-2 text-sm ${
+                  emailError
+                    ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
+                    : 'border-gray-200 focus:border-teal-500 focus:ring-teal-200'
+                }`}
               />
+              {emailError && (
+                <p id="profile-email-error" role="alert" className="text-xs font-medium text-red-600 mt-1">
+                  {emailError}
+                </p>
+              )}
               <p className="text-xs text-gray-400 mt-1">This is also what you use to log in.</p>
             </div>
             <div>

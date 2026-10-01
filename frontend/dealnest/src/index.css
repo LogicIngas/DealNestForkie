@@ -11,11 +11,15 @@
     color: #1f2937;
   }
   
-  /* Hide ugly scrollbars for a cleaner mobile look */
-  ::-webkit-scrollbar {
-    width: 0px;
-    background: transparent;
   }
+
+/* Hide scrollbars on the app shell only, for the mobile-app look. The landing
+   page is a normal scrolling document viewed on desktop too, so it keeps the
+   browser's own scrollbar. */
+.app-shell ::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+  background: transparent;
 }
 
 /* Respect the OS-level motion preference for every animate-pulse skeleton

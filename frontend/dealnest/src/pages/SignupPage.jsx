@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, Phone, User, ShoppingBag, MapPin } from 'lucide-react';
+import { Eye, EyeOff, Lock, Phone, User, ShoppingBag, MapPin } from 'lucide-react';
 import { userService } from '../services/api';
+import EmailField from '../components/EmailField';
+import { validateEmail } from '../lib/validation';
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -38,8 +40,18 @@ export default function SignupPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // The browser's own type="email" check accepts "a@b", which no provider
+    // issues. Reject it here so the form never posts a mailbox that cannot
+    // receive the password-reset or voucher emails the product sends.
+    const emailError = validateEmail(formData.email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
+
     setIsLoading(true);
-    
+
     try {
       await userService.register(formData);
       alert('Account created successfully! Please log in.');
@@ -98,17 +110,12 @@ export default function SignupPage() {
               </div>
 
               {/* Email */}
-              <div className="relative">
-                <Mail className="absolute left-4 top-3.5 text-gray-400" size={20} />
-                <input 
-                  type="email" 
-                  name="email" 
-                  placeholder="Email Address" 
-                  onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200 bg-gray-50/50 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200/50 transition-all text-gray-700 placeholder-gray-400"
-                  required 
-                />
-              </div>
+              <EmailField
+                id="signup-email"
+                value={formData.email}
+                onChange={value => setFormData(prev => ({ ...prev, email: value }))}
+                className="w-full py-3.5 rounded-xl border border-gray-200 bg-gray-50/50 focus:outline-none focus:ring-2 transition-all text-gray-700 placeholder-gray-400 focus:border-teal-500 focus:ring-teal-200/50 pr-4"
+              />
 
               {/* Phone */}
               <div className="relative">

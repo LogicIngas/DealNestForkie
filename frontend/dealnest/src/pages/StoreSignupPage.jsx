@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import { storeService, userService } from '../services/api';
 import { CATEGORIES } from '../constants/categories';
+import EmailField from '../components/EmailField';
+import { validateEmail } from '../lib/validation';
 
 export default function StoreSignupPage({ onLogin }) {
   const [formData, setFormData] = useState({
@@ -54,6 +56,15 @@ export default function StoreSignupPage({ onLogin }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // The store's contact address is what shoppers see on the store page and
+    // what a verified badge is checked against, so it has to be a real mailbox.
+    const emailError = validateEmail(formData.email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
+
     setIsLoading(true);
     try {
       // A store owner needs a real login account first, then the store is linked to it.
@@ -85,7 +96,7 @@ export default function StoreSignupPage({ onLogin }) {
       });
 
       onLogin(newUser, 'store');
-      navigate('/');
+      navigate('/app');
     } catch (err) {
       setError(err.message || 'Failed to register store.');
     } finally {
@@ -108,7 +119,12 @@ export default function StoreSignupPage({ onLogin }) {
             <input name="ownerFirstName" placeholder="Your First Name" onChange={handleChange} className="input-field" required />
             <input name="ownerLastName" placeholder="Your Last Name" onChange={handleChange} className="input-field" required />
           </div>
-          <input name="email" type="email" placeholder="Business Email" onChange={handleChange} className="input-field" required />
+          <EmailField
+            id="store-signup-email"
+            value={formData.email}
+            onChange={value => setFormData(prev => ({ ...prev, email: value }))}
+            placeholder="Business Email"
+          />
           <input name="password" type="password" placeholder="Password (min 8 chars)" onChange={handleChange} className="input-field" required minLength={8} />
           <input name="phoneNumber" placeholder="Phone Number" onChange={handleChange} className="input-field" required />
           <input name="address" placeholder="Address" onChange={handleChange} className="input-field" required />

@@ -71,8 +71,15 @@ Demo accounts (password `DealNest123!`):
 | `david@demo.co.za`     | Store owner (3 stores)                                  |
 | `sarah@demo.co.za`     | Store owner (2 stores)                                  |
 
-Admin (seeded by `backend/.../src/main/resources/data.sql`): `admin@dealnest` /
+Admin (seeded by `backend/.../src/main/resources/data.sql`): `admin@dealnest.co.za` /
 `admin1234`.
+
+The admin console is not part of the public site. Its routes (`/admin`, `/admin/login`)
+are only registered when `VITE_ADMIN_CONSOLE=true` is set at build time, which `.env`
+deliberately does not set, so a normal build has no admin login screen and
+`/admin/login` falls through to the landing page. To use the console locally, put
+`VITE_ADMIN_CONSOLE=true` in `frontend/dealnest/.env.local` (git-ignored) and restart
+the dev server.
 
 Things to try after seeding: log in as `pro@demo.co.za` and redeem `plus@demo.co.za`'s
 outstanding air-fryer (R2 199 → R1 199) and TV (R15 999 → R9 599) codes in-store — the

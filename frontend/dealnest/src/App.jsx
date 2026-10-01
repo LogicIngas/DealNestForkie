@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { LogOut, Home, Search, Heart, UserCircle, Ticket } from 'lucide-react';
 import logo from './assets/logo.png';
 import NotificationBell from './components/NotificationBell';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import LandingPage from './pages/LandingPage';
 import HomePage from './pages/HomePage';
 import ExplorePage from './pages/ExplorePage';
 import DealsPage from './pages/DealsPage';
@@ -13,10 +14,25 @@ import FavoritesPage from './pages/FavoritesPage';
 import ProfilePage from './pages/ProfilePage';
 import StoreDashboard from './pages/StoreDashboard';
 import StoreSignupPage from './pages/StoreSignupPage'; // New file we will create next
-import AdminLoginPage from './pages/AdminLoginPage';
-import AdminDashboard from './pages/AdminDashboard';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import { hasValidToken } from './services/api';
+
+// The admin console is not part of the public site. Its routes are only
+// registered when VITE_ADMIN_CONSOLE=true is set at BUILD time, so by default
+// /admin and /admin/login match no route, fall through to the catch-all, and
+// land on the public landing page. Nothing links to them either.
+//
+// Set VITE_ADMIN_CONSOLE=true for a local build, or on a separate private
+// deployment, if you need the console.
+//
+// React.lazy keeps the two admin pages in their own chunks rather than the main
+// bundle, so they are only fetched if a route that mounts them exists. The
+// chunks are still emitted into dist/assets either way — this hides the console
+// at the routing layer, it does not strip the files from the build output.
+const ADMIN_CONSOLE_ENABLED = import.meta.env.VITE_ADMIN_CONSOLE === 'true';
+
+const AdminLoginPage = React.lazy(() => import('./pages/AdminLoginPage'));
+const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 
 // Reads a JSON blob back out of storage. A truncated or hand-edited value would
 // otherwise throw during render and white-screen the whole app, not just the
@@ -77,20 +93,57 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50 font-['Inter']">
       <Routes>
-        <Route path="/login" element={!isAuthenticated ? <LoginPage onLogin={login} /> : <Navigate to="/" replace />} />
-        <Route path="/signup" element={!isAuthenticated ? <SignupPage /> : <Navigate to="/" replace />} />
-        <Route path="/store-signup" element={!isAuthenticated ? <StoreSignupPage onLogin={login} /> : <Navigate to="/" replace />} />
-        <Route path="/reset-password" element={!isAuthenticated ? <ResetPasswordPage /> : <Navigate to="/" replace />} />
+        {/* Public marketing page. Stays reachable for signed-in users too — the nav
+            and footer offer "Open the app" rather than hiding the page behind a
+            redirect, so a subscriber can still share the link. */}
+        <Route path="/" element={<LandingPage isAuthenticated={isAuthenticated} />} />
 
-        <Route path="/admin/login" element={!isAdminAuthenticated ? <AdminLoginPage onLogin={adminLogin} /> : <Navigate to="/admin" replace />} />
-        <Route path="/admin" element={isAdminAuthenticated ? <AdminDashboard admin={admin} onLogout={adminLogout} /> : <Navigate to="/admin/login" replace />} />
+        <Route path="/login" element={!isAuthenticated ? <LoginPage onLogin={login} /> : <Navigate to="/app" replace />} />
+        <Route path="/signup" element={!isAuthenticated ? <SignupPage /> : <Navigate to="/app" replace />} />
+        <Route path="/store-signup" element={!isAuthenticated ? <StoreSignupPage onLogin={login} /> : <Navigate to="/app" replace />} />
+        <Route path="/reset-password" element={!isAuthenticated ? <ResetPasswordPage /> : <Navigate to="/app" replace />} />
 
-        <Route path="/*" element={
+        {ADMIN_CONSOLE_ENABLED && (
+          <>
+            <Route
+              path="/admin/login"
+              element={
+                <Suspense fallback={<ConsoleFallback />}>
+                  {!isAdminAuthenticated ? <AdminLoginPage onLogin={adminLogin} /> : <Navigate to="/admin" replace />}
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <Suspense fallback={<ConsoleFallback />}>
+                  {isAdminAuthenticated ? <AdminDashboard admin={admin} onLogout={adminLogout} /> : <Navigate to="/admin/login" replace />}
+                </Suspense>
+              }
+            />
+          </>
+        )}
+
+        {/* The signed-in shell lives under /app so it can't collide with marketing
+            routes added later. Every internal link carries the same prefix. */}
+        <Route path="/app/*" element={
           isAuthenticated ?
           <AuthenticatedLayout user={user} role={role} onLogout={logout} onUpdateUser={updateUser} /> :
           <Navigate to="/login" replace />
         } />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+    </div>
+  );
+}
+
+function ConsoleFallback() {
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="h-8 w-8 rounded-full border-2 border-teal-400 border-t-transparent animate-spin" role="status">
+        <span className="sr-only">Loading admin console</span>
+      </div>
     </div>
   );
 }
@@ -103,19 +156,19 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
   }
 
   const navItems = [
-    { path: '/', label: 'Home', icon: Home },
-    { path: '/deals', label: 'Deals', icon: Ticket },
-    { path: '/explore', label: 'Explore', icon: Search },
-    { path: '/favorites', label: 'Saved', icon: Heart },
-    { path: '/profile', label: 'Account', icon: UserCircle },
+    { path: '/app', label: 'Home', icon: Home },
+    { path: '/app/deals', label: 'Deals', icon: Ticket },
+    { path: '/app/explore', label: 'Explore', icon: Search },
+    { path: '/app/favorites', label: 'Saved', icon: Heart },
+    { path: '/app/profile', label: 'Account', icon: UserCircle },
   ];
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
+    <div className="app-shell flex flex-col h-screen overflow-hidden bg-gray-50">
       <header className="bg-white px-6 py-4 flex justify-between items-center shadow-sm z-10 flex-shrink-0">
         <img src={logo} alt="DealNest" width={103} height={56} className="h-14 w-auto" />
         <div className="flex items-center gap-2">
-          <Link to="/profile" className="text-sm font-medium text-gray-600 hidden sm:block hover:text-teal-600 transition mr-2">Hi, {user?.firstName || 'User'}</Link>
+          <Link to="/app/profile" className="text-sm font-medium text-gray-600 hidden sm:block hover:text-teal-600 transition mr-2">Hi, {user?.firstName || 'User'}</Link>
           <NotificationBell user={user} />
           <button type="button" onClick={onLogout} aria-label="Log out" className="min-w-11 min-h-11 flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-full transition">
             <LogOut className="w-6 h-6" />
@@ -125,12 +178,13 @@ function AuthenticatedLayout({ user, role, onLogout, onUpdateUser }) {
 
       <main className="flex-1 overflow-y-auto pb-20 bg-gray-50">
         <Routes>
-          <Route path="/" element={<HomePage user={user} />} />
-          <Route path="/explore" element={<ExplorePage user={user} />} />
-          <Route path="/deals" element={<DealsPage user={user} />} />
-          <Route path="/store/:storeId" element={<StorePage user={user} />} />
-          <Route path="/favorites" element={<FavoritesPage user={user} />} />
-          <Route path="/profile" element={<ProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />} />
+          <Route path="/app" element={<HomePage user={user} />} />
+          <Route path="/app/explore" element={<ExplorePage user={user} />} />
+          <Route path="/app/deals" element={<DealsPage user={user} />} />
+          <Route path="/app/store/:storeId" element={<StorePage user={user} />} />
+          <Route path="/app/favorites" element={<FavoritesPage user={user} />} />
+          <Route path="/app/profile" element={<ProfilePage user={user} onLogout={onLogout} onUpdateUser={onUpdateUser} />} />
+          <Route path="*" element={<Navigate to="/app" replace />} />
         </Routes>
       </main>
 

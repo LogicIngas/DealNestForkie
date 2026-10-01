@@ -13,6 +13,9 @@ public class Helper {
     // e.g. 0821234567 or +27821234567
     private static final Pattern PHONE_PATTERN = Pattern.compile("^(\\+?\\d{1,3})?\\d{9,12}$");
 
+    /** RFC 5321 maximum length of a full email address. */
+    private static final int MAX_EMAIL_LENGTH = 254;
+
     public static boolean isNullOrEmpty(String str) {
         // Returns true if the string is actually null or empty
         if (str == null || str.isEmpty()) {
@@ -23,8 +26,23 @@ public class Helper {
     }
 
     public static boolean isValidEmail(String email) {
+        if (email == null) {
+            return false;
+        }
+        String trimmed = email.trim();
+        if (trimmed.isEmpty() || trimmed.length() > MAX_EMAIL_LENGTH) {
+            return false;
+        }
+        // RFC 5321 caps an address at 254 characters. Commons Validator's default
+        // instance is permissive about local-part length, so an address that no
+        // provider can actually accept would otherwise pass.
         EmailValidator validator = EmailValidator.getInstance();
-        return validator.isValid(email);
+        return validator.isValid(trimmed);
+    }
+
+    /** Strips surrounding whitespace so " sam@example.co.za " stores as the same address. */
+    public static String normaliseEmail(String email) {
+        return email == null ? null : email.trim();
     }
 
     public static boolean isValidNumber(float number) {

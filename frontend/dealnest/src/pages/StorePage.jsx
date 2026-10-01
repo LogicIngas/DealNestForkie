@@ -319,7 +319,7 @@ export default function StorePage({ user }) {
               <div className="flex items-center flex-shrink-0">
                 <button
                   type="button"
-                  onClick={() => handleShare({ title: store.storeName, text: `Check out ${store.storeName} on DealNest`, url: `${window.location.origin}/store/${storeId}` }, 'store')}
+                  onClick={() => handleShare({ title: store.storeName, text: `Check out ${store.storeName} on DealNest`, url: `${window.location.origin}/app/store/${storeId}` }, 'store')}
                   aria-label="Share store"
                   className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600"
                 >
@@ -428,7 +428,7 @@ export default function StorePage({ user }) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleShare({ title: promo.title, text: `${promo.title} at ${store.storeName} — on DealNest`, url: `${window.location.origin}/store/${storeId}#deal-${promo.promotionID}` }, promo.promotionID)}
+                      onClick={() => handleShare({ title: promo.title, text: `${promo.title} at ${store.storeName} — on DealNest`, url: `${window.location.origin}/app/store/${storeId}#deal-${promo.promotionID}` }, promo.promotionID)}
                       aria-label="Share deal"
                       className="min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-teal-50 transition text-gray-500 hover:text-teal-600"
                     >

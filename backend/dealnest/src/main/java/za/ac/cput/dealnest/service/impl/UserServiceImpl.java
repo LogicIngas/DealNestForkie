@@ -5,6 +5,9 @@ import org.springframework.stereotype.Service;
 import za.ac.cput.dealnest.domain.User;
 import za.ac.cput.dealnest.repository.IUserRepository;
 import za.ac.cput.dealnest.service.IUserService;
+import za.ac.cput.dealnest.util.Helper;
+import za.ac.cput.dealnest.util.InvalidEmailException;
+import za.ac.cput.dealnest.util.EmailAlreadyRegisteredException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,9 +26,27 @@ public class UserServiceImpl implements IUserService {
 
     @Override
     public User create(User user) {
+        String email = requireValidEmail(user.getEmail());
+
         // Hash the plaintext password before persisting
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+        // Normalise before the uniqueness check so "sam@x.co.za" and
+        // "sam@x.co.za " can't both claim the same address.
+        user.setEmail(email);
+
+        if (repository.existsByEmail(email)) {
+            throw new EmailAlreadyRegisteredException(email);
+        }
+
         return repository.save(user);
+    }
+
+    private String requireValidEmail(String email) {
+        String normalised = Helper.normaliseEmail(email);
+        if (!Helper.isValidEmail(normalised)) {
+            throw new InvalidEmailException(normalised);
+        }
+        return normalised;
     }
 
     @Override
@@ -45,7 +66,13 @@ public class UserServiceImpl implements IUserService {
         }
 
         if (user.getEmail() != null && !user.getEmail().isBlank()) {
-            existing.setEmail(user.getEmail());
+            String email = requireValidEmail(user.getEmail());
+            // A profile edit must not silently move an account onto an address
+            // another user already holds.
+            if (!email.equalsIgnoreCase(existing.getEmail()) && repository.existsByEmail(email)) {
+                throw new EmailAlreadyRegisteredException(email);
+            }
+            existing.setEmail(email);
         }
         existing.setFirstName(user.getFirstName());
         existing.setLastName(user.getLastName());
@@ -77,17 +104,22 @@ public class UserServiceImpl implements IUserService {
 
     @Override
     public Optional<User> findByEmail(String email) {
-        return repository.findByEmail(email);
+        return repository.findByEmail(Helper.normaliseEmail(email));
     }
 
     @Override
     public boolean existsByEmail(String email) {
-        return repository.existsByEmail(email);
+        return repository.existsByEmail(Helper.normaliseEmail(email));
     }
 
     @Override
     public Optional<User> login(String email, String password) {
-        return repository.findByEmail(email)
+        // A malformed address can't match a stored one, so rejecting it here
+        // just saves the caller from a misleading "incorrect email or password".
+        if (!Helper.isValidEmail(email)) {
+            return Optional.empty();
+        }
+        return repository.findByEmail(Helper.normaliseEmail(email))
                 .filter(user -> passwordEncoder.matches(password, user.getPassword()))
                 .map(this::registerDailyCheckIn);
     }

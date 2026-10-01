@@ -6,6 +6,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Store as StoreIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { CATEGORY_ICON } from '../constants/categories';
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -119,9 +120,12 @@ export default function StoreMap({ stores, promotions }) {
                   ) : (
                     <div style={{ fontSize: 12, color: '#999' }}>No active deals</div>
                   )}
-                  <a href={`/store/${store.storeId}`} style={{ fontSize: 12, color: '#0d9488', display: 'inline-block', marginTop: 6 }}>
+                  <Link
+                    to={`/app/store/${store.storeId}`}
+                    style={{ fontSize: 12, color: '#0d9488', display: 'inline-block', marginTop: 6 }}
+                  >
                     View store →
-                  </a>
+                  </Link>
                 </div>
               </Popup>
             </Marker>

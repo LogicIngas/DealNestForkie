@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Mail, Lock } from 'lucide-react';
+import { ShieldCheck, Lock } from 'lucide-react';
 import { adminService } from '../services/api';
+import EmailField from '../components/EmailField';
 import logo from '../assets/logo.png';
+import { validateEmail } from '../lib/validation';
 
 export default function AdminLoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -19,9 +21,14 @@ export default function AdminLoginPage({ onLogin }) {
     setError('');
     setNotice('');
     sessionStorage.removeItem('dealnest_admin_message');
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
     setIsLoading(true);
     try {
-      const adminData = await adminService.login(email, password);
+      const adminData = await adminService.login(email.trim(), password);
       onLogin(adminData);
       navigate('/admin');
     } catch (err) {
@@ -53,23 +60,14 @@ export default function AdminLoginPage({ onLogin }) {
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label htmlFor="admin-email" className="sr-only">Admin email</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" aria-hidden="true" />
-                  <input
-                    id="admin-email"
-                    type="email"
-                    name="email"
-                    autoComplete="email"
-                    placeholder="Admin Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="input-field pl-12"
-                    required
-                  />
-                </div>
-              </div>
+              <EmailField
+                id="admin-email"
+                label="Admin email"
+                hideLabel
+                placeholder="Admin Email"
+                value={email}
+                onChange={setEmail}
+              />
               <div>
                 <label htmlFor="admin-password" className="sr-only">Password</label>
                 <div className="relative">

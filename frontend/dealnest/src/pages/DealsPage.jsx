@@ -339,14 +339,14 @@ export default function DealsPage({ user }) {
           {watchCreated ? (
             <div className="flex items-center justify-between gap-3 bg-teal-50 border border-teal-200 text-teal-700 text-sm p-3 rounded-xl">
               <span>Watching “{keyword}”{budget ? ` under R${budget}` : ''} — we'll ping you when a matching deal goes live.</span>
-              <Link to="/profile" className="font-semibold hover:underline flex-shrink-0">Manage</Link>
+              <Link to="/app/profile" className="font-semibold hover:underline flex-shrink-0">Manage</Link>
             </div>
           ) : watchGated ? (
             <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm p-3 rounded-xl">
               <span className="flex items-center gap-1.5">
                 <Sparkles size={14} className="flex-shrink-0" /> Watching deals is a DealNest Plus perk.
               </span>
-              <Link to="/profile" className="font-semibold hover:underline flex-shrink-0">Upgrade</Link>
+              <Link to="/app/profile" className="font-semibold hover:underline flex-shrink-0">Upgrade</Link>
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3">

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Lock, Eye, EyeOff } from 'lucide-react';
 import { userService, storeService } from '../services/api';
+import EmailField from '../components/EmailField';
+import { validateEmail } from '../lib/validation';
 import logo from '../assets/logo.png';
 
 export default function LoginPage({ onLogin }) {
@@ -25,6 +27,15 @@ export default function LoginPage({ onLogin }) {
     setError('');
     setResetMessage('');
     setDevResetUrl('');
+
+    // Guard both branches: a malformed address on forgot-password would silently
+    // produce the generic "if that account exists" reply and look like a sent email.
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
+
     setIsLoading(true);
 
     if (view === 'forgot_password') {
@@ -47,7 +58,7 @@ export default function LoginPage({ onLogin }) {
       const linkedStore = await storeService.findByUserId(userData.userID);
       const userRole = linkedStore ? 'store' : 'customer';
       onLogin(userData, userRole);
-      navigate('/');
+      navigate('/app');
     } catch (err) {
       setError(err.message || 'Incorrect email or password.');
     } finally {
@@ -92,23 +103,13 @@ export default function LoginPage({ onLogin }) {
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label htmlFor="login-email" className="sr-only">Email address</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" aria-hidden="true" />
-                  <input
-                    id="login-email"
-                    type="email"
-                    name="email"
-                    autoComplete="email"
-                    placeholder="Email Address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="input-field pl-12"
-                    required
-                  />
-                </div>
-              </div>
+              <EmailField
+                id="login-email"
+                label="Email address"
+                hideLabel
+                value={email}
+                onChange={setEmail}
+              />
               {view === 'login' && (
                 <>
                   <div>

@@ -319,7 +319,7 @@ export default function ExplorePage({ user }) {
           {filteredStores.map(store => {
             const CatIcon = CATEGORY_ICON[store.category] || StoreIcon;
             return (
-            <Link key={store.storeId} to={`/store/${store.storeId}`} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-start gap-4 hover:shadow-md hover:-translate-y-0.5 transition">
+            <Link key={store.storeId} to={`/app/store/${store.storeId}`} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-start gap-4 hover:shadow-md hover:-translate-y-0.5 transition">
               {store.imageUrl ? (
                 <img src={store.imageUrl} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
               ) : (

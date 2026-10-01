@@ -5,6 +5,8 @@ import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.domain.StoreCategory;
 import za.ac.cput.dealnest.repository.IStoreRepository;
 import za.ac.cput.dealnest.service.IStoreService;
+import za.ac.cput.dealnest.util.Helper;
+import za.ac.cput.dealnest.util.InvalidEmailException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +23,16 @@ public class StoreServiceImpl implements IStoreService {
 
     @Override
     public Store create(Store store) {
+        store.setEmail(requireValidEmail(store.getEmail()));
         return repository.save(store);
+    }
+
+    private String requireValidEmail(String email) {
+        String normalised = Helper.normaliseEmail(email);
+        if (!Helper.isValidEmail(normalised)) {
+            throw new InvalidEmailException(normalised);
+        }
+        return normalised;
     }
 
     @Override
@@ -31,6 +42,12 @@ public class StoreServiceImpl implements IStoreService {
 
     @Override
     public Store update(Store store) {
+        // The store dashboard edits the contact address directly, so it needs the
+        // same check registration gets — an invalid address here would replace a
+        // good one on the public store page.
+        if (store.getEmail() != null && !store.getEmail().isBlank()) {
+            store.setEmail(requireValidEmail(store.getEmail()));
+        }
         return repository.save(store);
     }
 
@@ -42,12 +59,12 @@ public class StoreServiceImpl implements IStoreService {
 
     @Override
     public Optional<Store> findByEmail(String email) {
-        return this.repository.findByEmail(email);
+        return this.repository.findByEmail(Helper.normaliseEmail(email));
     }
 
     @Override
     public boolean existsByEmail(String email) {
-        return repository.existsByEmail(email);
+        return repository.existsByEmail(Helper.normaliseEmail(email));
     }
 
     @Override

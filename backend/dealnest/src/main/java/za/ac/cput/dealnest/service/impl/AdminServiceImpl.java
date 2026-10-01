@@ -22,6 +22,8 @@ import za.ac.cput.dealnest.repository.IPromotionRepository;
 import za.ac.cput.dealnest.repository.IStoreRepository;
 import za.ac.cput.dealnest.repository.IUserRepository;
 import za.ac.cput.dealnest.service.IAdminService;
+import za.ac.cput.dealnest.util.Helper;
+import za.ac.cput.dealnest.util.InvalidEmailException;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -54,9 +56,18 @@ public class AdminServiceImpl implements IAdminService {
 
     @Override
     public Admin create(Admin admin) {
+        admin.setEmail(requireValidEmail(admin.getEmail()));
         // Client submits the raw password in the passwordHash field; hash it before persisting.
         admin.setPasswordHash(passwordEncoder.encode(admin.getPasswordHash()));
         return repository.save(admin);
+    }
+
+    private String requireValidEmail(String email) {
+        String normalised = Helper.normaliseEmail(email);
+        if (!Helper.isValidEmail(normalised)) {
+            throw new InvalidEmailException(normalised);
+        }
+        return normalised;
     }
 
     @Override
@@ -74,7 +85,7 @@ public class AdminServiceImpl implements IAdminService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found.");
         }
         if (admin.getEmail() != null && !admin.getEmail().isBlank()) {
-            existing.setEmail(admin.getEmail());
+            existing.setEmail(requireValidEmail(admin.getEmail()));
         }
         if (admin.getActive() != null) {
             existing.setActive(admin.getActive());
@@ -100,17 +111,20 @@ public class AdminServiceImpl implements IAdminService {
 
     @Override
     public Optional<Admin> findByEmail(String email) {
-        return repository.findByEmail(email);
+        return repository.findByEmail(Helper.normaliseEmail(email));
     }
 
     @Override
     public boolean existsByEmail(String email) {
-        return repository.existsByEmail(email);
+        return repository.existsByEmail(Helper.normaliseEmail(email));
     }
 
     @Override
     public Optional<Admin> login(String email, String password) {
-        return repository.findByEmail(email)
+        if (!Helper.isValidEmail(email)) {
+            return Optional.empty();
+        }
+        return repository.findByEmail(Helper.normaliseEmail(email))
                 // A deactivated admin has to be refused here, not just hidden in the
                 // admin list: without this check they could still sign in and the
                 // server would mint a fresh long-lived ROLE_ADMIN token for them.
