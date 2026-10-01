@@ -2,17 +2,22 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Minus, Bell, LineChart, Ticket, Upload, CalendarClock, Star, Users, TrendingUp } from 'lucide-react';
 
+// Every entry is an object with an `icon`, never a bare string. The list below
+// renders <feature.icon>, and a string there resolves to undefined and takes the
+// whole page down with React error #130. The first row of each paid plan is the
+// "everything on Free" line, so it uses the same tick as the other inherited
+// rows rather than introducing a new shape.
 const FREE = [
-  'Browse and search every live deal',
-  'Save stores and bookmark deals',
-  '10 saved deals on the free plan',
-  'Claim and redeem voucher codes',
-  'Total-saved tracker, streaks and points',
-  'Reviews, reports and sharing',
+  { icon: Check, text: 'Browse and search every live deal' },
+  { icon: Check, text: 'Save stores and bookmark deals' },
+  { icon: Check, text: '10 saved deals on the free plan' },
+  { icon: Check, text: 'Claim and redeem voucher codes' },
+  { icon: Check, text: 'Total-saved tracker, streaks and points' },
+  { icon: Check, text: 'Reviews, reports and sharing' },
 ];
 
 const PLUS = [
-  'Everything on Free',
+  { icon: Check, text: 'Everything on Free' },
   { icon: Ticket, text: 'Unlimited saved deals' },
   { icon: Bell, text: 'Deal and price-drop alerts' },
   { icon: LineChart, text: 'Price history sparklines' },
@@ -21,7 +26,7 @@ const PLUS = [
 ];
 
 const PRO = [
-  'Everything on Free for your shopfront',
+  { icon: Check, text: 'Everything on Free for your shopfront' },
   { icon: TrendingUp, text: 'Full analytics dashboard' },
   { icon: Users, text: 'Customer insights by city' },
   { icon: CalendarClock, text: 'Promotion scheduling' },
@@ -38,7 +43,7 @@ const PLANS = [
     blurb: 'Everything you need to start using local deals.',
     to: '/signup',
     cta: 'Create a free account',
-    features: FREE.map(text => ({ icon: Check, text, tone: 'neutral' })),
+    features: FREE,
     featured: false,
   },
   {
