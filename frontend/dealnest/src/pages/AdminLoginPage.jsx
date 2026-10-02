@@ -96,6 +96,11 @@ export default function AdminLoginPage({ onLogin }) {
               <button type="submit" disabled={isLoading} className="btn-primary">
                 {isLoading ? 'Signing in…' : 'Sign In'}
               </button>
+              {isLoading && (
+                <p role="status" aria-live="polite" className="text-center text-xs text-gray-400 mt-3">
+                  This can take a few seconds on first load.
+                </p>
+              )}
             </form>
           </div>
         </div>

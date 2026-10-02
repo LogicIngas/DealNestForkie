@@ -43,13 +43,66 @@ public class StoreServiceImpl implements IStoreService {
 
     @Override
     public Store update(Store store) {
-        // The store dashboard edits the contact address directly, so it needs the
-        // same check registration gets — an invalid address here would replace a
-        // good one on the public store page.
-        if (store.getEmail() != null && !store.getEmail().isBlank()) {
-            store.setEmail(requireValidEmail(store.getEmail()));
+        if (store == null || store.getStoreId() == null || store.getStoreId().isBlank()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Store ID is required.");
         }
-        return repository.save(store);
+        Store existing = repository.findById(store.getStoreId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Store not found."));
+        if (store.getEmail() != null && !store.getEmail().isBlank()) {
+            existing.setEmail(requireValidEmail(store.getEmail()));
+        }
+        if (store.getStoreName() != null) {
+            existing.setStoreName(store.getStoreName());
+        }
+        if (store.getDescription() != null) {
+            existing.setDescription(store.getDescription());
+        }
+        if (store.getPhoneNumber() != null) {
+            existing.setPhoneNumber(store.getPhoneNumber());
+        }
+        if (store.getAddress() != null) {
+            existing.setAddress(store.getAddress());
+        }
+        if (store.getCity() != null) {
+            existing.setCity(store.getCity());
+        }
+        if (store.getLatitude() != 0.0 || store.getLongitude() != 0.0) {
+            existing.setLatitude(store.getLatitude());
+            existing.setLongitude(store.getLongitude());
+        }
+        if (store.getOpeningTime() != null) {
+            existing.setOpeningTime(store.getOpeningTime());
+        }
+        if (store.getClosingTime() != null) {
+            existing.setClosingTime(store.getClosingTime());
+        }
+        if (store.getVerified() != null) {
+            existing.setVerified(store.getVerified());
+        }
+        if (store.getActive() != null) {
+            existing.setActive(store.getActive());
+        }
+        if (store.getAverageRating() != null) {
+            existing.setAverageRating(store.getAverageRating());
+        }
+        if (store.getTotalReviews() >= 0) {
+            existing.setTotalReviews(store.getTotalReviews());
+        }
+        if (store.getImageUrl() != null) {
+            existing.setImageUrl(store.getImageUrl());
+        }
+        if (store.getPlanTier() != null) {
+            existing.setPlanTier(store.getPlanTier());
+        }
+        if (store.getPlanRenewsAt() != null) {
+            existing.setPlanRenewsAt(store.getPlanRenewsAt());
+        }
+        if (store.getUser() != null && store.getUser().getUserID() != null) {
+            existing.setUser(store.getUser());
+        }
+        return repository.save(existing);
     }
 
     @Override

@@ -182,8 +182,19 @@ public class PromotionServiceImpl implements IPromotionService {
 
     @Override
     public boolean delete(String promotionId) {
-        repository.deleteById(promotionId);
-        return true;
+        Promotion existing = repository.findById(promotionId).orElse(null);
+        if (existing == null) {
+            return false;
+        }
+        try {
+            repository.delete(existing);
+            return true;
+        } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "Cannot delete promotion because it has related redemptions, price history, or reports."
+            );
+        }
     }
 
     @Override

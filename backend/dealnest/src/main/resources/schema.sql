@@ -115,3 +115,18 @@ CREATE INDEX IF NOT EXISTS idx_search_history_user
 
 CREATE INDEX IF NOT EXISTS idx_deal_reports_promotion
     ON deal_reports (promotion_id);
+
+-- Admin email lookup index
+
+DO 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_indexes
+    WHERE schemaname = 'public'
+    AND tablename = 'admins'
+    AND indexname = 'idx_admins_email'
+  ) THEN
+    CREATE UNIQUE INDEX idx_admins_email ON admins (email);
+  END IF;
+END;
