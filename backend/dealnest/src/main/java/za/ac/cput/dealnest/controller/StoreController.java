@@ -9,6 +9,7 @@ import za.ac.cput.dealnest.domain.AnalyticsEventType;
 import za.ac.cput.dealnest.domain.Store;
 import za.ac.cput.dealnest.domain.User;
 import za.ac.cput.dealnest.domain.UserPlanTier;
+import za.ac.cput.dealnest.repository.IStoreRepository;
 import za.ac.cput.dealnest.repository.IUserRepository;
 import za.ac.cput.dealnest.security.SecurityUtil;
 import za.ac.cput.dealnest.service.IStoreService;
@@ -35,16 +36,19 @@ public class StoreController {
     private final IRecommendationService recommendationService;
     private final IAnalyticsService analyticsService;
     private final IUserRepository userRepository;
+    private final IStoreRepository storeRepository;
 
     @Autowired
     public StoreController(IStoreService storeService,
                            IRecommendationService recommendationService,
                            IAnalyticsService analyticsService,
-                           IUserRepository userRepository) {
+                           IUserRepository userRepository,
+                           IStoreRepository storeRepository) {
         this.storeService = storeService;
         this.recommendationService = recommendationService;
         this.analyticsService = analyticsService;
         this.userRepository = userRepository;
+        this.storeRepository = storeRepository;
     }
 
     @PostMapping
@@ -82,6 +86,34 @@ public class StoreController {
         if (existing == null) return;
         requireStoreAccess(existing.getUser());
         storeService.delete(id);
+    }
+
+    /**
+     * Admin-only: toggle verified / active flags on a store.
+     *
+     * <p>This is a surgical PATCH that touches only the two boolean columns the admin
+     * console controls. It never goes through the general update path, so there is no
+     * risk of email-uniqueness violations, cascade conflicts, or accidental field
+     * overwrites from a stale client-side copy of the store.
+     */
+    @PatchMapping("/{id}/moderate")
+    public ResponseEntity<?> moderateStore(@PathVariable String id,
+                                           @RequestBody Map<String, Object> flags) {
+        if (!SecurityUtil.isAdmin()) {
+            throw new AccessDeniedException("Admin access required.");
+        }
+        Store store = storeRepository.findById(id).orElse(null);
+        if (store == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (flags.containsKey("verified")) {
+            store.setVerified(Boolean.parseBoolean(String.valueOf(flags.get("verified"))));
+        }
+        if (flags.containsKey("active")) {
+            store.setActive(Boolean.parseBoolean(String.valueOf(flags.get("active"))));
+        }
+        Store saved = storeRepository.save(store);
+        return ResponseEntity.ok(saved);
     }
 
     private void requireStoreAccess(User owner) {

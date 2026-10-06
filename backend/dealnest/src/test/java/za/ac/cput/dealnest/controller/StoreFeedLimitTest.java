@@ -37,7 +37,8 @@ class StoreFeedLimitTest {
         storeService = mock(IStoreService.class);
         recommendationService = mock(IRecommendationService.class);
         controller = new StoreController(storeService, recommendationService,
-                mock(IAnalyticsService.class), mock(IUserRepository.class));
+                mock(IAnalyticsService.class), mock(IUserRepository.class),
+                mock(za.ac.cput.dealnest.repository.IStoreRepository.class));
     }
 
     // -----------------------------------------------------------------------

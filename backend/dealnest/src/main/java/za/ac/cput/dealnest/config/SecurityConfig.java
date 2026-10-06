@@ -146,6 +146,7 @@ public class SecurityConfig {
                 // in StoreController against ownership of the store.
                 .requestMatchers(HttpMethod.POST, "/api/stores").authenticated()
                 .requestMatchers(HttpMethod.PUT, "/api/stores/**").authenticated()
+                .requestMatchers(HttpMethod.PATCH, "/api/stores/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/stores/**").authenticated()
 
                 // Admin: view all search history
