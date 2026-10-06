@@ -38,6 +38,18 @@ public class Promotion {
     @OneToMany(mappedBy = "promotion", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SavedPromotion> savedPromotions = new ArrayList<>();
 
+    @JsonIgnore
+    @OneToMany(mappedBy = "promotion", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DealReport> dealReports = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "promotion", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Redemption> redemptions = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "promotion", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PricePoint> priceHistory = new ArrayList<>();
+
     protected Promotion() {
     }
 
@@ -145,6 +157,18 @@ public class Promotion {
         return savedPromotions;
     }
 
+    public List<DealReport> getDealReports() {
+        return dealReports;
+    }
+
+    public List<Redemption> getRedemptions() {
+        return redemptions;
+    }
+
+    public List<PricePoint> getPriceHistory() {
+        return priceHistory;
+    }
+
     public Boolean getFeatured() {
         return featured;
     }
@@ -208,6 +232,18 @@ public class Promotion {
 
     public void setStore(Store store) {
         this.store = store;
+    }
+
+    public void setDealReports(List<DealReport> dealReports) {
+        this.dealReports = dealReports;
+    }
+
+    public void setRedemptions(List<Redemption> redemptions) {
+        this.redemptions = redemptions;
+    }
+
+    public void setPriceHistory(List<PricePoint> priceHistory) {
+        this.priceHistory = priceHistory;
     }
 
     public void setFeatured(Boolean featured) {
