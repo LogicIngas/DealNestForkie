@@ -272,7 +272,7 @@ export default function AdminDashboard({ admin, onLogout }) {
   const toggleStoreVerified = async (store) => {
     setStoreBusyId(store.storeId);
     try {
-      const updated = await storeService.update(store.storeId, { ...store, verified: !store.verified }, ADMIN_SCOPE);
+      const updated = await storeService.moderate(store.storeId, { verified: !store.verified }, ADMIN_SCOPE);
       setStores(prev => prev.map(s => s.storeId === updated.storeId ? updated : s));
       // Verifying moves a store out of the unverified count.
       refreshStats();
@@ -286,7 +286,7 @@ export default function AdminDashboard({ admin, onLogout }) {
   const toggleStoreActive = async (store) => {
     setStoreBusyId(store.storeId);
     try {
-      const updated = await storeService.update(store.storeId, { ...store, active: !store.active }, ADMIN_SCOPE);
+      const updated = await storeService.moderate(store.storeId, { active: !store.active }, ADMIN_SCOPE);
       setStores(prev => prev.map(s => s.storeId === updated.storeId ? updated : s));
       // Suspending moves a store out of the active count.
       refreshStats();

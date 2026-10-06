@@ -280,6 +280,18 @@ export const storeService = {
     return handleResponse(response, scope);
   },
 
+  // Admin-only: toggle verified / active on a store via the surgical PATCH endpoint.
+  // Only sends the flag(s) being changed so there is no risk of constraint violations
+  // from stale or partial store data being merged into the full update path.
+  moderate: async (storeId, flags, scope = USER_SCOPE) => {
+    const response = await fetch(`${API_BASE_URL}/stores/${storeId}/moderate`, {
+      method: 'PATCH',
+      headers: authHeaders(scope),
+      body: JSON.stringify(flags),
+    });
+    return handleResponse(response, scope);
+  },
+
   // The home page's "Recommended" strip.
   //
   // The server still ranks EVERY active store and only stops walking afterwards, so the
