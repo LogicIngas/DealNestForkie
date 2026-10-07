@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Lock, Eye, EyeOff } from 'lucide-react';
+import { Lock, Eye, EyeOff, Tag, MapPin, Zap, Star } from 'lucide-react';
 import { userService, storeService } from '../services/api';
 import EmailField from '../components/EmailField';
 import { validateEmail } from '../lib/validation';
-import { LOGO_LARGE } from '../assets/logos';
+import { LOGO_HEADER } from '../assets/logos';
 
 export default function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -86,50 +86,80 @@ export default function LoginPage({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-600 via-teal-500 to-emerald-600 flex items-center justify-center p-4">
-      <div className="w-full max-w-md transform transition-all">
-        <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden border border-white/20">
-          <div className="px-8 pt-8 pb-4 text-center">
-            <img
-              src={LOGO_LARGE.src}
-              srcSet={LOGO_LARGE.srcSet}
-              sizes={LOGO_LARGE.sizes}
-              alt="DealNest"
-              width={220}
-              height={120}
-              className="h-[120px] w-auto mx-auto"
-            />
+    <div className="min-h-screen flex" style={{ fontFamily: "'Inter', sans-serif" }}>
+
+      {/* ── LEFT PANEL – Form ── */}
+      <div className="flex flex-col justify-center bg-white w-full lg:w-1/2 overflow-y-auto px-8 py-12 sm:px-12 lg:px-16 xl:px-24">
+        <div className="w-full max-w-md mx-auto lg:mx-0">
+
+          {/* Logo — clicks back to the landing page */}
+          <div style={{ marginBottom: '40px' }}>
+            <Link
+              to="/"
+              aria-label="Go to DealNest home"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', transition: 'opacity 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            >
+              <img
+                src={LOGO_HEADER.src}
+                srcSet={LOGO_HEADER.srcSet}
+                sizes={LOGO_HEADER.sizes}
+                alt="DealNest"
+                width={103}
+                height={56}
+                style={{ height: '40px', width: 'auto' }}
+              />
+            </Link>
           </div>
-          <div className="p-8">
-            <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">
-              {view === 'login' ? 'Welcome Back' : 'Reset Password'}
-            </h2>
-            {notice && (
-              <div role="alert" aria-live="polite" className="bg-amber-50 border border-amber-200 text-amber-700 p-3 rounded-xl text-sm mb-4 text-center">
-                {notice}
-              </div>
-            )}
-            {error && (
-              <div role="alert" aria-live="polite" className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-xl text-sm mb-4 text-center">
-                {error}
-              </div>
-            )}
-            {resetMessage && (
-              <div role="alert" aria-live="polite" className="bg-teal-50 border border-teal-200 text-teal-700 p-4 rounded-xl text-sm mb-4 text-center">
-                <p>{resetMessage}</p>
-                {devResetUrl && (
-                  <div className="mt-3 pt-3 border-t border-teal-200">
-                    <a
-                      href={devResetUrl}
-                      className="inline-block px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-lg text-xs transition shadow-sm"
-                    >
-                      🔗 Open Reset Password Page (Local Dev)
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
-            <form onSubmit={handleSubmit} className="space-y-5">
+
+          {/* Heading */}
+          <div style={{ marginBottom: '32px' }}>
+            <h1 style={{ fontSize: '1.875rem', fontWeight: '800', color: '#111827', marginBottom: '8px', lineHeight: '1.2' }}>
+              {view === 'login' ? 'Welcome back!' : 'Reset your password'}
+            </h1>
+            <p style={{ color: '#6b7280', fontSize: '14px', lineHeight: '1.6' }}>
+              {view === 'login'
+                ? 'Sign in to access your deals and continue saving.'
+                : "Enter your email and we'll send you a reset link."}
+            </p>
+          </div>
+
+          {/* Alerts */}
+          {notice && (
+            <div role="alert" aria-live="polite" style={{ background: '#fffbeb', border: '1px solid #fcd34d', color: '#92400e', padding: '12px 16px', borderRadius: '10px', fontSize: '13px', marginBottom: '16px', textAlign: 'center' }}>
+              {notice}
+            </div>
+          )}
+          {error && (
+            <div role="alert" aria-live="polite" style={{ background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626', padding: '12px 16px', borderRadius: '10px', fontSize: '13px', marginBottom: '16px', textAlign: 'center' }}>
+              {error}
+            </div>
+          )}
+          {resetMessage && (
+            <div role="alert" aria-live="polite" style={{ background: '#f0fdfa', border: '1px solid #99f6e4', color: '#0f766e', padding: '16px', borderRadius: '10px', fontSize: '13px', marginBottom: '16px', textAlign: 'center' }}>
+              <p>{resetMessage}</p>
+              {devResetUrl && (
+                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #99f6e4' }}>
+                  <a
+                    href={devResetUrl}
+                    style={{ display: 'inline-block', padding: '8px 16px', background: '#0d9488', color: 'white', fontWeight: '600', borderRadius: '8px', fontSize: '12px', textDecoration: 'none' }}
+                  >
+                    🔗 Open Reset Password Page (Local Dev)
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+            {/* Email */}
+            <div>
+              <label htmlFor="login-email" style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                Email
+              </label>
               <EmailField
                 id="login-email"
                 label="Email address"
@@ -137,66 +167,184 @@ export default function LoginPage({ onLogin }) {
                 value={email}
                 onChange={setEmail}
               />
-              {view === 'login' && (
-                <>
-                  <div>
-                    <label htmlFor="login-password" className="sr-only">Password</label>
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-3.5 text-gray-400 w-5 h-5" aria-hidden="true" />
-                      <input
-                        id="login-password"
-                        type={showPassword ? 'text' : 'password'}
-                        name="password"
-                        autoComplete="current-password"
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="input-field pl-12 pr-12"
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                        className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
-                      >
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <button
-                      type="button"
-                      onClick={() => { setView('forgot_password'); setError(''); setResetMessage(''); }}
-                      className="text-xs font-semibold text-teal-600 hover:underline"
-                    >
-                      Forgot Password?
-                    </button>
-                  </div>
-                </>
-              )}
-              <button type="submit" disabled={isLoading} className="btn-primary">
-                {isLoading ? 'Please wait…' : view === 'login' ? 'Sign In' : 'Send Reset Link'}
-              </button>
-              {view === 'forgot_password' && (
-                <div className="text-center mt-2">
+            </div>
+
+            {/* Password (login only) */}
+            {view === 'login' && (
+              <div>
+                <label htmlFor="login-password" style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Password
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Lock
+                    style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', width: '18px', height: '18px' }}
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    autoComplete="current-password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input-field"
+                    style={{ paddingLeft: '44px', paddingRight: '44px' }}
+                    required
+                  />
                   <button
                     type="button"
-                    onClick={() => { setView('login'); setError(''); setResetMessage(''); }}
-                    className="text-sm font-semibold text-gray-500 hover:text-gray-700 transition"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
                   >
-                    Back to Login
+                    {showPassword ? <EyeOff style={{ width: '18px', height: '18px' }} /> : <Eye style={{ width: '18px', height: '18px' }} />}
                   </button>
                 </div>
-              )}
-            </form>
-            <div className="mt-6 text-center space-y-2">
-              <p className="text-gray-500 text-sm">Don't have a customer account? <Link to="/signup" className="text-teal-600 font-bold">Sign Up</Link></p>
-              <p className="text-gray-500 text-sm">Own a business? <Link to="/store-signup" className="text-teal-600 font-bold">Register Store</Link></p>
-            </div>
+                {/* Forgot password */}
+                <div style={{ textAlign: 'right', marginTop: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setView('forgot_password'); setError(''); setResetMessage(''); }}
+                    style={{ fontSize: '12px', fontWeight: '600', color: '#0d9488', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="btn-primary"
+              style={{ marginTop: '4px', fontSize: '15px', letterSpacing: '0.01em' }}
+            >
+              {isLoading ? 'Please wait…' : view === 'login' ? 'Sign In' : 'Send Reset Link'}
+            </button>
+
+            {/* Back to login (forgot-password mode) */}
+            {view === 'forgot_password' && (
+              <div style={{ textAlign: 'center', marginTop: '-6px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setView('login'); setError(''); setResetMessage(''); }}
+                  style={{ fontSize: '13px', fontWeight: '600', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  ← Back to Login
+                </button>
+              </div>
+            )}
+          </form>
+
+          {/* Footer links */}
+          <div style={{ marginTop: '28px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <p style={{ fontSize: '13px', color: '#6b7280' }}>
+              Don't have a customer account?{' '}
+              <Link to="/signup" style={{ color: '#0d9488', fontWeight: '700', textDecoration: 'none' }}>Sign Up</Link>
+            </p>
+            <p style={{ fontSize: '13px', color: '#6b7280' }}>
+              Own a business?{' '}
+              <Link to="/store-signup" style={{ color: '#0d9488', fontWeight: '700', textDecoration: 'none' }}>Register Store</Link>
+            </p>
+          </div>
+
+        </div>{/* end max-w-md */}
+      </div>{/* end left panel */}
+
+      {/* ── RIGHT PANEL – Brand / Testimonial (desktop only) ── */}
+      <div
+        aria-hidden="true"
+        className="hidden lg:flex lg:w-1/2 flex-col justify-between relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 40%, #059669 100%)',
+          padding: '56px 52px',
+        }}
+      >
+        {/* Decorative blobs */}
+        <div style={{ position: 'absolute', top: '-80px', right: '-80px', width: '360px', height: '360px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '-100px', left: '-60px', width: '280px', height: '280px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: '38%', left: '55%', width: '200px', height: '200px', borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+
+        {/* Top: hero text */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', padding: '6px 14px', borderRadius: '999px', marginBottom: '32px' }}>
+            <Zap style={{ width: '13px', height: '13px', color: '#a7f3d0' }} />
+            <span style={{ fontSize: '11px', fontWeight: '700', color: '#a7f3d0', letterSpacing: '0.07em', textTransform: 'uppercase' }}>South Africa's local deals marketplace</span>
+          </div>
+
+          <h2 style={{ fontSize: '2.75rem', fontWeight: '300', lineHeight: '1.02', letterSpacing: '-0.03em', color: '#ffffff', marginBottom: '20px' }}>
+            The best deals<br />
+            in your street,<br />
+            <span style={{ fontWeight: '800', color: '#a7f3d0' }}>all in one nest.</span>
+          </h2>
+
+          <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.75)', lineHeight: '1.7', maxWidth: '380px' }}>
+            Local stores publish their real promotions. Browse, save and claim a voucher code, then show it in-store. No coupon hunting, no expired printouts.
+          </p>
+
+          {/* Stats row */}
+          <div style={{ display: 'flex', gap: '32px', marginTop: '40px', flexWrap: 'wrap' }}>
+            {[
+              { value: '8', label: 'Deal categories' },
+              { value: '6', label: 'Cities covered' },
+              { value: 'R0', label: 'Free to join' },
+            ].map(stat => (
+              <div key={stat.label}>
+                <div style={{ fontSize: '1.875rem', fontWeight: '800', color: '#ffffff', lineHeight: '1' }}>{stat.value}</div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginTop: '5px', fontWeight: '500', letterSpacing: '0.04em' }}>{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+
+        {/* Bottom: testimonial card + feature badges */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          {/* Testimonial */}
+          <div style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: '16px', padding: '24px 28px', marginBottom: '28px' }}>
+            <svg width="22" height="16" viewBox="0 0 24 18" fill="none" style={{ marginBottom: '12px', opacity: 0.55 }}>
+              <path d="M0 18V10.8C0 7.8 0.9 5.3 2.7 3.3 4.5 1.1 6.9 0 10 0l1.2 2.1C9 2.5 7.3 3.3 6 4.5 4.7 5.7 4 7.2 3.8 9H7V18H0zm13 0V10.8c0-3 .9-5.5 2.7-7.5C17.5 1.1 19.9 0 23 0l1.2 2.1c-2.2.4-3.9 1.2-5.2 2.4-1.3 1.2-2 2.7-2.2 4.5H20V18h-7z" fill="white"/>
+            </svg>
+            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)', lineHeight: '1.65', fontStyle: 'italic', marginBottom: '18px' }}>
+              "DealNest completely changed how I shop. I found a 46% discount on an air fryer I'd been eyeing for months — right at a store two streets away."
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'linear-gradient(135deg, #a7f3d0, #34d399)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', color: '#0f766e', fontSize: '13px', flexShrink: 0 }}>
+                TM
+              </div>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: '#ffffff' }}>Thabo Mokoena</div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', marginTop: '2px' }}>DealNest customer · Johannesburg</div>
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '2px' }}>
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} style={{ width: '12px', height: '12px', fill: '#fbbf24', color: '#fbbf24' }} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Feature chips */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            {[
+              { icon: <Tag style={{ width: '13px', height: '13px' }} />, text: 'Real store deals' },
+              { icon: <MapPin style={{ width: '13px', height: '13px' }} />, text: 'Near you always' },
+              { icon: <Zap style={{ width: '13px', height: '13px' }} />, text: 'Instant vouchers' },
+            ].map(chip => (
+              <div
+                key={chip.text}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)', padding: '7px 14px', borderRadius: '999px', color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: '600' }}
+              >
+                {chip.icon}
+                {chip.text}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>{/* end right panel */}
+
     </div>
   );
 }
+
