@@ -59,9 +59,9 @@ Based on our platform design, DealNest offers:
 
 ---
 
-## 📂 Project Structure & Backend Architecture
+## 📂 Project Structure & Architecture
 
-DealNest follows a scalable, layered architecture to ensure clean separation of concerns.
+DealNest follows a scalable, layered architecture to ensure clean separation of concerns between the frontend and backend.
 
 ```text
 DealNest/
@@ -81,12 +81,25 @@ DealNest/
 │   │   │   │   ├── service/     # Core Business Logic
 │   │   │   │   └── util/        # Helper classes (e.g., Voucher code generators)
 │   │   │   └── test/java/za/ac/cput/dealnest/  # JUnit Tests
-│   ├── Dockerfile           # Backend containerization
-│   ├── pom.xml              # Maven dependencies
-│   └── render.yaml          # Render deployment configuration
+│   │   ├── Dockerfile           # Backend containerization
+│   │   ├── pom.xml              # Maven dependencies
+│   │   └── render.yaml          # Render deployment configuration
 ├── frontend/                # React/JavaScript Frontend
-│   ├── public/              # Static assets
-│   ├── src/                 # UI components, pages (Landing, Pricing, Dashboard)
+│   ├── dealnest/            # Main Frontend Module
+│   │   ├── public/          # Static assets (index.html, icons)
+│   │   ├── src/             # React Source Code
+│   │   │   ├── assets/      # Images, fonts, and global styles
+│   │   │   ├── components/  # Reusable UI components (Buttons, Cards, Navbars)
+│   │   │   ├── constants/   # Static data, API routes, category lists
+│   │   │   ├── hooks/       # Custom React Hooks (e.g., useAuth, useFetch)
+│   │   │   ├── lib/         # Third-party library configurations
+│   │   │   ├── pages/       # Page-level components (Home, Pricing, Dashboard)
+│   │   │   ├── services/    # API call functions connecting to the Spring Boot backend
+│   │   │   ├── App.jsx      # Main application component & routing
+│   │   │   └── main.jsx     # React entry point
+│   │   ├── .env             # Environment variables
+│   │   ├── .oxlintrc.json   # Linting configuration
+│   │   └── package.json     # NPM dependencies
 ├── docs/                    # Documentation, UML diagrams, and screenshots
 ├── docker-compose.yml       # Orchestrates both frontend and backend
 └── README.md                # You are here!
